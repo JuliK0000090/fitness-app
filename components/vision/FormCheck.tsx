@@ -74,8 +74,8 @@ export function FormCheck({ onClose }: FormCheckProps) {
     <div className="fixed inset-0 z-50 bg-background/98 backdrop-blur-xl flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-        <div className="w-8 h-8 rounded-xl bg-[#34D399]/20 flex items-center justify-center">
-          <Activity size={16} className="text-[#34D399]" />
+        <div className="w-8 h-8 rounded-xl bg-white/[0.04] flex items-center justify-center">
+          <Activity size={16} className="text-white/50" />
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold">Form Check</p>
@@ -103,7 +103,7 @@ export function FormCheck({ onClose }: FormCheckProps) {
             />
             {!streaming && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-[#34D399] border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
               </div>
             )}
 
@@ -118,8 +118,8 @@ export function FormCheck({ onClose }: FormCheckProps) {
                 </div>
                 {/* Center crosshair */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8">
-                  <div className="absolute top-1/2 left-0 right-0 h-px bg-[#34D399]/60" />
-                  <div className="absolute left-1/2 top-0 bottom-0 w-px bg-[#34D399]/60" />
+                  <div className="absolute top-1/2 left-0 right-0 h-px bg-white/30" />
+                  <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/30" />
                 </div>
               </div>
             )}
@@ -136,7 +136,7 @@ export function FormCheck({ onClose }: FormCheckProps) {
               key={e}
               onClick={() => setExercise(e)}
               className={`shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors ${
-                exercise === e ? "bg-[#34D399]/20 text-[#34D399]" : "bg-secondary text-muted-foreground"
+                exercise === e ? "bg-white/[0.06] text-white/50" : "bg-secondary text-muted-foreground"
               }`}
             >
               {e}
@@ -148,7 +148,7 @@ export function FormCheck({ onClose }: FormCheckProps) {
         <div className="glass rounded-2xl p-4 flex items-center gap-4">
           <div className="flex-1">
             <p className="text-xs text-muted-foreground">{exercise} reps</p>
-            <p className="text-4xl font-black text-[#34D399]">{manualReps}</p>
+            <p className="text-4xl font-black text-white/50">{manualReps}</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -159,7 +159,7 @@ export function FormCheck({ onClose }: FormCheckProps) {
             </button>
             <button
               onClick={() => setManualReps((r) => r + 1)}
-              className="w-12 h-12 rounded-2xl bg-[#34D399]/10 text-xl font-bold text-[#34D399] hover:bg-[#34D399]/20 transition-colors"
+              className="w-12 h-12 rounded-2xl bg-white/[0.04] text-xl font-bold text-white/50 hover:bg-white/[0.06] transition-colors"
             >
               +
             </button>

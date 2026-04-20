@@ -42,18 +42,18 @@ export function WeekView({ weekLabel, days, weeklyReviews }: WeekViewProps) {
       {/* Summary bar */}
       <div className="grid grid-cols-3 gap-2 fu2">
         <div className="glass rounded-2xl p-3 text-center">
-          <Dumbbell size={16} className="mx-auto mb-1 text-[#A78BFA]" />
-          <p className="text-xl font-bold text-[#A78BFA]">{totalWorkouts}</p>
+          <Dumbbell size={16} className="mx-auto mb-1 text-white/50" />
+          <p className="text-xl font-bold text-white/60">{totalWorkouts}</p>
           <p className="text-[10px] text-muted-foreground">Workouts</p>
         </div>
         <div className="glass rounded-2xl p-3 text-center">
-          <CheckCircle2 size={16} className="mx-auto mb-1 text-[#34D399]" />
-          <p className="text-xl font-bold text-[#34D399]">{days.reduce((s, d) => s + d.checklistDone, 0)}</p>
+          <CheckCircle2 size={16} className="mx-auto mb-1 text-white/50" />
+          <p className="text-xl font-bold text-white/60">{days.reduce((s, d) => s + d.checklistDone, 0)}</p>
           <p className="text-[10px] text-muted-foreground">Tasks done</p>
         </div>
         <div className="glass rounded-2xl p-3 text-center">
-          <Zap size={16} className="mx-auto mb-1 text-[#FBBF24]" />
-          <p className="text-xl font-bold text-[#FBBF24]">{totalXp}</p>
+          <Zap size={16} className="mx-auto mb-1 text-white/50" />
+          <p className="text-xl font-bold text-white/60">{totalXp}</p>
           <p className="text-[10px] text-muted-foreground">XP earned</p>
         </div>
       </div>
@@ -67,17 +67,17 @@ export function WeekView({ weekLabel, days, weeklyReviews }: WeekViewProps) {
             const hasActivity = d.workoutCount > 0 || d.checklistDone > 0;
             return (
               <div key={d.date} className="flex flex-col items-center gap-1">
-                <span className={`text-[9px] uppercase ${isToday ? "text-[#A78BFA] font-bold" : "text-muted-foreground"}`}>{d.dayLabel}</span>
+                <span className={`text-[9px] uppercase ${isToday ? "text-white/60 font-bold" : "text-muted-foreground"}`}>{d.dayLabel}</span>
                 <div
                   className={`w-full aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 ${
-                    isToday ? "ring-1 ring-[#A78BFA]" : ""
-                  } ${hasActivity ? "bg-[#A78BFA]/15" : "bg-secondary"}`}
+                    isToday ? "ring-1 ring-white/[0.07]" : ""
+                  } ${hasActivity ? "bg-white/[0.04]" : "bg-secondary"}`}
                 >
-                  {d.workoutCount > 0 && <Dumbbell size={8} className="text-[#A78BFA]" />}
-                  {d.checklistDone > 0 && <span className="text-[8px] text-[#34D399]">{d.checklistDone}</span>}
+                  {d.workoutCount > 0 && <Dumbbell size={8} className="text-white/50" />}
+                  {d.checklistDone > 0 && <span className="text-[8px] text-white/60">{d.checklistDone}</span>}
                   {!hasActivity && <span className="text-[8px] text-muted-foreground/40">–</span>}
                 </div>
-                {d.xp > 0 && <span className="text-[8px] text-[#FBBF24]">+{d.xp}</span>}
+                {d.xp > 0 && <span className="text-[8px] text-white/60">+{d.xp}</span>}
               </div>
             );
           })}

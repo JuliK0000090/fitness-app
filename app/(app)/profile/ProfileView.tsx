@@ -64,7 +64,7 @@ export function ProfileView({ user }: ProfileViewProps) {
     <div className="max-w-lg mx-auto py-4 px-4 space-y-4">
       {/* Avatar + name */}
       <div className="flex items-center gap-4 fu">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#A78BFA] to-[#22D3EE] flex items-center justify-center text-2xl font-black text-background">
+        <div className="w-16 h-16 rounded-2xl bg-white/[0.06] flex items-center justify-center text-2xl font-black text-background">
           {user.name?.[0]?.toUpperCase() ?? <User size={24} />}
         </div>
         <div>
@@ -106,7 +106,7 @@ export function ProfileView({ user }: ProfileViewProps) {
             <option value="clinical">Clinical — data-focused</option>
           </select>
           <div className="flex gap-2">
-            <button onClick={save} disabled={saving} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#A78BFA]/10 text-[#A78BFA] text-xs font-medium hover:bg-[#A78BFA]/20 disabled:opacity-50 transition-colors">
+            <button onClick={save} disabled={saving} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/[0.04] text-white/60 text-xs font-medium hover:bg-white/[0.07] disabled:opacity-50 transition-colors">
               <Check size={12} />{saving ? "Saving…" : "Save"}
             </button>
             <button onClick={() => setEditing(false)} className="px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground text-xs">Cancel</button>
@@ -144,8 +144,8 @@ export function ProfileView({ user }: ProfileViewProps) {
         </button>
 
         <Link href="/settings" className="glass rounded-2xl p-3 flex items-center gap-3 hover:bg-white/5 transition-colors group">
-          <Trash2 size={15} className="text-[#F472B6]" />
-          <span className="flex-1 text-sm text-[#F472B6]">Delete account</span>
+          <Trash2 size={15} className="text-white/50" />
+          <span className="flex-1 text-sm text-white/60">Delete account</span>
           <ChevronRight size={13} className="text-muted-foreground" />
         </Link>
 

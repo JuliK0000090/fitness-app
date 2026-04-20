@@ -51,13 +51,13 @@ export function TimerCard({ durationSec, label = "Rest Timer", onComplete }: Tim
   const circumference = 2 * Math.PI * 36;
 
   return (
-    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-[#FBBF24]/20">
+    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-white/[0.07]">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-[#FBBF24]/20 flex items-center justify-center">
-          <Timer size={16} className="text-[#FBBF24]" />
+        <div className="border border-white/[0.07] w-8 h-8 rounded-xl flex items-center justify-center">
+          <Timer size={16} className="text-white/50" />
         </div>
         <p className="text-sm font-semibold">{label}</p>
-        {done && <span className="ml-auto text-xs text-[#34D399] font-semibold">Done!</span>}
+        {done && <span className="ml-auto text-xs text-white/60 font-semibold">Done!</span>}
       </div>
 
       <div className="flex flex-col items-center gap-3">
@@ -68,7 +68,7 @@ export function TimerCard({ durationSec, label = "Rest Timer", onComplete }: Tim
             <circle
               cx="40" cy="40" r="36"
               fill="none"
-              stroke={done ? "#34D399" : "#FBBF24"}
+              stroke="rgba(255,255,255,0.4)"
               strokeWidth="4"
               strokeLinecap="round"
               strokeDasharray={circumference}
@@ -85,7 +85,7 @@ export function TimerCard({ durationSec, label = "Rest Timer", onComplete }: Tim
           <button
             onClick={() => setRunning((r) => !r)}
             disabled={done}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#FBBF24]/10 text-[#FBBF24] hover:bg-[#FBBF24]/20 text-xs font-medium transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:bg-white/10 text-xs font-medium transition-colors disabled:opacity-50"
           >
             {running ? <Pause size={12} /> : <Play size={12} />}
             {running ? "Pause" : "Start"}

@@ -78,12 +78,12 @@ export function VoiceMode({ onClose, onTranscript }: VoiceModeProps) {
         )}
         style={{
           background: listening
-            ? "conic-gradient(from 0deg, #A78BFA, #22D3EE, #F472B6, #A78BFA)"
-            : "radial-gradient(circle, rgba(167,139,250,0.3), rgba(34,211,238,0.1))",
+            ? "rgba(255,255,255,0.06)"
+            : "rgba(255,255,255,0.05)",
           boxShadow: listening
-            ? "0 0 60px rgba(167,139,250,0.5), 0 0 120px rgba(34,211,238,0.2)"
-            : "0 0 30px rgba(167,139,250,0.2)",
-          animation: listening ? "spin 3s linear infinite" : "none",
+            ? "0 0 60px rgba(255,255,255,0.12), 0 0 120px rgba(255,255,255,0.06)"
+            : "0 0 30px rgba(255,255,255,0.06)",
+          animation: "none",
         }}
       >
         <div className="absolute inset-2 rounded-full bg-background flex items-center justify-center">

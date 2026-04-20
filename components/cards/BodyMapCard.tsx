@@ -42,25 +42,25 @@ export function BodyMapCard({ worked = [], sore = [] }: BodyMapCardProps) {
   const visibleMuscles = MUSCLES.filter((m) => m.side === view);
 
   function getColor(id: string) {
-    if (sore.includes(id)) return "#F472B6";
-    if (worked.includes(id)) return "#A78BFA";
+    if (sore.includes(id)) return "rgba(255,255,255,0.35)";
+    if (worked.includes(id)) return "rgba(255,255,255,0.2)";
     return "rgba(255,255,255,0.06)";
   }
 
   return (
-    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-[#A78BFA]/20">
+    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-white/[0.07]">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold">Muscle Map</p>
         <div className="flex gap-1 text-xs">
           <button
             onClick={() => setView("front")}
-            className={`px-2 py-0.5 rounded ${view === "front" ? "bg-[#A78BFA]/20 text-[#A78BFA]" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-2 py-0.5 rounded ${view === "front" ? "border border-white/[0.07] text-white/60" : "text-muted-foreground hover:text-foreground"}`}
           >
             Front
           </button>
           <button
             onClick={() => setView("back")}
-            className={`px-2 py-0.5 rounded ${view === "back" ? "bg-[#A78BFA]/20 text-[#A78BFA]" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-2 py-0.5 rounded ${view === "back" ? "border border-white/[0.07] text-white/60" : "text-muted-foreground hover:text-foreground"}`}
           >
             Back
           </button>
@@ -98,8 +98,8 @@ export function BodyMapCard({ worked = [], sore = [] }: BodyMapCardProps) {
       )}
 
       <div className="flex gap-3 justify-center text-[10px] text-muted-foreground">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[#A78BFA]" />Worked</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[#F472B6]" />Sore</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-white/20" />Worked</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-white/35" />Sore</span>
       </div>
     </div>
   );

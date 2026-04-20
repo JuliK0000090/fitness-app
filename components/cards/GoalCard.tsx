@@ -20,17 +20,17 @@ export function GoalCard({ description, direction, magnitude, unit, deadline, st
     : null;
 
   const statusColor = {
-    active: "text-[#34D399] bg-[#34D399]/10",
-    achieved: "text-[#A78BFA] bg-[#A78BFA]/10",
-    paused: "text-[#FBBF24] bg-[#FBBF24]/10",
+    active: "text-white/60 bg-white/10",
+    achieved: "text-white/60 bg-white/10",
+    paused: "text-white/60 bg-white/10",
     cancelled: "text-muted-foreground bg-secondary",
   }[status] ?? "text-muted-foreground bg-secondary";
 
   return (
-    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-[#34D399]/20">
+    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-white/[0.07]">
       <div className="flex items-start gap-2">
-        <div className="w-8 h-8 rounded-xl bg-[#34D399]/20 flex items-center justify-center shrink-0 mt-0.5">
-          <Target size={16} className="text-[#34D399]" />
+        <div className="border border-white/[0.07] w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+          <Target size={16} className="text-white/50" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold leading-snug">{description}</p>
@@ -52,7 +52,7 @@ export function GoalCard({ description, direction, magnitude, unit, deadline, st
           </div>
         )}
         {predictedHitDate && (
-          <div className={`flex items-center gap-1 ${isOnTrack ? "text-[#34D399]" : "text-[#F472B6]"}`}>
+          <div className={`flex items-center gap-1 ${isOnTrack ? "text-white/60" : "text-white/60"}`}>
             <span>{isOnTrack ? "✓ On track" : "⚠ Behind"}</span>
           </div>
         )}

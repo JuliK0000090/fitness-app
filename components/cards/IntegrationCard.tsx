@@ -20,20 +20,10 @@ const PROVIDER_LABELS: Record<string, string> = {
   fitbit: "Fitbit",
 };
 
-const PROVIDER_COLORS: Record<string, string> = {
-  apple_health: "#F472B6",
-  google_fit: "#34D399",
-  garmin: "#22D3EE",
-  whoop: "#FBBF24",
-  oura: "#A78BFA",
-  fitbit: "#34D399",
-};
-
 export function IntegrationCard({ provider, connected, lastSynced, metrics = [] }: IntegrationCardProps) {
   const [status, setStatus] = useState<"idle" | "connecting">("idle");
   const [isConnected, setIsConnected] = useState(connected);
   const label = PROVIDER_LABELS[provider] ?? provider;
-  const color = PROVIDER_COLORS[provider] ?? "#A78BFA";
 
   async function connect() {
     setStatus("connecting");
@@ -69,10 +59,10 @@ export function IntegrationCard({ provider, connected, lastSynced, metrics = [] 
   }
 
   return (
-    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu" style={{ borderWidth: 1, borderStyle: "solid", borderColor: `${color}33` }}>
+    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-white/[0.07]">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${color}22` }}>
-          <Watch size={16} style={{ color }} />
+        <div className="border border-white/[0.07] w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)" }}>
+          <Watch size={16} style={{ color: "rgba(255,255,255,0.5)" }} />
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold">{label}</p>
@@ -82,10 +72,10 @@ export function IntegrationCard({ provider, connected, lastSynced, metrics = [] 
         </div>
         <div className="flex items-center gap-1.5">
           {isConnected
-            ? <Wifi size={14} style={{ color }} />
+            ? <Wifi size={14} style={{ color: "rgba(255,255,255,0.5)" }} />
             : <WifiOff size={14} className="text-muted-foreground" />
           }
-          <span className="text-[10px]" style={{ color: isConnected ? color : undefined }}>
+          <span className="text-[10px]" style={{ color: isConnected ? "rgba(255,255,255,0.5)" : undefined }}>
             {isConnected ? "Connected" : "Not connected"}
           </span>
         </div>
@@ -105,7 +95,7 @@ export function IntegrationCard({ provider, connected, lastSynced, metrics = [] 
         className="w-full flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-lg transition-colors"
         style={isConnected
           ? { background: "rgba(255,255,255,0.04)", color: "var(--muted-foreground)" }
-          : { background: `${color}22`, color }
+          : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)" }
         }
       >
         {status === "connecting" && <Loader2 size={12} className="animate-spin" />}

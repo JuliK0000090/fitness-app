@@ -32,28 +32,26 @@ export function AppShell({ user, children }: AppShellProps) {
   return (
     <div className="aurora-bg min-h-screen flex flex-col">
       {/* Top bar */}
-      <header className="relative z-20 flex items-center justify-between px-4 h-12 border-b border-border glass">
+      <header className="relative z-20 flex items-center justify-between px-5 h-12 border-b border-border" style={{ background: "rgba(6,8,16,0.85)", backdropFilter: "blur(20px)" }}>
         <div className="flex items-center gap-3">
           {isChat && (
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-1 rounded hover:bg-secondary">
               {sidebarOpen ? <X size={16} /> : <Menu size={16} />}
             </button>
           )}
-          <span className="font-bold tracking-tight bg-gradient-to-r from-[#A78BFA] to-[#22D3EE] bg-clip-text text-transparent">
-            vita
+          <span className="font-cormorant text-lg font-light tracking-[0.18em] uppercase text-white/80">
+            Vita
           </span>
         </div>
         <button
           onClick={() => setCmdOpen(true)}
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-muted-foreground glass glass-hover"
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         >
-          <span>Search / Command</span>
-          <kbd className="px-1.5 py-0.5 rounded text-[10px] bg-secondary">⌘K</kbd>
+          <span>Search</span>
+          <kbd className="px-1.5 py-0.5 rounded text-[10px] bg-secondary border border-border">⌘K</kbd>
         </button>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-xs font-medium">
-            {user.name?.[0]?.toUpperCase() ?? user.email[0].toUpperCase()}
-          </div>
+        <div className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-xs text-muted-foreground">
+          {user.name?.[0]?.toUpperCase() ?? user.email[0].toUpperCase()}
         </div>
       </header>
 
@@ -63,8 +61,8 @@ export function AppShell({ user, children }: AppShellProps) {
           <div className={cn(
             "absolute inset-y-0 left-0 z-30 lg:relative lg:block transition-transform duration-200",
             sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-            "w-64 border-r border-border glass"
-          )}>
+            "w-64 border-r border-border",
+          )} style={{ background: "rgba(255,255,255,0.02)" }}>
             <ChatSidebar onNavigate={() => setSidebarOpen(false)} />
           </div>
         )}
@@ -76,7 +74,7 @@ export function AppShell({ user, children }: AppShellProps) {
       </div>
 
       {/* Bottom nav */}
-      <nav className="relative z-20 border-t border-border glass">
+      <nav className="relative z-20 border-t border-border" style={{ background: "rgba(6,8,16,0.90)", backdropFilter: "blur(20px)" }}>
         <div className="flex">
           {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
             const active = pathname === href || (href !== "/" && pathname.startsWith(href));
@@ -85,23 +83,20 @@ export function AppShell({ user, children }: AppShellProps) {
                 key={href}
                 href={href}
                 className={cn(
-                  "flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] transition-colors",
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  "flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] tracking-wide transition-colors",
+                  active ? "text-white/90" : "text-white/25 hover:text-white/50"
                 )}
               >
-                <Icon size={18} strokeWidth={active ? 2.5 : 1.5} />
-                <span>{label}</span>
-                {active && <span className="w-1 h-1 rounded-full bg-primary" />}
+                <Icon size={17} strokeWidth={active ? 2 : 1.5} />
+                <span className="uppercase tracking-widest" style={{ fontSize: 8 }}>{label}</span>
+                {active && <span className="w-3 h-px bg-white/40 mt-0.5" />}
               </Link>
             );
           })}
         </div>
       </nav>
 
-      {/* CMD-K overlay */}
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
-
-      {/* PWA install prompt */}
       <InstallPrompt />
     </div>
   );

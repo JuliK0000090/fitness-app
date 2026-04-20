@@ -4,11 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ─── Aurora Design Tokens ─────────────────────────────────────────────────── */
+/* ─── Design Tokens ──────────────────────────────────────────────────────── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
+  --font-cormorant: var(--font-cormorant-face);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -40,12 +41,6 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  /* Aurora brand colors */
-  --color-aurora-purple: #A78BFA;
-  --color-aurora-cyan: #22D3EE;
-  --color-aurora-pink: #F472B6;
-  --color-aurora-green: #34D399;
-
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -55,75 +50,75 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Light mode — keep functional but Aurora is dark-first */
+/* Light mode fallback */
 :root {
-  --background: #ffffff;
+  --background: #f5f5f5;
   --foreground: #0a0a0a;
-  --card: #f8f8f8;
+  --card: #ffffff;
   --card-foreground: #0a0a0a;
   --popover: #ffffff;
   --popover-foreground: #0a0a0a;
-  --primary: #A78BFA;
+  --primary: rgba(0,0,0,0.85);
   --primary-foreground: #ffffff;
-  --secondary: #f0f0f0;
+  --secondary: rgba(0,0,0,0.06);
   --secondary-foreground: #0a0a0a;
-  --muted: #f0f0f0;
-  --muted-foreground: #737373;
-  --accent: #A78BFA;
-  --accent-foreground: #ffffff;
-  --destructive: oklch(0.577 0.245 27.325);
+  --muted: rgba(0,0,0,0.05);
+  --muted-foreground: rgba(0,0,0,0.45);
+  --accent: rgba(0,0,0,0.08);
+  --accent-foreground: #0a0a0a;
+  --destructive: #dc2626;
   --border: rgba(0,0,0,0.08);
   --input: rgba(0,0,0,0.06);
-  --ring: #A78BFA;
-  --chart-1: #A78BFA;
-  --chart-2: #22D3EE;
-  --chart-3: #F472B6;
-  --chart-4: #34D399;
-  --chart-5: #FBBF24;
+  --ring: rgba(0,0,0,0.3);
+  --chart-1: rgba(255,255,255,0.9);
+  --chart-2: rgba(255,255,255,0.6);
+  --chart-3: rgba(255,255,255,0.4);
+  --chart-4: rgba(255,255,255,0.2);
+  --chart-5: rgba(255,255,255,0.1);
   --radius: 0.75rem;
-  --sidebar: #f8f8f8;
+  --sidebar: #f0f0f0;
   --sidebar-foreground: #0a0a0a;
-  --sidebar-primary: #A78BFA;
+  --sidebar-primary: rgba(0,0,0,0.85);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f0f0f0;
+  --sidebar-accent: rgba(0,0,0,0.05);
   --sidebar-accent-foreground: #0a0a0a;
   --sidebar-border: rgba(0,0,0,0.08);
-  --sidebar-ring: #A78BFA;
+  --sidebar-ring: rgba(0,0,0,0.2);
 }
 
-/* Aurora dark theme — the primary experience */
+/* Concept C — Premium Dark Glass */
 .dark {
-  --background: #080C14;
-  --foreground: rgba(255,255,255,0.95);
+  --background: #060810;
+  --foreground: rgba(255,255,255,0.90);
   --card: rgba(255,255,255,0.04);
-  --card-foreground: rgba(255,255,255,0.95);
-  --popover: #0e1420;
-  --popover-foreground: rgba(255,255,255,0.95);
-  --primary: #A78BFA;
-  --primary-foreground: #080C14;
+  --card-foreground: rgba(255,255,255,0.90);
+  --popover: #0c0e18;
+  --popover-foreground: rgba(255,255,255,0.90);
+  --primary: rgba(255,255,255,0.88);
+  --primary-foreground: #060810;
   --secondary: rgba(255,255,255,0.06);
-  --secondary-foreground: rgba(255,255,255,0.95);
+  --secondary-foreground: rgba(255,255,255,0.90);
   --muted: rgba(255,255,255,0.04);
-  --muted-foreground: rgba(255,255,255,0.55);
-  --accent: #A78BFA;
-  --accent-foreground: #080C14;
+  --muted-foreground: rgba(255,255,255,0.40);
+  --accent: rgba(255,255,255,0.08);
+  --accent-foreground: rgba(255,255,255,0.90);
   --destructive: #f87171;
-  --border: rgba(255,255,255,0.08);
-  --input: rgba(255,255,255,0.08);
-  --ring: #A78BFA;
-  --chart-1: #A78BFA;
-  --chart-2: #22D3EE;
-  --chart-3: #F472B6;
-  --chart-4: #34D399;
-  --chart-5: #FBBF24;
-  --sidebar: rgba(255,255,255,0.03);
-  --sidebar-foreground: rgba(255,255,255,0.95);
-  --sidebar-primary: #A78BFA;
-  --sidebar-primary-foreground: #080C14;
-  --sidebar-accent: rgba(255,255,255,0.06);
-  --sidebar-accent-foreground: rgba(255,255,255,0.95);
+  --border: rgba(255,255,255,0.07);
+  --input: rgba(255,255,255,0.07);
+  --ring: rgba(255,255,255,0.25);
+  --chart-1: rgba(255,255,255,0.90);
+  --chart-2: rgba(255,255,255,0.60);
+  --chart-3: rgba(255,255,255,0.35);
+  --chart-4: rgba(255,255,255,0.18);
+  --chart-5: rgba(255,255,255,0.08);
+  --sidebar: rgba(255,255,255,0.02);
+  --sidebar-foreground: rgba(255,255,255,0.90);
+  --sidebar-primary: rgba(255,255,255,0.88);
+  --sidebar-primary-foreground: #060810;
+  --sidebar-accent: rgba(255,255,255,0.05);
+  --sidebar-accent-foreground: rgba(255,255,255,0.90);
   --sidebar-border: rgba(255,255,255,0.06);
-  --sidebar-ring: #A78BFA;
+  --sidebar-ring: rgba(255,255,255,0.20);
 }
 
 @layer base {
@@ -141,44 +136,40 @@
   }
 }
 
-/* ─── Aurora Background ──────────────────────────────────────────────────── */
+/* ─── App Background ─────────────────────────────────────────────────────── */
 .aurora-bg {
+  background: var(--background);
   position: relative;
-  overflow: hidden;
 }
-.aurora-bg::before {
+
+/* ─── Landing Background ─────────────────────────────────────────────────── */
+.landing-bg {
+  background: #080C14;
+  position: relative;
+}
+.landing-bg::before {
   content: '';
   position: fixed;
   inset: 0;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 20%, rgba(167,139,250,0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(34,211,238,0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 40% at 60% 40%, rgba(244,114,182,0.04) 0%, transparent 60%);
+  background: radial-gradient(ellipse 70% 50% at 15% 10%, rgba(255,255,255,0.018) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
-  animation: aurora-drift 20s ease-in-out infinite alternate;
-}
-
-@keyframes aurora-drift {
-  0%   { transform: scale(1) translate(0,0); }
-  50%  { transform: scale(1.05) translate(2%,1%); }
-  100% { transform: scale(1) translate(-1%,-2%); }
 }
 
 /* ─── Glass Card ─────────────────────────────────────────────────────────── */
 .glass {
-  background: rgba(255,255,255,0.05);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.07);
   border-radius: 16px;
 }
 .glass-hover {
-  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  transition: background 0.2s, border-color 0.2s;
 }
 .glass-hover:hover {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.065);
+  border-color: rgba(255,255,255,0.11);
 }
 
 /* ─── Fade-up animation ──────────────────────────────────────────────────── */
@@ -215,7 +206,7 @@ button:active:not(:disabled) {
 
 /* ─── Smooth focus rings ─────────────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid #A78BFA;
+  outline: 1px solid rgba(255,255,255,0.30);
   outline-offset: 2px;
   border-radius: 8px;
 }

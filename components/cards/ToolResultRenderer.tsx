@@ -201,7 +201,7 @@ export function ToolResultRenderer({ toolName, result }: ToolResultRendererProps
       case "show_form_check":
         if (result.action === "open_form_check") {
           return (
-            <div className="glass rounded-2xl p-4 my-2 fu border border-[#34D399]/20">
+            <div className="glass rounded-2xl p-4 my-2 fu border border-white/[0.07]">
               <FormCheck onClose={() => {}} />
             </div>
           );
@@ -211,7 +211,7 @@ export function ToolResultRenderer({ toolName, result }: ToolResultRendererProps
       case "estimate_body_measurements":
         if (result.action === "open_photo_measure") {
           return (
-            <div className="glass rounded-2xl p-4 my-2 fu border border-[#22D3EE]/20">
+            <div className="glass rounded-2xl p-4 my-2 fu border border-white/[0.07]">
               <PhotoMeasure />
             </div>
           );

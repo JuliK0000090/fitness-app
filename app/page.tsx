@@ -1,101 +1,149 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Brain, Dumbbell, Target, Zap, Shield, Smartphone } from "lucide-react";
 
 const FEATURES = [
-  { icon: Brain, color: "#A78BFA", title: "AI Coach", desc: "Claude claude-sonnet-4-6 powers every conversation — context-aware, goal-focused, and always honest." },
-  { icon: Dumbbell, color: "#22D3EE", title: "Smart Logging", desc: "Log workouts, meals, and measurements in plain English. No forms, just talk." },
-  { icon: Target, color: "#34D399", title: "Goal Engine", desc: "Set goals in natural language. Vita tracks your trajectory and predicts your hit date." },
-  { icon: Zap, color: "#FBBF24", title: "Gamification", desc: "Earn XP, unlock achievements, build streaks. Staying consistent has never felt better." },
-  { icon: Shield, color: "#F472B6", title: "Safety First", desc: "Built-in guardrails for disordered eating and unsafe goals. Crisis resources always available." },
-  { icon: Smartphone, color: "#A78BFA", title: "Full PWA", desc: "Install on any device. Works offline. Push notifications. Feels like a native app." },
+  { num: "01", title: "Intelligent Coaching", desc: "Understands your goals in natural language. Context-aware guidance that evolves with you over time." },
+  { num: "02", title: "Precision Tracking", desc: "Log workouts, nutrition, and measurements conversationally. No forms, no friction." },
+  { num: "03", title: "Goal Architecture", desc: "Set goals naturally. Vita models your trajectory and adapts your plan as life changes." },
+  { num: "04", title: "Body Composition", desc: "Detailed measurement tracking with trend analysis and AI-powered visual progress tools." },
+  { num: "05", title: "Wearable Sync", desc: "Unified data from Apple Health, Garmin, WHOOP, Oura, and more — all in one view." },
+  { num: "06", title: "Safety & Wellbeing", desc: "Built-in guardrails for sustainable progress. Your long-term health is always the priority." },
 ];
+
+const C = {
+  bg:      "#060810",
+  white90: "rgba(255,255,255,0.90)",
+  white70: "rgba(255,255,255,0.70)",
+  white45: "rgba(255,255,255,0.45)",
+  white28: "rgba(255,255,255,0.28)",
+  white18: "rgba(255,255,255,0.18)",
+  white10: "rgba(255,255,255,0.10)",
+  white07: "rgba(255,255,255,0.07)",
+  serif:   "var(--font-cormorant-face)",
+  sans:    "var(--font-geist-sans)",
+} as const;
 
 export default async function HomePage() {
   const session = await getSession();
   if (session) redirect("/today");
 
   return (
-    <div className="aurora-bg min-h-screen">
-      {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-6 py-4 max-w-5xl mx-auto">
-        <div className="text-2xl font-bold bg-gradient-to-r from-[#A78BFA] to-[#22D3EE] bg-clip-text text-transparent">
-          vita
-        </div>
-        <div className="flex gap-3">
-          <Link href="/auth/login">
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">Sign in</Button>
+    <div style={{ background: C.bg, minHeight: "100vh", color: C.white90, fontFamily: C.sans }}>
+
+      {/* ── Nav ── */}
+      <nav style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "28px 56px", maxWidth: 1280, margin: "0 auto",
+      }}>
+        <span style={{ fontFamily: C.serif, fontSize: 17, fontWeight: 300, letterSpacing: "0.22em", textTransform: "uppercase", color: C.white90 }}>
+          Vita
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 36 }}>
+          <Link href="/auth/login" style={{ fontFamily: C.sans, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: C.white45, textDecoration: "none" }}>
+            Sign in
           </Link>
-          <Link href="/auth/register">
-            <Button size="sm" className="bg-gradient-to-r from-[#A78BFA] to-[#7C3AED] text-white">Get started</Button>
+          <Link href="/auth/register" style={{
+            fontFamily: C.sans, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase",
+            padding: "10px 26px", border: `1px solid ${C.white28}`, color: C.white70, textDecoration: "none",
+          }}>
+            Get started
           </Link>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="relative z-10 max-w-3xl mx-auto px-6 py-20 text-center fu">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs text-muted-foreground mb-6">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#34D399] animate-pulse" />
-          Powered by Claude claude-sonnet-4-6
-        </div>
-        <h1 className="text-5xl sm:text-6xl font-black tracking-tight mb-4">
-          <span className="bg-gradient-to-r from-[#A78BFA] via-[#22D3EE] to-[#F472B6] bg-clip-text text-transparent">
-            Your AI fitness coach
-          </span>
-          <br />
-          <span className="text-foreground">that actually knows you.</span>
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-8">
-          Vita learns your goals, tracks your progress, and coaches you with the intelligence of Claude.
-          No rigid plans — just a conversation that gets smarter every day.
+      {/* ── Hero ── */}
+      <section style={{ maxWidth: 1280, margin: "0 auto", padding: "64px 56px 80px" }}>
+        <p style={{ fontFamily: C.sans, fontSize: 10, letterSpacing: "0.38em", textTransform: "uppercase", color: C.white28, marginBottom: 28 }}>
+          AI Personal Training
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link href="/auth/register">
-            <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-[#A78BFA] to-[#7C3AED] text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-shadow text-base px-8">
-              Start for free →
-            </Button>
+        <h1 style={{
+          fontFamily: C.serif, fontWeight: 300, lineHeight: 1.08,
+          fontSize: "clamp(48px, 6vw, 76px)",
+          color: C.white90, margin: "0 0 24px", letterSpacing: "-0.01em",
+        }}>
+          Your body,<br />
+          <span style={{ fontStyle: "italic", color: C.white45 }}>understood.</span>
+        </h1>
+        <p style={{
+          fontFamily: C.sans, fontSize: 15, color: C.white45,
+          maxWidth: 400, lineHeight: 1.8, marginBottom: 44, fontWeight: 300,
+        }}>
+          Vita is an AI fitness coach that learns how you move, what you eat,
+          and what you want. It advises, adapts, and holds you to the standard you set.
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+          <Link href="/auth/register" style={{
+            fontFamily: C.sans, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase",
+            padding: "13px 34px", background: C.white90, color: C.bg, textDecoration: "none", fontWeight: 500,
+          }}>
+            Begin
           </Link>
-          <Link href="/auth/login">
-            <Button size="lg" variant="outline" className="w-full sm:w-auto border-border text-muted-foreground hover:text-foreground">
-              Sign in
-            </Button>
+          <Link href="/auth/login" style={{ fontFamily: C.sans, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: C.white28, textDecoration: "none" }}>
+            Sign in →
           </Link>
         </div>
-        <p className="text-xs text-muted-foreground mt-4">No credit card required · Free to get started</p>
       </section>
 
-      {/* Features */}
-      <section className="relative z-10 max-w-4xl mx-auto px-6 pb-20 fu2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {FEATURES.map(({ icon: Icon, color, title, desc }) => (
-            <div key={title} className="glass rounded-2xl p-5 hover:bg-white/[0.07] transition-colors group">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{ background: `${color}22` }}>
-                <Icon size={18} style={{ color }} />
-              </div>
-              <h3 className="text-sm font-bold mb-1">{title}</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+      {/* ── Rule ── */}
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 56px" }}>
+        <div style={{ height: 1, background: C.white07 }} />
+      </div>
+
+      {/* ── Features ── */}
+      <section style={{ maxWidth: 1280, margin: "0 auto", padding: "0 56px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
+          {FEATURES.map(({ num, title, desc }, i) => (
+            <div key={num} style={{
+              padding: "44px 36px",
+              borderRight: (i + 1) % 3 !== 0 ? `1px solid ${C.white07}` : "none",
+              borderBottom: i < 3 ? `1px solid ${C.white07}` : "none",
+            }}>
+              <p style={{ fontFamily: "monospace", fontSize: 10, letterSpacing: "0.2em", color: C.white18, marginBottom: 20 }}>{num}</p>
+              <h3 style={{ fontFamily: C.serif, fontSize: 20, fontWeight: 400, color: C.white90, marginBottom: 10, lineHeight: 1.2 }}>{title}</h3>
+              <p style={{ fontFamily: C.sans, fontSize: 13, color: C.white45, lineHeight: 1.75, fontWeight: 300 }}>{desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Social proof / CTA */}
-      <section className="relative z-10 max-w-lg mx-auto px-6 pb-24 text-center fu3">
-        <div className="glass rounded-2xl p-8 border border-[#A78BFA]/20">
-          <p className="text-2xl font-bold mb-2">Ready to transform?</p>
-          <p className="text-sm text-muted-foreground mb-6">Join thousands of people training smarter with Vita.</p>
-          <Link href="/auth/register">
-            <Button size="lg" className="bg-gradient-to-r from-[#A78BFA] to-[#7C3AED] text-white w-full shadow-lg shadow-purple-500/20">
-              Create your free account
-            </Button>
-          </Link>
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-6">
-          Not medical advice. Consult a healthcare professional before starting any new fitness programme.
-        </p>
+      {/* ── Rule ── */}
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 56px" }}>
+        <div style={{ height: 1, background: C.white07 }} />
+      </div>
+
+      {/* ── CTA ── */}
+      <section style={{ maxWidth: 1280, margin: "0 auto", padding: "88px 56px 108px" }}>
+        <p style={{ fontFamily: C.sans, fontSize: 10, letterSpacing: "0.38em", textTransform: "uppercase", color: C.white18, marginBottom: 28 }}>Start today</p>
+        <h2 style={{
+          fontFamily: C.serif, fontWeight: 300, lineHeight: 1.1,
+          fontSize: "clamp(40px, 5vw, 64px)",
+          color: C.white90, margin: "0 0 40px",
+        }}>
+          Precision coaching,<br />
+          <span style={{ fontStyle: "italic", color: C.white45 }}>no compromise.</span>
+        </h2>
+        <Link href="/auth/register" style={{
+          fontFamily: C.sans, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase",
+          padding: "13px 40px", border: `1px solid ${C.white28}`, color: C.white70, textDecoration: "none", display: "inline-block",
+        }}>
+          Create your account
+        </Link>
       </section>
+
+      {/* ── Footer ── */}
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 56px 52px" }}>
+        <div style={{ height: 1, background: C.white07, marginBottom: 28 }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 300, letterSpacing: "0.15em", textTransform: "uppercase", color: C.white18 }}>Vita</span>
+          <div style={{ display: "flex", gap: 32 }}>
+            <Link href="/legal/privacy" style={{ fontFamily: C.sans, fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: C.white18, textDecoration: "none" }}>Privacy</Link>
+            <Link href="/legal/terms"   style={{ fontFamily: C.sans, fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: C.white18, textDecoration: "none" }}>Terms</Link>
+          </div>
+          <p style={{ fontFamily: C.sans, fontSize: 10, color: "rgba(255,255,255,0.12)" }}>Not medical advice. Consult a healthcare professional.</p>
+        </div>
+      </div>
+
     </div>
   );
 }

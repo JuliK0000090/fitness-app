@@ -203,7 +203,7 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
         {messages.map((message: Message) => (
           <div key={message.id} className={cn("group flex gap-3", message.role === "user" ? "justify-end" : "justify-start")}>
             {message.role === "assistant" && (
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#22D3EE] flex items-center justify-center text-xs font-bold text-background shrink-0 mt-0.5">
+              <div className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-xs font-bold text-background shrink-0 mt-0.5">
                 V
               </div>
             )}
@@ -212,7 +212,7 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
               <div className={cn(
                 "rounded-2xl px-4 py-2.5 text-sm",
                 message.role === "user"
-                  ? "bg-gradient-to-br from-[#A78BFA] to-[#7C3AED] text-white rounded-br-sm"
+                  ? "bg-white/[0.06] text-white rounded-br-sm"
                   : "glass rounded-bl-sm"
               )}>
                 {message.role === "assistant" ? (
@@ -250,7 +250,7 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
 
         {isLoading && (
           <div className="flex gap-3 justify-start">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#A78BFA] to-[#22D3EE] flex items-center justify-center text-xs font-bold text-background shrink-0">V</div>
+            <div className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-xs font-bold text-background shrink-0">V</div>
             <div className="glass rounded-2xl rounded-bl-sm px-4 py-3">
               <div className="flex gap-1 items-center h-4">
                 {[0, 150, 300].map((delay) => (

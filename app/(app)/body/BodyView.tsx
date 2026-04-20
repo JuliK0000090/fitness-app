@@ -38,8 +38,8 @@ export function BodyView({ measurements, photos }: BodyViewProps) {
   return (
     <div className="max-w-lg mx-auto py-4 px-4 space-y-4">
       <div className="flex items-center gap-3 fu">
-        <div className="w-9 h-9 rounded-2xl bg-[#22D3EE]/20 flex items-center justify-center">
-          <Activity size={18} className="text-[#22D3EE]" />
+        <div className="w-9 h-9 rounded-2xl bg-white/[0.04] flex items-center justify-center">
+          <Activity size={18} className="text-white/50" />
         </div>
         <h1 className="text-lg font-bold">Body</h1>
       </div>
@@ -116,8 +116,8 @@ export function BodyView({ measurements, photos }: BodyViewProps) {
             onClick={() => setFormCheckOpen(true)}
             className="w-full glass rounded-2xl p-4 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
           >
-            <div className="w-9 h-9 rounded-xl bg-[#34D399]/20 flex items-center justify-center shrink-0">
-              <Video size={16} className="text-[#34D399]" />
+            <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center shrink-0">
+              <Video size={16} className="text-white/50" />
             </div>
             <div>
               <p className="text-sm font-semibold">Form Check</p>

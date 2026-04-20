@@ -40,9 +40,9 @@ function IntegrationCard({
     <div className="glass rounded-2xl p-4 flex items-center gap-3">
       <div
         className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: connected ? "#22D3EE22" : "#ffffff11" }}
+        style={{ background: connected ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.04)" }}
       >
-        <Watch size={16} style={{ color: connected ? "#22D3EE" : "#6B7280" }} />
+        <Watch size={16} style={{ color: connected ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.3)" }} />
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-2">

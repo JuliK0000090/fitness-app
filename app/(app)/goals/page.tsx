@@ -17,8 +17,8 @@ export default async function GoalsPage() {
   return (
     <div className="max-w-lg mx-auto py-4 px-4 space-y-4">
       <div className="flex items-center gap-3 fu">
-        <div className="w-9 h-9 rounded-2xl bg-[#34D399]/20 flex items-center justify-center">
-          <Target size={18} className="text-[#34D399]" />
+        <div className="w-9 h-9 rounded-2xl bg-white/[0.04] flex items-center justify-center">
+          <Target size={18} className="text-white/50" />
         </div>
         <div>
           <h1 className="text-lg font-bold">Goals</h1>
@@ -32,7 +32,7 @@ export default async function GoalsPage() {
           <p className="text-sm text-muted-foreground mb-4">No active goals yet.</p>
           <Link
             href="/chat"
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-[#34D399]/10 text-[#34D399] hover:bg-[#34D399]/20 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.04] text-white/60 hover:bg-white/[0.07] transition-colors"
           >
             <MessageSquarePlus size={12} />
             Set a goal with Vita

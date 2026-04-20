@@ -65,16 +65,16 @@ export function PhotoMeasure({ heightCm, onSave }: PhotoMeasureProps) {
   }
 
   const confidenceColor = {
-    low: "text-[#F472B6]",
-    medium: "text-[#FBBF24]",
-    high: "text-[#34D399]",
+    low: "text-white/50",
+    medium: "text-white/50",
+    high: "text-white/50",
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-[#22D3EE]/20 flex items-center justify-center">
-          <Ruler size={16} className="text-[#22D3EE]" />
+        <div className="w-8 h-8 rounded-xl bg-white/[0.04] flex items-center justify-center">
+          <Ruler size={16} className="text-white/50" />
         </div>
         <div>
           <p className="text-sm font-semibold">Photo Measurements</p>
@@ -86,7 +86,7 @@ export function PhotoMeasure({ heightCm, onSave }: PhotoMeasureProps) {
       <div
         onClick={() => fileInputRef.current?.click()}
         className={`relative rounded-2xl border-2 border-dashed transition-all cursor-pointer overflow-hidden ${
-          previewUrl ? "border-[#22D3EE]/40" : "border-border hover:border-[#22D3EE]/40"
+          previewUrl ? "border-white/[0.07]" : "border-border hover:border-white/[0.07]"
         }`}
         style={{ minHeight: previewUrl ? "auto" : "120px" }}
       >
@@ -114,7 +114,7 @@ export function PhotoMeasure({ heightCm, onSave }: PhotoMeasureProps) {
         <button
           onClick={estimate}
           disabled={estimating}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#22D3EE]/10 text-[#22D3EE] text-sm font-medium hover:bg-[#22D3EE]/20 transition-colors disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/[0.04] text-white/50 text-sm font-medium hover:bg-white/[0.06] transition-colors disabled:opacity-50"
         >
           {estimating ? <Loader2 size={14} className="animate-spin" /> : <Ruler size={14} />}
           {estimating ? "Analyzing…" : "Estimate measurements"}
@@ -146,14 +146,14 @@ export function PhotoMeasure({ heightCm, onSave }: PhotoMeasureProps) {
             ))}
           </div>
 
-          <p className="text-[10px] text-muted-foreground leading-relaxed border-l-2 border-[#22D3EE]/30 pl-2">{results.notes}</p>
+          <p className="text-[10px] text-muted-foreground leading-relaxed border-l-2 border-white/[0.07] pl-2">{results.notes}</p>
 
           <p className="text-[10px] text-muted-foreground">⚠ These are rough estimates. For accurate measurements, use a tape measure.</p>
 
           {onSave && (
             <button
               onClick={() => onSave(results)}
-              className="w-full py-1.5 rounded-xl bg-[#34D399]/10 text-[#34D399] text-xs font-medium hover:bg-[#34D399]/20 transition-colors"
+              className="w-full py-1.5 rounded-xl bg-white/[0.04] text-white/50 text-xs font-medium hover:bg-white/[0.06] transition-colors"
             >
               Save to measurements
             </button>

@@ -14,9 +14,9 @@ interface Memory {
 }
 
 const TYPE_META = {
-  profile: { label: "Profile", icon: User, color: "#A78BFA", desc: "Facts about you — goals, preferences, stats" },
-  journal: { label: "Journal", icon: BookOpen, color: "#22D3EE", desc: "Weekly reflections and learnings" },
-  episodic: { label: "Events", icon: Clock, color: "#34D399", desc: "Specific past events and milestones" },
+  profile: { label: "Profile", icon: User, color: "rgba(255,255,255,0.5)", desc: "Facts about you — goals, preferences, stats" },
+  journal: { label: "Journal", icon: BookOpen, color: "rgba(255,255,255,0.5)", desc: "Weekly reflections and learnings" },
+  episodic: { label: "Events", icon: Clock, color: "rgba(255,255,255,0.5)", desc: "Specific past events and milestones" },
 };
 
 export default function MemoryPage() {
@@ -66,8 +66,8 @@ export default function MemoryPage() {
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-[#A78BFA]/20 flex items-center justify-center">
-          <Brain size={20} className="text-[#A78BFA]" />
+        <div className="w-10 h-10 rounded-2xl bg-white/[0.04] flex items-center justify-center">
+          <Brain size={20} className="text-white/50" />
         </div>
         <div>
           <h1 className="text-lg font-bold">Vita's Memory</h1>
@@ -75,7 +75,7 @@ export default function MemoryPage() {
         </div>
         <button
           onClick={() => setShowAdd((s) => !s)}
-          className="ml-auto flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-[#A78BFA]/10 text-[#A78BFA] hover:bg-[#A78BFA]/20 transition-colors"
+          className="ml-auto flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.04] text-white/60 hover:bg-white/[0.07] transition-colors"
         >
           <Plus size={12} /> Add
         </button>
@@ -91,9 +91,9 @@ export default function MemoryPage() {
               key={t}
               onClick={() => setFilter(filter === t ? "all" : t)}
               className={`glass rounded-xl p-3 text-left transition-all ${filter === t ? "ring-1" : ""}`}
-              style={filter === t ? { outline: `1px solid ${meta.color}` } : {}}
+              style={filter === t ? { outline: "1px solid rgba(255,255,255,0.07)" } : {}}
             >
-              <meta.icon size={14} style={{ color: meta.color }} className="mb-1" />
+              <meta.icon size={14} style={{ color: "rgba(255,255,255,0.5)" }} className="mb-1" />
               <p className="text-xs font-medium">{meta.label}</p>
               <p className="text-[10px] text-muted-foreground">{count} item{count !== 1 ? "s" : ""}</p>
             </button>
@@ -110,7 +110,7 @@ export default function MemoryPage() {
               <button
                 key={t}
                 onClick={() => setNewType(t)}
-                className={`text-xs px-2 py-1 rounded-lg transition-colors ${newType === t ? "bg-[#A78BFA]/20 text-[#A78BFA]" : "bg-secondary text-muted-foreground"}`}
+                className={`text-xs px-2 py-1 rounded-lg transition-colors ${newType === t ? "bg-white/[0.04] text-white/60" : "bg-secondary text-muted-foreground"}`}
               >
                 {TYPE_META[t].label}
               </button>
@@ -133,7 +133,7 @@ export default function MemoryPage() {
             <button
               onClick={addMemory}
               disabled={saving || !newContent.trim()}
-              className="flex-1 py-1.5 rounded-lg bg-[#A78BFA]/10 text-[#A78BFA] text-xs font-medium hover:bg-[#A78BFA]/20 transition-colors disabled:opacity-50"
+              className="flex-1 py-1.5 rounded-lg bg-white/[0.04] text-white/60 text-xs font-medium hover:bg-white/[0.07] transition-colors disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save"}
             </button>
@@ -161,8 +161,8 @@ export default function MemoryPage() {
             const meta = TYPE_META[m.type];
             return (
               <div key={m.id} className="glass rounded-2xl p-3 flex gap-3 group fu">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${meta.color}22` }}>
-                  <meta.icon size={13} style={{ color: meta.color }} />
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <meta.icon size={13} style={{ color: "rgba(255,255,255,0.5)" }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   {m.title && <p className="text-xs font-semibold truncate">{m.title}</p>}

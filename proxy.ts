@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySession } from "@/lib/auth";
+import { jwtVerify } from "jose";
+
+const SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET ?? "change-me-please-use-a-real-secret-key"
+);
+
+async function verifyTokenEdge(token: string): Promise<boolean> {
+  try {
+    await jwtVerify(token, SECRET);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const PUBLIC_PATHS = [
   "/",
@@ -17,9 +30,10 @@ const PUBLIC_PATHS = [
   "/api/auth/verify-email",
   "/api/auth/callback",
   "/api/webhooks",
+  "/mockups",
 ];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Allow public paths and static files
@@ -37,8 +51,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(`/auth/login?next=${encodeURIComponent(pathname)}`, req.url));
   }
 
-  const session = await verifySession(cookie.value);
-  if (!session) {
+  const valid = await verifyTokenEdge(cookie.value);
+  if (!valid) {
     const res = NextResponse.redirect(new URL(`/auth/login?next=${encodeURIComponent(pathname)}`, req.url));
     res.cookies.set(process.env.SESSION_COOKIE_NAME ?? "vita_session", "", { maxAge: 0, path: "/" });
     return res;

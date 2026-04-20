@@ -20,10 +20,10 @@ export function PlanCard({ weekLabel, days, onAccept }: PlanCardProps) {
   const sorted = [...days].sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
 
   return (
-    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-[#A78BFA]/20">
+    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-white/[0.07]">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-[#A78BFA]/20 flex items-center justify-center">
-          <CalendarDays size={16} className="text-[#A78BFA]" />
+        <div className="border border-white/[0.07] w-8 h-8 rounded-xl flex items-center justify-center">
+          <CalendarDays size={16} className="text-white/50" />
         </div>
         <div>
           <p className="text-sm font-semibold">Weekly Plan</p>
@@ -37,14 +37,14 @@ export function PlanCard({ weekLabel, days, onAccept }: PlanCardProps) {
             <span className="text-[9px] text-muted-foreground uppercase">{d.day}</span>
             <div
               className={`w-full min-h-[2.5rem] rounded-lg flex flex-col items-center justify-center gap-0.5 p-1 ${
-                d.rest ? "bg-secondary" : "bg-[#A78BFA]/15 border border-[#A78BFA]/30"
+                d.rest ? "bg-secondary" : "border border-white/[0.07]"
               }`}
             >
               {d.rest ? (
                 <span className="text-[9px] text-muted-foreground">Rest</span>
               ) : (
                 <>
-                  <Dumbbell size={10} className="text-[#A78BFA]" />
+                  <Dumbbell size={10} className="text-white/50" />
                   {d.workouts.map((w, i) => (
                     <span key={i} className="text-[8px] text-center text-foreground/70 leading-tight">{w}</span>
                   ))}
@@ -58,7 +58,7 @@ export function PlanCard({ weekLabel, days, onAccept }: PlanCardProps) {
       {onAccept && (
         <button
           onClick={onAccept}
-          className="w-full text-xs py-1.5 rounded-lg bg-[#A78BFA]/10 text-[#A78BFA] hover:bg-[#A78BFA]/20 transition-colors"
+          className="w-full text-xs py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:bg-white/10 transition-colors"
         >
           Accept this plan
         </button>

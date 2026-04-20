@@ -24,10 +24,10 @@ export function PhotoDiffCard({ beforeUrl, afterUrl, beforeDate, afterDate, delt
   }
 
   return (
-    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-[#34D399]/20">
+    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-white/[0.07]">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-[#34D399]/20 flex items-center justify-center">
-          <Camera size={16} className="text-[#34D399]" />
+        <div className="w-8 h-8 rounded-xl bg-white/[0.04] flex items-center justify-center">
+          <Camera size={16} className="text-white/50" />
         </div>
         <div>
           <p className="text-sm font-semibold">Progress Photos</p>

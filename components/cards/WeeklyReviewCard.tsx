@@ -34,20 +34,19 @@ export function WeeklyReviewCard({
   }
 
   const pct = Math.round(adherencePct);
-  const color = pct >= 80 ? "#34D399" : pct >= 50 ? "#FBBF24" : "#F472B6";
 
   return (
-    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-[#A78BFA]/20">
+    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-white/[0.07]">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-[#A78BFA]/20 flex items-center justify-center">
-          <BarChart2 size={16} className="text-[#A78BFA]" />
+        <div className="border border-white/[0.07] w-8 h-8 rounded-xl flex items-center justify-center">
+          <BarChart2 size={16} className="text-white/50" />
         </div>
         <div>
           <p className="text-sm font-semibold">Weekly Review</p>
           <p className="text-[10px] text-muted-foreground">Week of {weekOf}</p>
         </div>
         <div className="ml-auto text-right">
-          <p className="text-xl font-bold" style={{ color }}>{pct}%</p>
+          <p className="text-xl font-bold text-white/60">{pct}%</p>
           <p className="text-[10px] text-muted-foreground">adherence</p>
         </div>
       </div>
@@ -55,8 +54,8 @@ export function WeeklyReviewCard({
       {/* Progress arc */}
       <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
         <div
-          className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${pct}%`, background: `linear-gradient(to right, ${color}88, ${color})` }}
+          className="h-full rounded-full transition-all duration-700 bg-white/40"
+          style={{ width: `${pct}%` }}
         />
       </div>
 
@@ -64,13 +63,13 @@ export function WeeklyReviewCard({
         <span>{workoutsCompleted}/{workoutsPlanned} workouts</span>
       </div>
 
-      <p className="text-xs text-foreground/80 leading-relaxed border-l-2 border-[#A78BFA]/40 pl-2">{aiVerdict}</p>
+      <p className="text-xs text-foreground/80 leading-relaxed border-l-2 border-white/[0.07] pl-2">{aiVerdict}</p>
 
       {suggestions.length > 0 && (
         <ul className="space-y-1">
           {suggestions.map((s, i) => (
             <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
-              <span className="text-[#A78BFA] mt-0.5">•</span>
+              <span className="text-white/50 mt-0.5">•</span>
               {s}
             </li>
           ))}
@@ -81,7 +80,7 @@ export function WeeklyReviewCard({
         <button
           onClick={accept}
           disabled={accepted}
-          className="flex-1 flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-lg bg-[#34D399]/10 text-[#34D399] hover:bg-[#34D399]/20 transition-colors disabled:opacity-50"
+          className="flex-1 flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:bg-white/10 transition-colors disabled:opacity-50"
         >
           <CheckCheck size={12} />
           {accepted ? "Accepted" : "Accept plan"}

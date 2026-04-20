@@ -13,17 +13,17 @@ export function HabitStreakCard({ habitName, currentStreak, longestStreak, last3
   const days = last30Days.slice(-28); // show last 4 weeks
 
   return (
-    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-[#F472B6]/20">
+    <div className="glass rounded-2xl p-4 space-y-3 my-2 fu border border-white/[0.07]">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-[#F472B6]/20 flex items-center justify-center">
-          <Flame size={16} className="text-[#F472B6]" />
+        <div className="border border-white/[0.07] w-8 h-8 rounded-xl flex items-center justify-center">
+          <Flame size={16} className="text-white/50" />
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold">{habitName}</p>
           <p className="text-[10px] text-muted-foreground">Habit streak</p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-[#F472B6]">{currentStreak}</p>
+          <p className="text-2xl font-bold text-white/60">{currentStreak}</p>
           <p className="text-[10px] text-muted-foreground">day streak</p>
         </div>
       </div>
@@ -34,7 +34,7 @@ export function HabitStreakCard({ habitName, currentStreak, longestStreak, last3
           {days.map((done, i) => (
             <div
               key={i}
-              className={`h-5 rounded-sm ${done ? "bg-[#F472B6]/70" : "bg-secondary"}`}
+              className={`h-5 rounded-sm ${done ? "bg-white/30" : "bg-secondary"}`}
               title={done ? "Done" : "Missed"}
             />
           ))}
@@ -42,7 +42,7 @@ export function HabitStreakCard({ habitName, currentStreak, longestStreak, last3
       )}
 
       <div className="flex justify-between text-[10px] text-muted-foreground">
-        <span>Current: <span className="text-[#F472B6] font-semibold">{currentStreak}d</span></span>
+        <span>Current: <span className="text-white/60 font-semibold">{currentStreak}d</span></span>
         <span>Best: <span className="text-foreground font-semibold">{longestStreak}d</span></span>
       </div>
     </div>
