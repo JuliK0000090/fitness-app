@@ -14,10 +14,10 @@ export function GuestButton() {
     try {
       const res = await fetch("/api/auth/guest", { method: "POST" });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error ?? "Failed to start guest session");
-      router.push("/today");
-    } catch {
-      toast.error("Could not start guest session. Please try again.");
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      window.location.href = "/today";
+    } catch (err) {
+      toast.error(err instanceof Error ? `Error: ${err.message}` : String(err));
     } finally {
       setLoading(false);
     }
