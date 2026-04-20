@@ -1,11 +1,14 @@
-const TERRA_API_KEY = process.env.TERRA_API_KEY!;
-const TERRA_DEV_ID = process.env.TERRA_DEV_ID!;
 const TERRA_BASE = "https://api.tryterra.co/v2";
 
 function terraHeaders() {
+  const apiKey = process.env.TERRA_API_KEY;
+  const devId = process.env.TERRA_DEV_ID;
+  if (!apiKey || !devId) {
+    throw new Error("Terra credentials not configured (TERRA_API_KEY, TERRA_DEV_ID)");
+  }
   return {
-    "dev-id": TERRA_DEV_ID,
-    "x-api-key": TERRA_API_KEY,
+    "dev-id": devId,
+    "x-api-key": apiKey,
     "Content-Type": "application/json",
   };
 }
@@ -39,10 +42,7 @@ export async function getTerraWidgetUrl(userId: string, provider?: string): Prom
 export async function deauthTerraUser(terraUserId: string): Promise<void> {
   const res = await fetch(
     `${TERRA_BASE}/auth/deauthenticateUser?user_id=${encodeURIComponent(terraUserId)}`,
-    {
-      method: "DELETE",
-      headers: terraHeaders(),
-    }
+    { method: "DELETE", headers: terraHeaders() }
   );
 
   if (!res.ok) {
@@ -63,10 +63,7 @@ export async function getTerraActivity(
   url.searchParams.set("end_date", endDate);
   url.searchParams.set("with_samples", "false");
 
-  const res = await fetch(url.toString(), {
-    method: "GET",
-    headers: terraHeaders(),
-  });
+  const res = await fetch(url.toString(), { method: "GET", headers: terraHeaders() });
 
   if (!res.ok) {
     const text = await res.text();

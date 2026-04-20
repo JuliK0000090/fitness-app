@@ -14,7 +14,7 @@ export async function parseGoalFromNL(text: string): Promise<{
   deadline?: string;
 }> {
   const { text: raw } = await generateText({
-    model: anthropic("claude-haiku-4-5"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     prompt: `Extract structured goal data from the following natural language goal description.
 Return ONLY valid JSON with these fields:
 - description: string (clean description of the goal)
@@ -171,7 +171,7 @@ export async function generateWeeklyPlan(userId: string): Promise<{
   const weekLabel = `${monday.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${sunday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
 
   const { text: raw } = await generateText({
-    model: anthropic("claude-haiku-4-5"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     prompt: `Create a 7-day weekly workout plan for a fitness app user.
 
 User profile:

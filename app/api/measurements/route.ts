@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { predictHitDate } from "@/lib/goal-engine";
+import { z } from "zod";
+
+const measurementSchema = z.object({
+  kind: z.string().min(1),
+  value: z.number(),
+  unit: z.string().optional().default("cm"),
+  capturedAt: z.string().datetime().optional(),
+  source: z.enum(["manual", "photo_estimate", "wearable"]).optional().default("manual"),
+  confidence: z.number().min(0).max(1).optional(),
+  notes: z.string().optional(),
+});
 
 export async function GET(req: NextRequest) {
   const session = await requireSession();
@@ -19,10 +30,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
-  const body = await req.json();
+  const parsed = measurementSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+  }
 
   const m = await prisma.measurement.create({
-    data: { ...body, userId: session.userId },
+    data: { ...parsed.data, userId: session.userId },
   });
 
   // After measurement save, update goal predictions async (fire-and-forget)

@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
   if (eventType === "user_auth_success") {
     const user = event.user as Record<string, string> | undefined;
     if (user?.user_id && user?.provider && user?.reference_id) {
-      prisma.device.upsert({
+      await prisma.device.upsert({
         where: { userId_provider: { userId: user.reference_id, provider: user.provider } },
         create: {
           userId: user.reference_id,

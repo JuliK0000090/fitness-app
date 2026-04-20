@@ -1,30 +1,35 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-export const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
+function getR2Client() {
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+
+  if (!accountId || !accessKeyId || !secretAccessKey) {
+    throw new Error("R2 credentials not configured (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY)");
+  }
+
+  return new S3Client({
+    region: "auto",
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+}
 
 const BUCKET = process.env.R2_BUCKET_NAME ?? "vita-uploads";
 
 export async function getUploadUrl(key: string, contentType: string, expiresIn = 300) {
-  const command = new PutObjectCommand({
-    Bucket: BUCKET,
-    Key: key,
-    ContentType: contentType,
-  });
-  return getSignedUrl(r2, command, { expiresIn });
+  const command = new PutObjectCommand({ Bucket: BUCKET, Key: key, ContentType: contentType });
+  return getSignedUrl(getR2Client(), command, { expiresIn });
 }
 
 export async function deleteObject(key: string) {
-  await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+  await getR2Client().send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
 }
 
 export function publicUrl(key: string) {
-  return `${process.env.R2_PUBLIC_URL}/${key}`;
+  const base = process.env.R2_PUBLIC_URL;
+  if (!base) throw new Error("R2_PUBLIC_URL is not configured");
+  return `${base}/${key}`;
 }
