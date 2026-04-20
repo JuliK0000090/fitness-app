@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { Prisma } from "@prisma/client";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { embed } from "ai";
 
@@ -56,13 +57,14 @@ export async function recallMemories(
 
   if (embedding) {
     const vec = `[${embedding.join(",")}]`;
+    const typeFilter = type ? Prisma.sql`AND type = ${type}` : Prisma.empty;
     // Raw SQL for pgvector cosine similarity
     const rows = await prisma.$queryRaw<{ id: string; type: string; title: string | null; content: string; createdAt: Date }[]>`
       SELECT id, type, title, content, "createdAt"
       FROM "Memory"
       WHERE "userId" = ${userId}
         AND "deletedAt" IS NULL
-        ${type ? prisma.$queryRaw`AND type = ${type}` : prisma.$queryRaw``}
+        ${typeFilter}
         AND embedding IS NOT NULL
       ORDER BY embedding <=> ${vec}::vector
       LIMIT ${limit}
