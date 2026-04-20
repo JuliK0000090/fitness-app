@@ -26,11 +26,20 @@ export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const isChat = pathname.startsWith("/chat");
+  const isGuest = user.email.startsWith("guest_") && user.email.endsWith("@guest.vita");
 
   return (
     <div className="aurora-bg min-h-screen flex flex-col">
+      {/* Guest banner */}
+      {isGuest && !bannerDismissed && (
+        <div className="relative z-30 flex items-center justify-between gap-3 px-4 py-2 text-xs bg-primary/10 border-b border-primary/20 text-primary">
+          <span>You're browsing as a guest — <Link href="/auth/register" className="underline font-medium">create a free account</Link> to save your progress.</span>
+          <button onClick={() => setBannerDismissed(true)} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"><X size={13} /></button>
+        </div>
+      )}
       {/* Top bar */}
       <header className="relative z-20 flex items-center justify-between px-5 h-12 border-b border-border" style={{ background: "rgba(6,8,16,0.85)", backdropFilter: "blur(20px)" }}>
         <div className="flex items-center gap-3">
