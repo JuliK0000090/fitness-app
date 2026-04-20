@@ -1,0 +1,227 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─── Aurora Design Tokens ─────────────────────────────────────────────────── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Aurora brand colors */
+  --color-aurora-purple: #A78BFA;
+  --color-aurora-cyan: #22D3EE;
+  --color-aurora-pink: #F472B6;
+  --color-aurora-green: #34D399;
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Light mode — keep functional but Aurora is dark-first */
+:root {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #f8f8f8;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #A78BFA;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f0f0;
+  --secondary-foreground: #0a0a0a;
+  --muted: #f0f0f0;
+  --muted-foreground: #737373;
+  --accent: #A78BFA;
+  --accent-foreground: #ffffff;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: rgba(0,0,0,0.08);
+  --input: rgba(0,0,0,0.06);
+  --ring: #A78BFA;
+  --chart-1: #A78BFA;
+  --chart-2: #22D3EE;
+  --chart-3: #F472B6;
+  --chart-4: #34D399;
+  --chart-5: #FBBF24;
+  --radius: 0.75rem;
+  --sidebar: #f8f8f8;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #A78BFA;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0f0f0;
+  --sidebar-accent-foreground: #0a0a0a;
+  --sidebar-border: rgba(0,0,0,0.08);
+  --sidebar-ring: #A78BFA;
+}
+
+/* Aurora dark theme — the primary experience */
+.dark {
+  --background: #080C14;
+  --foreground: rgba(255,255,255,0.95);
+  --card: rgba(255,255,255,0.04);
+  --card-foreground: rgba(255,255,255,0.95);
+  --popover: #0e1420;
+  --popover-foreground: rgba(255,255,255,0.95);
+  --primary: #A78BFA;
+  --primary-foreground: #080C14;
+  --secondary: rgba(255,255,255,0.06);
+  --secondary-foreground: rgba(255,255,255,0.95);
+  --muted: rgba(255,255,255,0.04);
+  --muted-foreground: rgba(255,255,255,0.55);
+  --accent: #A78BFA;
+  --accent-foreground: #080C14;
+  --destructive: #f87171;
+  --border: rgba(255,255,255,0.08);
+  --input: rgba(255,255,255,0.08);
+  --ring: #A78BFA;
+  --chart-1: #A78BFA;
+  --chart-2: #22D3EE;
+  --chart-3: #F472B6;
+  --chart-4: #34D399;
+  --chart-5: #FBBF24;
+  --sidebar: rgba(255,255,255,0.03);
+  --sidebar-foreground: rgba(255,255,255,0.95);
+  --sidebar-primary: #A78BFA;
+  --sidebar-primary-foreground: #080C14;
+  --sidebar-accent: rgba(255,255,255,0.06);
+  --sidebar-accent-foreground: rgba(255,255,255,0.95);
+  --sidebar-border: rgba(255,255,255,0.06);
+  --sidebar-ring: #A78BFA;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02","cv03","cv04","cv11";
+  }
+  html {
+    @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ─── Aurora Background ──────────────────────────────────────────────────── */
+.aurora-bg {
+  position: relative;
+  overflow: hidden;
+}
+.aurora-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 20%, rgba(167,139,250,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(34,211,238,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 60% 40%, rgba(244,114,182,0.04) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  animation: aurora-drift 20s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift {
+  0%   { transform: scale(1) translate(0,0); }
+  50%  { transform: scale(1.05) translate(2%,1%); }
+  100% { transform: scale(1) translate(-1%,-2%); }
+}
+
+/* ─── Glass Card ─────────────────────────────────────────────────────────── */
+.glass {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 16px;
+}
+.glass-hover {
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+.glass-hover:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.14);
+}
+
+/* ─── Fade-up animation ──────────────────────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fu  { animation: fade-up 0.5s ease both; }
+.fu2 { animation: fade-up 0.5s 0.1s ease both; }
+.fu3 { animation: fade-up 0.5s 0.2s ease both; }
+.fu4 { animation: fade-up 0.5s 0.3s ease both; }
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+.dark ::-webkit-scrollbar { width: 6px; height: 6px; }
+.dark ::-webkit-scrollbar-track { background: transparent; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ─── Shimmer skeleton ───────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ─── Button press scale ─────────────────────────────────────────────────── */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ─── Smooth focus rings ─────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #A78BFA;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-bg::before, .fu, .fu2, .fu3, .fu4, .shimmer { animation: none; }
+  button:active { transform: none; }
+}

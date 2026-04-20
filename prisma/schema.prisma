@@ -1,0 +1,476 @@
+// Vita Fitness App — Prisma Schema
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [pgvector(map: "vector")]
+}
+
+// ─── Auth & Accounts ─────────────────────────────────────────────────────────
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  emailVerified        DateTime?
+  emailVerifyToken     String?   @unique
+  passwordHash         String?
+  name                 String?
+  avatarUrl            String?
+  dob                  DateTime?
+  sex                  String?
+  heightCm             Float?
+  activityLevel        String?   // sedentary / light / moderate / active / very_active
+  goalWeightKg         Float?
+  medicalNotes         String?
+  onboardingComplete   Boolean   @default(false)
+  customInstructions   String?   @db.Text
+  customResponseStyle  String?   @db.Text
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+  deleteRequestedAt    DateTime?
+  gdprConsentAt        DateTime?
+  analyticsConsent     Boolean   @default(false)
+
+  accounts          Account[]
+  sessions          Session[]
+  resetTokens       PasswordResetToken[]
+  mfaConfigs        MfaConfig[]
+  goals             Goal[]
+  habits            Habit[]
+  workoutLogs       WorkoutLog[]
+  measurements      Measurement[]
+  photos            Photo[]
+  checklistItems    ChecklistItem[]
+  weeklyReviews     WeeklyReview[]
+  achievements      Achievement[]
+  streaks           Streak[]
+  conversations     Conversation[]
+  memories          Memory[]
+  notifications     Notification[]
+  devices           Device[]
+  auditLogs         AuditLog[]
+  feedbackItems     MessageFeedback[]
+  pushSubscriptions PushSubscription[]
+
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String  // google / apple / email
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+  expiresAt         Int?
+  tokenType         String?
+  scope             String?
+  idToken           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionToken String   @unique
+  expires      DateTime
+  rememberMe   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  userAgent    String?
+  ipAddress    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MfaConfig {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // totp
+  secret    String
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+}
+
+// ─── Conversations & Messages ─────────────────────────────────────────────────
+
+model Conversation {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String?
+  pinned    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([userId])
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  conversationId  String
+  role            String   // user / assistant / tool
+  content         String   @db.Text
+  toolName        String?
+  toolCallId      String?
+  parentId        String?
+  branchIndex     Int      @default(0)
+  thinkingContent String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  attachments  Attachment[]
+  feedback     MessageFeedback[]
+  children     Message[]         @relation("MessageBranch")
+  parent       Message?          @relation("MessageBranch", fields: [parentId], references: [id])
+
+  @@index([conversationId])
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  messageId  String
+  type       String   // image / document / audio / video
+  fileName   String
+  mimeType   String
+  r2Key      String
+  sizeBytes  Int
+  transcript String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model MessageFeedback {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  rating    Int      // 1 thumbs-up / -1 thumbs-down
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Memory ───────────────────────────────────────────────────────────────────
+
+model Memory {
+  id        String                      @id @default(cuid())
+  userId    String
+  type      String                      // profile / journal / episodic
+  title     String?
+  content   String                      @db.Text
+  embedding Unsupported("vector(1536)")?
+  source    String?                     // auto / user
+  weekOf    DateTime?
+  eventDate DateTime?
+  deletedAt DateTime?
+  createdAt DateTime                    @default(now())
+  updatedAt DateTime                    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+// ─── Fitness Data ─────────────────────────────────────────────────────────────
+
+model Goal {
+  id               String    @id @default(cuid())
+  userId           String
+  description      String    @db.Text
+  bodyArea         String?
+  direction        String    // increase / decrease / maintain / achieve
+  magnitude        Float?
+  unit             String?
+  targetValue      Float?
+  deadline         DateTime?
+  status           String    @default("active") // active / achieved / paused / cancelled
+  predictedHitDate DateTime?
+  planJson         String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklistItems ChecklistItem[]
+
+  @@index([userId, status])
+}
+
+model Habit {
+  id            String   @id @default(cuid())
+  userId        String
+  description   String   @db.Text
+  cadence       String   // daily / weekly / 2x/week / 3x/week / 5x/week
+  targetPerWeek Int      @default(1)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklistItems ChecklistItem[]
+
+  @@index([userId])
+}
+
+model WorkoutType {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  defaultMet  Float   @default(5.0)
+  category    String?
+  description String?
+
+  logs WorkoutLog[]
+}
+
+model WorkoutLog {
+  id                String   @id @default(cuid())
+  userId            String
+  typeId            String?
+  workoutName       String
+  startedAt         DateTime @default(now())
+  durationMin       Int
+  intensity         Int?
+  perceivedExertion Int?
+  caloriesEst       Float?
+  heartRateAvg      Int?
+  heartRateMax      Int?
+  source            String   @default("manual") // manual / wearable / video
+  notes             String?  @db.Text
+  xpAwarded         Int      @default(25)
+  createdAt         DateTime @default(now())
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type WorkoutType? @relation(fields: [typeId], references: [id])
+
+  @@index([userId, startedAt])
+}
+
+model Measurement {
+  id         String   @id @default(cuid())
+  userId     String
+  capturedAt DateTime @default(now())
+  kind       String   // weight / waist / hips / bust / thigh_l / thigh_r / glute / bicep_l / bicep_r / custom
+  value      Float
+  unit       String   @default("cm")
+  source     String   @default("manual") // manual / photo_estimate / wearable
+  confidence Float?
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, capturedAt])
+}
+
+model Photo {
+  id           String   @id @default(cuid())
+  userId       String
+  capturedAt   DateTime @default(now())
+  r2Key        String
+  pose         String   // front / side / back
+  notes        String?
+  analysisJson String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, capturedAt])
+}
+
+model ChecklistItem {
+  id            String    @id @default(cuid())
+  userId        String
+  date          String    // YYYY-MM-DD
+  description   String    @db.Text
+  sourceGoalId  String?
+  sourceHabitId String?
+  doneAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal  Goal?  @relation(fields: [sourceGoalId], references: [id])
+  habit Habit? @relation(fields: [sourceHabitId], references: [id])
+
+  @@index([userId, date])
+}
+
+model WeeklyReview {
+  id                  String    @id @default(cuid())
+  userId              String
+  weekStart           DateTime
+  weekOf              String    // YYYY-MM-DD string for display
+  adherencePct        Float?
+  workoutsCompleted   Int       @default(0)
+  workoutsPlanned     Int       @default(0)
+  deltasJson          String?   @db.Text
+  aiSummary           String?   @db.Text // AI-generated verdict / summary
+  nextWeekAdjustments String?   @db.Text
+  acceptedAt          DateTime?
+  deliveredAt         DateTime?
+  emailSentAt         DateTime?
+  createdAt           DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId])
+}
+
+// ─── Gamification ─────────────────────────────────────────────────────────────
+
+model Achievement {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  title       String
+  description String?
+  xpAwarded   Int      @default(0)
+  earnedAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Streak {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String    // workout / checklist / measurement
+  current   Int       @default(0)
+  longest   Int       @default(0)
+  lastAt    DateTime?
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+model Notification {
+  id           String    @id @default(cuid())
+  userId       String
+  type         String    // morning_briefing / nudge / weekly_review / achievement
+  title        String
+  body         String    @db.Text
+  data         String?   @db.Text
+  readAt       DateTime?
+  sentAt       DateTime?
+  snoozedUntil DateTime?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Wearables ────────────────────────────────────────────────────────────────
+
+model Device {
+  id           String    @id @default(cuid())
+  userId       String
+  provider     String    // oura / whoop / garmin / fitbit / apple_health / terra
+  terraUserId  String?
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  connected    Boolean   @default(true)
+  connectedAt  DateTime  @default(now())
+  lastSyncAt   DateTime?
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceData DeviceData[]
+
+  @@unique([userId, provider])
+}
+
+model DeviceData {
+  id              String   @id @default(cuid())
+  deviceId        String
+  date            String   // YYYY-MM-DD
+  steps           Int?
+  activeMinutes   Int?
+  caloriesBurned  Float?
+  hrAvg           Int?
+  hrMax           Int?
+  hrMin           Int?
+  hrResting       Int?
+  hrv             Float?
+  sleepDuration   Int?
+  sleepEfficiency Float?
+  bodyTempDelta   Float?
+  readinessScore  Float?
+  recoveryScore   Float?
+  menstrualPhase  String?
+  rawJson         String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, date])
+  @@index([deviceId, date])
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String?
+  entityId   String?
+  details    String?  @db.Text
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
