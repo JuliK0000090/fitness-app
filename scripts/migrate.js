@@ -28,7 +28,7 @@ async function run() {
   // Step 2: prisma db push
   const { execSync } = require("child_process");
   try {
-    execSync("npx prisma db push --skip-generate --accept-data-loss", {
+    execSync("npx prisma db push --accept-data-loss", {
       stdio: "inherit",
       env: process.env,
     });
