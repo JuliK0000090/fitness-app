@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Brain, Shield, Bell, Palette, ChevronRight } from "lucide-react";
+import { Brain, Shield, Bell, Palette, ChevronRight, Watch } from "lucide-react";
 
 const SETTINGS = [
   { href: "/settings/memory", icon: Brain, color: "#A78BFA", label: "Memory", desc: "Manage what Vita remembers about you" },
   { href: "/settings/notifications", icon: Bell, color: "#22D3EE", label: "Notifications", desc: "Morning briefings, nudges, and alerts" },
   { href: "/settings/appearance", icon: Palette, color: "#F472B6", label: "Appearance", desc: "Theme, font size, reduced motion" },
   { href: "/settings/privacy", icon: Shield, color: "#34D399", label: "Privacy & Data", desc: "Export, delete, and data settings" },
+  { href: "/settings/wearables", icon: Watch, color: "#22D3EE", label: "Wearables", desc: "Connect fitness devices and wearables" },
 ];
 
 export default function SettingsPage() {

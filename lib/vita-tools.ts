@@ -234,5 +234,102 @@ export function vitaTools(userId: string) {
         return { predictedDate: date ? date.toISOString() : null };
       },
     }),
+
+    get_wearable_data: makeTool({
+      description: "Get the user's most recent wearable health data across all connected devices. Returns a summary including steps, sleep hours, HRV, and resting heart rate.",
+      parameters: z.object({}),
+      execute: async () => {
+        // Find all connected devices for the user
+        const devices = await prisma.device.findMany({
+          where: { userId, connected: true },
+          select: { id: true, provider: true },
+        });
+
+        if (devices.length === 0) {
+          return { connected: false, message: "No wearable devices connected." };
+        }
+
+        // Get the most recent DeviceData entry per device
+        const deviceIds = devices.map((d) => d.id);
+        const rows = await prisma.deviceData.findMany({
+          where: { deviceId: { in: deviceIds } },
+          orderBy: { date: "desc" },
+          take: deviceIds.length * 7, // up to 7 days per device
+        });
+
+        // Aggregate: use the most recent non-null value for each metric
+        let steps: number | null = null;
+        let sleepHours: number | null = null;
+        let hrv: number | null = null;
+        let restingHr: number | null = null;
+        let latestDate: string | null = null;
+
+        for (const row of rows) {
+          if (steps == null && row.steps != null) steps = row.steps;
+          if (sleepHours == null && row.sleepDuration != null) sleepHours = Math.round((row.sleepDuration / 60) * 10) / 10;
+          if (hrv == null && row.hrv != null) hrv = row.hrv;
+          if (restingHr == null && row.hrResting != null) restingHr = row.hrResting;
+          if (latestDate == null) latestDate = row.date;
+        }
+
+        return {
+          connected: true,
+          providers: devices.map((d) => d.provider),
+          latestDate,
+          steps,
+          sleepHours,
+          hrv,
+          restingHr,
+        };
+      },
+    }),
+
+    list_integrations: makeTool({
+      description: "List all connected wearable devices for the user.",
+      parameters: z.object({}),
+      execute: async () => {
+        const devices = await prisma.device.findMany({
+          where: { userId },
+          select: {
+            id: true,
+            provider: true,
+            connected: true,
+            connectedAt: true,
+            lastSyncAt: true,
+          },
+          orderBy: { connectedAt: "desc" },
+        });
+        return { devices };
+      },
+    }),
+
+    show_form_check: makeTool({
+      description: "Open the live camera form check overlay so the user can check their exercise form with a rep counter.",
+      parameters: z.object({
+        exercise: z.string().optional().describe("The exercise to check (e.g. 'Squat', 'Push-up')"),
+      }),
+      execute: async ({ exercise }) => {
+        return { action: "open_form_check", exercise: exercise ?? "Squat" };
+      },
+    }),
+
+    estimate_body_measurements: makeTool({
+      description: "Open the photo measurement tool so the user can estimate body measurements from a photo.",
+      parameters: z.object({}),
+      execute: async () => {
+        return { action: "open_photo_measure" };
+      },
+    }),
+
+    start_timer: makeTool({
+      description: "Show a countdown timer (e.g. for rest periods between sets).",
+      parameters: z.object({
+        durationSec: z.number().describe("Timer duration in seconds"),
+        label: z.string().optional().describe("Label for the timer (e.g. 'Rest Timer')"),
+      }),
+      execute: async ({ durationSec, label }) => {
+        return { durationSec, label: label ?? "Rest Timer" };
+      },
+    }),
   };
 }

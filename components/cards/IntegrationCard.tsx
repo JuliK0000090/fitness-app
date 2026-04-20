@@ -38,11 +38,18 @@ export function IntegrationCard({ provider, connected, lastSynced, metrics = [] 
   async function connect() {
     setStatus("connecting");
     try {
-      const res = await fetch(`/api/integrations/${provider}/connect`, { method: "POST" });
+      const res = await fetch("/api/integrations/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
       if (res.ok) {
-        const { redirectUrl } = await res.json();
-        if (redirectUrl) window.location.href = redirectUrl;
+        const data = await res.json() as { url?: string; redirectUrl?: string };
+        const target = data.url ?? data.redirectUrl;
+        if (target) window.location.href = target;
         else { setIsConnected(true); toast.success(`${label} connected!`); }
+      } else {
+        toast.error("Connection failed");
       }
     } catch {
       toast.error("Connection failed");
@@ -52,7 +59,11 @@ export function IntegrationCard({ provider, connected, lastSynced, metrics = [] 
   }
 
   async function disconnect() {
-    await fetch(`/api/integrations/${provider}/disconnect`, { method: "POST" });
+    await fetch("/api/integrations/disconnect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider }),
+    });
     setIsConnected(false);
     toast.success(`${label} disconnected`);
   }

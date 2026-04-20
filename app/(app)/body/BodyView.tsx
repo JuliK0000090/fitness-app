@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, Camera } from "lucide-react";
+import { Activity, Camera, Video } from "lucide-react";
 import { MeasurementCard } from "@/components/cards/MeasurementCard";
 import { BodyMapCard } from "@/components/cards/BodyMapCard";
+import { PhotoMeasure } from "@/components/vision/PhotoMeasure";
+import { FormCheck } from "@/components/vision/FormCheck";
 import { format } from "date-fns";
 
 interface Measurement {
@@ -27,10 +29,11 @@ interface BodyViewProps {
   photos: Photo[];
 }
 
-const TABS = ["Stats", "Photos", "Body Map"] as const;
+const TABS = ["Stats", "Photos", "Body Map", "Vision"] as const;
 
 export function BodyView({ measurements, photos }: BodyViewProps) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Stats");
+  const [formCheckOpen, setFormCheckOpen] = useState(false);
 
   return (
     <div className="max-w-lg mx-auto py-4 px-4 space-y-4">
@@ -105,6 +108,32 @@ export function BodyView({ measurements, photos }: BodyViewProps) {
           </p>
         </div>
       )}
+
+      {tab === "Vision" && (
+        <div className="space-y-4 fu">
+          {/* Form Check */}
+          <button
+            onClick={() => setFormCheckOpen(true)}
+            className="w-full glass rounded-2xl p-4 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+          >
+            <div className="w-9 h-9 rounded-xl bg-[#34D399]/20 flex items-center justify-center shrink-0">
+              <Video size={16} className="text-[#34D399]" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Form Check</p>
+              <p className="text-xs text-muted-foreground">Live camera with rep counter and alignment grid</p>
+            </div>
+          </button>
+
+          {/* Photo Measurements */}
+          <div className="glass rounded-2xl p-4">
+            <PhotoMeasure />
+          </div>
+        </div>
+      )}
+
+      {/* Form check overlay */}
+      {formCheckOpen && <FormCheck onClose={() => setFormCheckOpen(false)} />}
     </div>
   );
 }

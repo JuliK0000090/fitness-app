@@ -13,6 +13,8 @@ import { TimerCard } from "./TimerCard";
 import { NutritionCard } from "./NutritionCard";
 import { IntegrationCard } from "./IntegrationCard";
 import { CrisisCard } from "./CrisisCard";
+import { FormCheck } from "../vision/FormCheck";
+import { PhotoMeasure } from "../vision/PhotoMeasure";
 
 interface ToolResultRendererProps {
   toolName: string;
@@ -195,6 +197,26 @@ export function ToolResultRenderer({ toolName, result }: ToolResultRendererProps
 
       case "show_crisis_resources":
         return <CrisisCard message={result.message} />;
+
+      case "show_form_check":
+        if (result.action === "open_form_check") {
+          return (
+            <div className="glass rounded-2xl p-4 my-2 fu border border-[#34D399]/20">
+              <FormCheck onClose={() => {}} />
+            </div>
+          );
+        }
+        return null;
+
+      case "estimate_body_measurements":
+        if (result.action === "open_photo_measure") {
+          return (
+            <div className="glass rounded-2xl p-4 my-2 fu border border-[#22D3EE]/20">
+              <PhotoMeasure />
+            </div>
+          );
+        }
+        return null;
 
       default:
         return null;
