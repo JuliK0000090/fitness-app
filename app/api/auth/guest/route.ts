@@ -4,6 +4,7 @@ import { createSession, COOKIE } from "@/lib/auth";
 import { nanoid } from "nanoid";
 
 export async function POST() {
+  try {
   const id = nanoid(10);
   const email = `guest_${id}@guest.vita`;
   const name = "Guest";
@@ -38,4 +39,8 @@ export async function POST() {
     maxAge: 24 * 60 * 60,
   });
   return res;
+  } catch (e) {
+    console.error("[guest] error:", e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  }
 }

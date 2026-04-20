@@ -23,6 +23,7 @@ const PUBLIC_PATHS = [
   "/auth/verify-email",
   "/legal/privacy",
   "/legal/terms",
+  "/api/auth/guest",
   "/api/auth/register",
   "/api/auth/login",
   "/api/auth/forgot-password",
