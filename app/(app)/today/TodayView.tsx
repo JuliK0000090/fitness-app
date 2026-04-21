@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Flame, Dumbbell, Bell, X, MessageSquarePlus, RefreshCw } from "lucide-react";
 import { ChecklistCard } from "@/components/cards/ChecklistCard";
+import { TodaySignals } from "@/components/health/TodaySignals";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -72,6 +73,9 @@ export function TodayView({ userName, checklist, streaks, recentWorkouts, notifi
           />
         </div>
       </div>
+
+      {/* Health signals */}
+      <TodaySignals />
 
       {/* Notifications */}
       {notifications.map((n) => (

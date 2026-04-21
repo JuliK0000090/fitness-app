@@ -52,6 +52,27 @@ export async function POST(req: NextRequest) {
     user.activityLevel ? `Activity level: ${user.activityLevel}` : null,
   ].filter(Boolean).join("\n");
 
+  // Fetch recent health signals for context
+  const todayStr = new Date().toISOString().split("T")[0];
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+  const healthRows = await prisma.healthDaily.findMany({
+    where: {
+      userId,
+      date: { gte: new Date(yesterdayStr) },
+      metric: { in: ["steps", "sleepHours", "hrvMs", "restingHr", "readinessScore", "activeMinutes"] },
+    },
+  });
+
+  const healthLines = healthRows.map(r =>
+    `- ${r.metric}: ${r.value.toFixed(r.metric === "sleepHours" ? 1 : 0)} ${r.unit} (${r.source}, trust ${r.trust})`
+  );
+  const healthContext = healthLines.length > 0
+    ? `User's recent health signals:\n${healthLines.join("\n")}`
+    : "";
+
   // Persist user message
   const lastMessage = body.messages[body.messages.length - 1];
 
@@ -67,6 +88,7 @@ export async function POST(req: NextRequest) {
     customResponseStyle: user.customResponseStyle,
     profileContext,
     memoryContext,
+    healthContext,
   });
   if (lastMessage?.role === "user") {
     await prisma.message.create({

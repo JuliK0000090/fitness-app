@@ -4,6 +4,7 @@ export function buildSystemPrompt(opts: {
   customResponseStyle?: string | null;
   profileContext?: string;
   memoryContext?: string;
+  healthContext?: string;
 }) {
   return `# Vita — AI Fitness Coach
 
@@ -30,6 +31,7 @@ ${opts.customInstructions ? `## What to know about this user\n${opts.customInstr
 ${opts.customResponseStyle ? `## How to respond\n${opts.customResponseStyle}` : ""}
 ${opts.profileContext ? `## User profile\n${opts.profileContext}` : ""}
 ${opts.memoryContext ? `## Recent context from memory\n${opts.memoryContext}` : ""}
+${opts.healthContext ? `## Health signals\n${opts.healthContext}` : ""}
 
 ---
 *Not medical advice. Always consult a qualified healthcare professional before starting a new exercise or nutrition programme.*

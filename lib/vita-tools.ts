@@ -331,5 +331,67 @@ export function vitaTools(userId: string) {
         return { durationSec, label: label ?? "Rest Timer" };
       },
     }),
+
+    get_today_signals: makeTool({
+      description: "Get today's health signals (steps, sleep, HRV, heart rate, etc.) for the user",
+      parameters: z.object({}),
+      execute: async () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const rows = await prisma.healthDaily.findMany({
+          where: { userId, date: today },
+        });
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(0, 0, 0, 0);
+        const sleepRows = await prisma.healthDaily.findMany({
+          where: { userId, date: yesterday, metric: { in: ["sleepHours", "hrvMs", "restingHr"] } },
+        });
+        return [...rows, ...sleepRows].map(r => ({
+          metric: r.metric, value: r.value, unit: r.unit, source: r.source, trust: r.trust,
+        }));
+      },
+    }),
+
+    get_health_trend: makeTool({
+      description: "Get trend data for a specific health metric over recent days",
+      parameters: z.object({
+        metric: z.string().describe("Metric name: steps, sleepHours, hrvMs, restingHr, weightKg, etc."),
+        days: z.number().default(7).describe("Number of days to look back"),
+      }),
+      execute: async ({ metric, days }) => {
+        const since = new Date();
+        since.setDate(since.getDate() - (days ?? 7));
+        const rows = await prisma.healthDaily.findMany({
+          where: { userId, metric, date: { gte: since } },
+          orderBy: { date: "asc" },
+        });
+        return rows.map(r => ({ date: r.date.toISOString().split("T")[0], value: r.value, source: r.source, trust: r.trust }));
+      },
+    }),
+
+    override_health_metric: makeTool({
+      description: "Override a health metric for a specific date with a user-provided value",
+      parameters: z.object({
+        date: z.string().describe("Date in YYYY-MM-DD format"),
+        metric: z.string().describe("Metric to override"),
+        value: z.number().describe("The correct value"),
+        note: z.string().optional().describe("Reason for override"),
+      }),
+      execute: async ({ date, metric, value, note }) => {
+        const d = new Date(date);
+        await prisma.healthOverride.upsert({
+          where: { userId_date_metric: { userId, date: d, metric } },
+          create: { userId, date: d, metric, value, note },
+          update: { value, note },
+        });
+        await prisma.healthDaily.upsert({
+          where: { userId_date_metric: { userId, date: d, metric } },
+          create: { userId, date: d, metric, value, unit: "", source: "MANUAL", sources: {}, trust: 100, overridden: true },
+          update: { value, source: "MANUAL", overridden: true, trust: 100 },
+        });
+        return { ok: true, message: `Override saved: ${value} ${metric} on ${date}` };
+      },
+    }),
   };
 }

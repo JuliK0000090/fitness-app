@@ -34,6 +34,7 @@ model User {
   deleteRequestedAt    DateTime?
   gdprConsentAt        DateTime?
   analyticsConsent     Boolean   @default(false)
+  timezone             String    @default("UTC")
 
   accounts          Account[]
   sessions          Session[]
@@ -418,11 +419,12 @@ model Device {
   id           String    @id @default(cuid())
   userId       String
   provider     String    // oura / whoop / garmin / fitbit / apple_health / terra
-  terraUserId  String?
+  terraUserId  String?   @unique
   accessToken  String?
   refreshToken String?
   expiresAt    DateTime?
   connected    Boolean   @default(true)
+  status       String    @default("CONNECTED") // CONNECTED / DISCONNECTED
   connectedAt  DateTime  @default(now())
   lastSyncAt   DateTime?
 
@@ -550,4 +552,50 @@ model UnsubscribeToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   category  String?
   createdAt DateTime @default(now())
+}
+
+// ─── Health Pipeline ──────────────────────────────────────────────────────────
+
+model HealthRaw {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String
+  eventType  String
+  payload    Json
+  receivedAt DateTime @default(now())
+
+  @@index([userId, receivedAt])
+  @@index([provider, eventType])
+}
+
+model HealthDaily {
+  id         String   @id @default(cuid())
+  userId     String
+  date       DateTime @db.Date
+  metric     String
+  value      Float
+  unit       String   @default("")
+  source     String
+  sources    Json     @default("{}")
+  trust      Int      @default(100)
+  filledGap  Boolean  @default(false)
+  overridden Boolean  @default(false)
+  computedAt DateTime @default(now())
+
+  @@unique([userId, date, metric])
+  @@index([userId, date])
+  @@index([userId, metric, date])
+}
+
+model HealthOverride {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  metric    String
+  value     Float
+  unit      String   @default("")
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date, metric])
 }
