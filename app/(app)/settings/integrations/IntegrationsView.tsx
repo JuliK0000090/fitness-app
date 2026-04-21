@@ -32,24 +32,6 @@ export function IntegrationsView({ devices }: { devices: Device[] }) {
 
   const deviceMap = Object.fromEntries(devices.map((d) => [d.provider, d]));
 
-  async function connect(provider: string) {
-    setLoading(provider);
-    try {
-      const res = await fetch("/api/health/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider }),
-      });
-      const { url, error } = await res.json();
-      if (error) throw new Error(error);
-      window.location.href = url;
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to connect");
-    } finally {
-      setLoading(null);
-    }
-  }
-
   async function disconnect(device: Device) {
     setLoading(device.id);
     try {
@@ -87,15 +69,18 @@ export function IntegrationsView({ devices }: { devices: Device[] }) {
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
       <h1 className="text-xl font-semibold mb-1">Connected devices</h1>
-      <p className="text-sm text-muted-foreground mb-8">
+      <p className="text-sm text-muted-foreground mb-6">
         Connect your wearables so Vita can see your steps, sleep, and recovery automatically.
       </p>
 
-      <div className="space-y-3">
+      <div className="glass rounded-2xl px-4 py-4 mb-6 text-sm text-muted-foreground">
+        Wearable integrations are coming soon. You&apos;ll be able to connect Oura, Whoop, Garmin, Fitbit, and more.
+      </div>
+
+      <div className="space-y-3 opacity-50 pointer-events-none select-none">
         {PROVIDERS.map(({ id, label, note }) => {
           const device = deviceMap[id];
           const connected = device?.connected === true && device?.status !== "DISCONNECTED";
-          const isLoading = loading === id || loading === device?.id;
 
           return (
             <div key={id} className="glass rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
@@ -138,13 +123,9 @@ export function IntegrationsView({ devices }: { devices: Device[] }) {
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={() => connect(id)}
-                    disabled={!!loading}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
-                  >
-                    {isLoading ? "…" : "Connect"}
-                  </button>
+                  <span className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground">
+                    Soon
+                  </span>
                 )}
               </div>
             </div>
