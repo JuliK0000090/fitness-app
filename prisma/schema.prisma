@@ -190,7 +190,7 @@ model Memory {
   type      String                      // profile / journal / episodic
   title     String?
   content   String                      @db.Text
-  embedding Unsupported("vector(1536)")?
+  // embedding Unsupported("vector(1536)")? // requires pgvector extension
   source    String?                     // auto / user
   weekOf    DateTime?
   eventDate DateTime?
