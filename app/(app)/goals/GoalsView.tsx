@@ -18,7 +18,7 @@ interface GoalData {
   unit: string | null;
   deadline: string | null;
   predictedHitDate: string | null;
-  habits: { id: string; title: string; icon: string | null }[];
+  habits: { id: string; title: string | null; icon: string | null }[];
   measurements: { date: string; value: number; unit: string }[];
 }
 
@@ -132,7 +132,7 @@ function GoalCard({ goal }: { goal: GoalData }) {
         <div className="flex flex-wrap gap-1.5">
           {goal.habits.slice(0, 4).map((h) => (
             <span key={h.id} className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.05] text-white/35">
-              {h.title}
+              {h.title ?? "Habit"}
             </span>
           ))}
           {goal.habits.length > 4 && (
