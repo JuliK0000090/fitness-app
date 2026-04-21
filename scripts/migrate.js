@@ -28,10 +28,10 @@ async function run() {
   // Step 2: prisma db push
   const { execSync } = require("child_process");
   try {
-    execSync("npx prisma db push --accept-data-loss", {
-      stdio: "inherit",
-      env: process.env,
-    });
+    execSync(
+      `npx prisma db push --accept-data-loss --schema=prisma/schema.prisma --url=${JSON.stringify(url)}`,
+      { stdio: "inherit", env: process.env }
+    );
   } catch (e) {
     console.error("prisma db push failed:", e.message);
     process.exit(1);
