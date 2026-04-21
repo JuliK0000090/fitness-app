@@ -12,6 +12,32 @@ import { VoiceMode } from "./VoiceMode";
 import { ToolResultRenderer } from "../cards/ToolResultRenderer";
 import { nanoid } from "nanoid";
 
+type ContentPart = { type: "text"; text: string } | { type: "image"; image: string };
+
+function UserMessageContent({ content }: { content: string }) {
+  // Try to parse as array of parts (multimodal message)
+  let parts: ContentPart[] | null = null;
+  if (content.startsWith("[")) {
+    try { parts = JSON.parse(content); } catch { /* plain text */ }
+  }
+
+  if (parts) {
+    return (
+      <div className="space-y-2">
+        {parts.map((part, i) =>
+          part.type === "image" ? (
+            <img key={i} src={part.image} alt="attachment" className="max-w-xs rounded-xl max-h-64 object-contain" />
+          ) : (
+            <p key={i} className="whitespace-pre-wrap">{part.text}</p>
+          )
+        )}
+      </div>
+    );
+  }
+
+  return <p className="whitespace-pre-wrap">{content}</p>;
+}
+
 interface ChatViewProps {
   conversationId: string;
   initialMessages: { id: string; role: "user" | "assistant"; content: string }[];
@@ -127,12 +153,15 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
       }
     }
 
-    const content = parts.length === 1 && parts[0].type === "text" ? parts[0].text! : JSON.stringify(parts);
-
     setInput("");
     setPendingAttachments([]);
 
-    await append({ role: "user", content });
+    if (parts.length === 1 && parts[0].type === "text") {
+      await append({ role: "user", content: parts[0].text! });
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await append({ role: "user", content: parts as any });
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -220,7 +249,7 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 ) : (
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+                  <UserMessageContent content={message.content} />
                 )}
 
               {/* Generative UI cards from tool invocations */}
