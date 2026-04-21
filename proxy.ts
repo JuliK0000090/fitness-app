@@ -31,6 +31,9 @@ const PUBLIC_PATHS = [
   "/api/auth/verify-email",
   "/api/auth/callback",
   "/api/webhooks",
+  "/api/admin",
+  "/api/unsubscribe",
+  "/unsubscribe",
   "/mockups",
 ];
 
