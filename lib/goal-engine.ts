@@ -111,11 +111,11 @@ export async function predictHitDate(
 }
 
 function inferMeasurementKind(goal: {
-  description: string;
+  description?: string | null;
   unit?: string | null;
   bodyArea?: string | null;
 }): string {
-  const text = `${goal.description} ${goal.unit ?? ""} ${goal.bodyArea ?? ""}`.toLowerCase();
+  const text = `${goal.description ?? ""} ${goal.unit ?? ""} ${goal.bodyArea ?? ""}`.toLowerCase();
   if (text.includes("weight") || text.includes("pound") || text.includes("kg") || text.includes("lb")) return "weight";
   if (text.includes("waist")) return "waist";
   if (text.includes("hip")) return "hips";

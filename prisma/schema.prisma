@@ -9,6 +9,31 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum GoalStatus {
+  ACTIVE
+  PAUSED
+  ACHIEVED
+  ARCHIVED
+}
+
+enum HabitCadence {
+  DAILY
+  WEEKLY_N
+  SPECIFIC_DAYS
+  EVERY_OTHER
+  WEEKDAYS
+  WEEKENDS
+}
+
+enum WorkoutStatus {
+  PLANNED
+  DONE
+  SKIPPED
+  MOVED
+}
+
 // ─── Auth & Accounts ─────────────────────────────────────────────────────────
 
 model User {
@@ -22,7 +47,7 @@ model User {
   dob                  DateTime?
   sex                  String?
   heightCm             Float?
-  activityLevel        String?   // sedentary / light / moderate / active / very_active
+  activityLevel        String?
   goalWeightKg         Float?
   medicalNotes         String?
   onboardingComplete   Boolean   @default(false)
@@ -35,6 +60,9 @@ model User {
   gdprConsentAt        DateTime?
   analyticsConsent     Boolean   @default(false)
   timezone             String    @default("UTC")
+  totalXp              Int       @default(0)
+  currentStreak        Int       @default(0)
+  bestStreak           Int       @default(0)
 
   accounts          Account[]
   sessions          Session[]
@@ -42,7 +70,11 @@ model User {
   mfaConfigs        MfaConfig[]
   goals             Goal[]
   habits            Habit[]
+  habitCompletions  HabitCompletion[]
   workoutLogs       WorkoutLog[]
+  scheduledWorkouts ScheduledWorkout[]
+  weeklyTargets     WeeklyTarget[]
+  dailyLedger       DailyLedger[]
   measurements      Measurement[]
   photos            Photo[]
   checklistItems    ChecklistItem[]
@@ -66,7 +98,7 @@ model User {
 model Account {
   id                String  @id @default(cuid())
   userId            String
-  provider          String  // google / apple / email
+  provider          String
   providerAccountId String
   accessToken       String?
   refreshToken      String?
@@ -112,7 +144,7 @@ model PasswordResetToken {
 model MfaConfig {
   id        String   @id @default(cuid())
   userId    String
-  type      String   // totp
+  type      String
   secret    String
   verified  Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -142,7 +174,7 @@ model Conversation {
 model Message {
   id              String   @id @default(cuid())
   conversationId  String
-  role            String   // user / assistant / tool
+  role            String
   content         String   @db.Text
   toolName        String?
   toolCallId      String?
@@ -163,7 +195,7 @@ model Message {
 model Attachment {
   id         String   @id @default(cuid())
   messageId  String
-  type       String   // image / document / audio / video
+  type       String
   fileName   String
   mimeType   String
   r2Key      String
@@ -178,7 +210,7 @@ model MessageFeedback {
   id        String   @id @default(cuid())
   messageId String
   userId    String
-  rating    Int      // 1 thumbs-up / -1 thumbs-down
+  rating    Int
   comment   String?  @db.Text
   createdAt DateTime @default(now())
 
@@ -189,72 +221,189 @@ model MessageFeedback {
 // ─── Memory ───────────────────────────────────────────────────────────────────
 
 model Memory {
-  id        String                      @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  type      String                      // profile / journal / episodic
+  type      String
   title     String?
-  content   String                      @db.Text
-  // embedding Unsupported("vector(1536)")? // requires pgvector extension
-  source    String?                     // auto / user
+  content   String    @db.Text
+  source    String?
   weekOf    DateTime?
   eventDate DateTime?
   deletedAt DateTime?
-  createdAt DateTime                    @default(now())
-  updatedAt DateTime                    @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, type])
 }
 
-// ─── Fitness Data ─────────────────────────────────────────────────────────────
+// ─── Goals ────────────────────────────────────────────────────────────────────
 
 model Goal {
-  id               String    @id @default(cuid())
+  id               String     @id @default(cuid())
   userId           String
-  description      String    @db.Text
-  bodyArea         String?
-  direction        String    // increase / decrease / maintain / achieve
+  // Legacy fields (kept for backward compat)
+  description      String?    @db.Text
+  direction        String?    // increase / decrease / maintain / achieve
   magnitude        Float?
-  unit             String?
+  bodyArea         String?
+  planJson         String?    @db.Text
+  // New fields
+  title            String?
+  category         String?    // body-composition / performance / lifestyle / aesthetic / health
+  visionText       String?    @db.Text
+  targetMetric     String?    // waist_cm / weight_kg / body_fat_pct / etc.
+  startValue       Float?
+  currentValue     Float?
   targetValue      Float?
+  unit             String?
   deadline         DateTime?
-  status           String    @default("active") // active / achieved / paused / cancelled
+  status           String     @default("active") // active / paused / achieved / archived
+  priority         Int        @default(1)
   predictedHitDate DateTime?
-  planJson         String?   @db.Text
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  checklistItems ChecklistItem[]
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habits         Habit[]
+  scheduledWkts  ScheduledWorkout[]
+  measurements   Measurement[]
 
   @@index([userId, status])
 }
 
-model Habit {
-  id            String   @id @default(cuid())
-  userId        String
-  description   String   @db.Text
-  cadence       String   // daily / weekly / 2x/week / 3x/week / 5x/week
-  targetPerWeek Int      @default(1)
-  active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
+// ─── Habits ───────────────────────────────────────────────────────────────────
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Habit {
+  id               String       @id @default(cuid())
+  userId           String
+  goalId           String?
+  title            String
+  description      String?      @db.Text
+  cadence          String       @default("daily") // kept as string for compat
+  cadenceType      HabitCadence @default(DAILY)
+  targetPerWeek    Int?
+  specificDays     Int[]        // 0=Sun … 6=Sat
+  timeOfDay        String?      // morning / afternoon / evening / anytime
+  reminderTime     String?      // "07:30"
+  duration         Int?         // minutes
+  pointsOnComplete Int          @default(10)
+  icon             String?      // lucide icon name
+  color            String?      // hex accent
+  active           Boolean      @default(true)
+  startedAt        DateTime     @default(now())
+  pausedAt         DateTime?
+  createdAt        DateTime     @default(now())
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal        Goal?             @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  completions HabitCompletion[]
   checklistItems ChecklistItem[]
 
-  @@index([userId])
+  @@index([userId, active])
 }
+
+model HabitCompletion {
+  id          String   @id @default(cuid())
+  habitId     String
+  userId      String
+  date        DateTime @db.Date
+  completedAt DateTime @default(now())
+  note        String?
+  points      Int      @default(0)
+
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+}
+
+// ─── Workout Types ────────────────────────────────────────────────────────────
 
 model WorkoutType {
-  id          String  @id @default(cuid())
-  name        String  @unique
-  defaultMet  Float   @default(5.0)
-  category    String?
-  description String?
+  id              String  @id @default(cuid())
+  name            String  @unique
+  slug            String? @unique
+  defaultMet      Float   @default(5.0)
+  defaultDuration Int     @default(45)
+  category        String?
+  description     String?
+  icon            String? // lucide icon name
+  color           String? // hex accent
 
-  logs WorkoutLog[]
+  logs             WorkoutLog[]
+  scheduledWorkouts ScheduledWorkout[]
+  weeklyTargets    WeeklyTarget[]
 }
+
+// ─── Scheduled Workouts ───────────────────────────────────────────────────────
+
+model ScheduledWorkout {
+  id             String        @id @default(cuid())
+  userId         String
+  goalId         String?
+  workoutTypeId  String?
+  workoutTypeName String?      // fallback if no FK
+  scheduledDate  DateTime      @db.Date
+  scheduledTime  String?       // "09:00"
+  duration       Int           @default(45)
+  intensity      Int?
+  notes          String?       @db.Text
+  status         WorkoutStatus @default(PLANNED)
+  completedAt    DateTime?
+  skippedReason  String?
+  workoutLogId   String?       @unique
+  pointsEarned   Int           @default(0)
+  createdAt      DateTime      @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal        Goal?        @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  workoutType WorkoutType? @relation(fields: [workoutTypeId], references: [id])
+
+  @@index([userId, scheduledDate])
+  @@index([userId, status])
+}
+
+// ─── Weekly Targets ───────────────────────────────────────────────────────────
+
+model WeeklyTarget {
+  id              String  @id @default(cuid())
+  userId          String
+  goalId          String?
+  workoutTypeId   String?
+  workoutTypeName String? // fallback label
+  targetCount     Int
+  active          Boolean @default(true)
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutType WorkoutType? @relation(fields: [workoutTypeId], references: [id])
+
+  @@index([userId, active])
+}
+
+// ─── Daily Ledger ─────────────────────────────────────────────────────────────
+
+model DailyLedger {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime @db.Date
+  habitsCompleted Int      @default(0)
+  habitsTotal     Int      @default(0)
+  workoutsDone    Int      @default(0)
+  workoutsPlanned Int      @default(0)
+  points          Int      @default(0)
+  streakCount     Int      @default(0)
+  allComplete     Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// ─── Workout Logs ─────────────────────────────────────────────────────────────
 
 model WorkoutLog {
   id                String   @id @default(cuid())
@@ -268,7 +417,7 @@ model WorkoutLog {
   caloriesEst       Float?
   heartRateAvg      Int?
   heartRateMax      Int?
-  source            String   @default("manual") // manual / wearable / video
+  source            String   @default("manual")
   notes             String?  @db.Text
   xpAwarded         Int      @default(25)
   createdAt         DateTime @default(now())
@@ -279,19 +428,23 @@ model WorkoutLog {
   @@index([userId, startedAt])
 }
 
+// ─── Measurements ─────────────────────────────────────────────────────────────
+
 model Measurement {
   id         String   @id @default(cuid())
   userId     String
+  goalId     String?
   capturedAt DateTime @default(now())
-  kind       String   // weight / waist / hips / bust / thigh_l / thigh_r / glute / bicep_l / bicep_r / custom
+  kind       String
   value      Float
   unit       String   @default("cm")
-  source     String   @default("manual") // manual / photo_estimate / wearable
+  source     String   @default("manual")
   confidence Float?
   notes      String?
   createdAt  DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
 
   @@index([userId, kind, capturedAt])
 }
@@ -301,7 +454,7 @@ model Photo {
   userId       String
   capturedAt   DateTime @default(now())
   r2Key        String
-  pose         String   // front / side / back
+  pose         String
   notes        String?
   analysisJson String?  @db.Text
   createdAt    DateTime @default(now())
@@ -311,10 +464,12 @@ model Photo {
   @@index([userId, capturedAt])
 }
 
+// ─── Checklist (legacy, kept for compat) ─────────────────────────────────────
+
 model ChecklistItem {
   id            String    @id @default(cuid())
   userId        String
-  date          String    // YYYY-MM-DD
+  date          String
   description   String    @db.Text
   sourceGoalId  String?
   sourceHabitId String?
@@ -322,7 +477,6 @@ model ChecklistItem {
   createdAt     DateTime  @default(now())
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goal  Goal?  @relation(fields: [sourceGoalId], references: [id])
   habit Habit? @relation(fields: [sourceHabitId], references: [id])
 
   @@index([userId, date])
@@ -332,12 +486,12 @@ model WeeklyReview {
   id                  String    @id @default(cuid())
   userId              String
   weekStart           DateTime
-  weekOf              String    // YYYY-MM-DD string for display
+  weekOf              String
   adherencePct        Float?
   workoutsCompleted   Int       @default(0)
   workoutsPlanned     Int       @default(0)
   deltasJson          String?   @db.Text
-  aiSummary           String?   @db.Text // AI-generated verdict / summary
+  aiSummary           String?   @db.Text
   nextWeekAdjustments String?   @db.Text
   acceptedAt          DateTime?
   deliveredAt         DateTime?
@@ -369,7 +523,7 @@ model Achievement {
 model Streak {
   id        String    @id @default(cuid())
   userId    String
-  type      String    // workout / checklist / measurement
+  type      String
   current   Int       @default(0)
   longest   Int       @default(0)
   lastAt    DateTime?
@@ -385,7 +539,7 @@ model Streak {
 model Notification {
   id           String    @id @default(cuid())
   userId       String
-  type         String    // morning_briefing / nudge / weekly_review / achievement
+  type         String
   title        String
   body         String    @db.Text
   data         String?   @db.Text
@@ -418,13 +572,13 @@ model PushSubscription {
 model Device {
   id           String    @id @default(cuid())
   userId       String
-  provider     String    // oura / whoop / garmin / fitbit / apple_health / terra
+  provider     String
   terraUserId  String?   @unique
   accessToken  String?
   refreshToken String?
   expiresAt    DateTime?
   connected    Boolean   @default(true)
-  status       String    @default("CONNECTED") // CONNECTED / DISCONNECTED
+  status       String    @default("CONNECTED")
   connectedAt  DateTime  @default(now())
   lastSyncAt   DateTime?
 
@@ -437,7 +591,7 @@ model Device {
 model DeviceData {
   id              String   @id @default(cuid())
   deviceId        String
-  date            String   // YYYY-MM-DD
+  date            String
   steps           Int?
   activeMinutes   Int?
   caloriesBurned  Float?

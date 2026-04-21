@@ -1,77 +1,38 @@
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { GoalCard } from "@/components/cards/GoalCard";
-import Link from "next/link";
-import { Target, MessageSquarePlus } from "lucide-react";
+import { GoalsView } from "./GoalsView";
 
 export default async function GoalsPage() {
   const session = await requireSession();
+  const userId = session.userId;
+
   const goals = await prisma.goal.findMany({
-    where: { userId: session.userId },
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    where: { userId },
+    orderBy: [{ status: "asc" }, { priority: "asc" }, { createdAt: "desc" }],
+    include: {
+      habits: { where: { active: true }, select: { id: true, title: true, icon: true, cadence: true } },
+      measurements: { orderBy: { capturedAt: "desc" }, take: 10, select: { capturedAt: true, value: true, unit: true } },
+    },
   });
 
-  const active = goals.filter((g) => g.status === "active");
-  const other = goals.filter((g) => g.status !== "active");
-
   return (
-    <div className="max-w-lg mx-auto py-4 px-4 space-y-4">
-      <div className="flex items-center gap-3 fu">
-        <div className="w-9 h-9 rounded-2xl bg-white/[0.04] flex items-center justify-center">
-          <Target size={18} className="text-white/50" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold">Goals</h1>
-          <p className="text-xs text-muted-foreground">{active.length} active</p>
-        </div>
-      </div>
-
-      {active.length === 0 && (
-        <div className="glass rounded-2xl p-6 text-center fu2">
-          <Target size={32} className="mx-auto mb-3 text-muted-foreground opacity-40" />
-          <p className="text-sm text-muted-foreground mb-4">No active goals yet.</p>
-          <Link
-            href="/chat"
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.04] text-white/60 hover:bg-white/[0.07] transition-colors"
-          >
-            <MessageSquarePlus size={12} />
-            Set a goal with Vita
-          </Link>
-        </div>
-      )}
-
-      {active.map((g) => (
-        <GoalCard
-          key={g.id}
-          goalId={g.id}
-          description={g.description}
-          direction={g.direction}
-          magnitude={g.magnitude ?? undefined}
-          unit={g.unit ?? undefined}
-          deadline={g.deadline?.toISOString()}
-          status={g.status}
-          predictedHitDate={g.predictedHitDate?.toISOString()}
-        />
-      ))}
-
-      {other.length > 0 && (
-        <>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Past goals</p>
-          {other.map((g) => (
-            <GoalCard
-              key={g.id}
-              goalId={g.id}
-              description={g.description}
-              direction={g.direction}
-              magnitude={g.magnitude ?? undefined}
-              unit={g.unit ?? undefined}
-              deadline={g.deadline?.toISOString()}
-              status={g.status}
-              predictedHitDate={g.predictedHitDate?.toISOString()}
-            />
-          ))}
-        </>
-      )}
-    </div>
+    <GoalsView
+      goals={goals.map((g) => ({
+        id: g.id,
+        title: g.title ?? g.description ?? "Goal",
+        category: g.category ?? "lifestyle",
+        visionText: g.visionText,
+        status: g.status,
+        targetMetric: g.targetMetric,
+        targetValue: g.targetValue,
+        startValue: g.startValue,
+        currentValue: g.currentValue,
+        unit: g.unit,
+        deadline: g.deadline?.toISOString() ?? null,
+        predictedHitDate: g.predictedHitDate?.toISOString() ?? null,
+        habits: g.habits.map((h) => ({ id: h.id, title: h.title, icon: h.icon })),
+        measurements: g.measurements.map((m) => ({ date: m.capturedAt.toISOString(), value: m.value, unit: m.unit })),
+      }))}
+    />
   );
 }

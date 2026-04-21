@@ -2,6 +2,7 @@
 
 import { WorkoutCard } from "./WorkoutCard";
 import { GoalCard } from "./GoalCard";
+import { GoalDraftCard } from "./GoalDraftCard";
 import { ChecklistCard } from "./ChecklistCard";
 import { MeasurementCard } from "./MeasurementCard";
 import { HabitStreakCard } from "./HabitStreakCard";
@@ -39,13 +40,39 @@ export function ToolResultRenderer({ toolName, result }: ToolResultRendererProps
           />
         );
 
+      case "propose_goal_decomposition":
+        return (
+          <GoalDraftCard
+            title={result.title}
+            category={result.category}
+            visionText={result.visionText}
+            deadline={result.deadline}
+            deadlineWeeks={result.deadlineWeeks}
+            habits={result.habits ?? []}
+            workouts={result.workouts ?? []}
+            measurements={result.measurements ?? []}
+            matchedPreset={result.matched_preset}
+          />
+        );
+
+      case "create_full_plan":
+        return (
+          <div className="glass rounded-2xl p-4 my-2 border border-white/[0.1] space-y-1">
+            <p className="text-sm font-semibold text-white/80">{result.title}</p>
+            <p className="text-xs text-white/40">
+              {result.habitsCreated} habits · {result.workoutsScheduled} sessions scheduled
+            </p>
+            {result.nextSteps && <p className="text-xs text-white/30">{result.nextSteps}</p>}
+          </div>
+        );
+
       case "add_goal":
       case "update_goal":
         return (
           <GoalCard
             goalId={result.goalId ?? result.id}
-            description={result.description}
-            direction={result.direction}
+            description={result.title ?? result.description ?? "Goal"}
+            direction={result.direction ?? "achieve"}
             magnitude={result.magnitude}
             unit={result.unit}
             deadline={result.deadline}
@@ -62,10 +89,10 @@ export function ToolResultRenderer({ toolName, result }: ToolResultRendererProps
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               (g: any) => (
                 <GoalCard
-                  key={g.id}
-                  goalId={g.id}
-                  description={g.description}
-                  direction={g.direction}
+                  key={g.goalId ?? g.id}
+                  goalId={g.goalId ?? g.id}
+                  description={g.title ?? g.description ?? "Goal"}
+                  direction={g.direction ?? "achieve"}
                   magnitude={g.magnitude}
                   unit={g.unit}
                   deadline={g.deadline}
@@ -74,6 +101,48 @@ export function ToolResultRenderer({ toolName, result }: ToolResultRendererProps
                 />
               )
             )}
+          </div>
+        );
+
+      case "complete_habit":
+        return (
+          <div className="glass rounded-xl px-4 py-3 my-1 border border-white/[0.08] flex items-center gap-3">
+            <div className="w-5 h-5 rounded-full border border-white/30 bg-white/10 flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 12 12" width="10" height="10"><polyline points="2,6 5,9 10,3" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-white/70">{result.habitTitle}</p>
+            </div>
+            <p className="text-xs text-white/40">+{result.pointsEarned} XP</p>
+            {result.bonusEarned && <p className="text-[10px] text-white/30">All done!</p>}
+          </div>
+        );
+
+      case "complete_workout":
+        return (
+          <WorkoutCard
+            workoutId={result.workoutLogId}
+            workoutName={result.workoutName}
+            durationMin={result.durationMin}
+            xpAwarded={result.xpAwarded}
+          />
+        );
+
+      case "get_today_plan":
+        return (
+          <div className="glass rounded-2xl p-4 my-2 space-y-2">
+            {(result.scheduledWorkouts ?? []).map((sw: { scheduledWorkoutId: string; name: string; duration: number; scheduledTime?: string }) => (
+              <div key={sw.scheduledWorkoutId} className="flex items-center gap-2 text-sm text-white/65">
+                <span className="text-white/30">Workout</span>
+                <span>{sw.name} · {sw.duration} min{sw.scheduledTime ? ` · ${sw.scheduledTime}` : ""}</span>
+              </div>
+            ))}
+            {(result.habits ?? []).map((h: { habitId: string; title: string; done: boolean }) => (
+              <div key={h.habitId} className="flex items-center gap-2 text-sm text-white/55">
+                <span>{h.done ? "✓" : "○"}</span>
+                <span className={h.done ? "line-through text-white/30" : ""}>{h.title}</span>
+              </div>
+            ))}
           </div>
         );
 

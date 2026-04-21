@@ -1,13 +1,50 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
-import { parseGoalFromNL, generateWeeklyPlan, predictHitDate } from "./goal-engine";
+import { matchPreset } from "./plans/presets";
+import { addDays, startOfWeek, format, parseISO, isValid } from "date-fns";
 
-// ─── Helper ──────────────────────────────────────────────────────────────────
-function today() {
+// ─── XP constants ─────────────────────────────────────────────────────────────
+const XP = {
+  HABIT_COMPLETE: 10,
+  WORKOUT_COMPLETE: 50,
+  WORKOUT_LATE: 35,
+  ALL_HABITS_BONUS: 25,
+  MEASUREMENT: 5,
+} as const;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
-// Define tool shape compatible with AI SDK v4
+function toDate(str: string): Date {
+  const d = parseISO(str);
+  return isValid(d) ? d : new Date(str);
+}
+
+async function grantXp(userId: string, amount: number): Promise<number> {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { totalXp: { increment: amount } },
+    select: { totalXp: true },
+  });
+  return user.totalXp;
+}
+
+// Level: N requires 50 * N * (N+1) cumulative XP
+function computeLevel(totalXp: number) {
+  const level = Math.floor(Math.sqrt(totalXp / 50));
+  const currentFloor = 50 * level * (level + 1);
+  const nextFloor = 50 * (level + 1) * (level + 2);
+  return {
+    level: Math.max(1, level),
+    totalXp,
+    xpToNext: nextFloor - totalXp,
+    xpInLevel: totalXp - currentFloor,
+  };
+}
+
+// ─── Tool factory ─────────────────────────────────────────────────────────────
 function makeTool<TInput, TOutput>(config: {
   description: string;
   parameters: z.ZodType<TInput>;
@@ -17,247 +54,598 @@ function makeTool<TInput, TOutput>(config: {
 }
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
-
 export function vitaTools(userId: string) {
   return {
-    get_profile: makeTool({
-      description: "Get the user's current profile including latest weight",
-      parameters: z.object({}),
-      execute: async () => {
-        const user = await prisma.user.findUniqueOrThrow({
-          where: { id: userId },
-          select: { id: true, name: true, dob: true, sex: true, heightCm: true, activityLevel: true, medicalNotes: true, goalWeightKg: true },
-        });
-        const latestWeight = await prisma.measurement.findFirst({
-          where: { userId, kind: "weight" }, orderBy: { capturedAt: "desc" },
-        });
-        return { ...user, currentWeightKg: latestWeight?.value ?? null };
-      },
-    }),
 
-    update_profile: makeTool({
-      description: "Update the user's profile fields",
+    // ── Goal tools ─────────────────────────────────────────────────────────────
+
+    propose_goal_decomposition: makeTool({
+      description: "Parse a natural-language goal and return a structured draft (does NOT write to DB). Always call this before create_full_plan.",
       parameters: z.object({
-        name: z.string().optional(),
-        heightCm: z.number().optional(),
-        sex: z.string().optional(),
-        activityLevel: z.string().optional(),
-        goalWeightKg: z.number().optional(),
-        medicalNotes: z.string().optional(),
+        user_text: z.string().describe("The user's goal in their own words"),
+        preferred_deadline_weeks: z.number().optional().describe("How many weeks until deadline"),
       }),
-      execute: async (input) => {
-        await prisma.user.update({ where: { id: userId }, data: input });
-        return { ok: true };
-      },
-    }),
+      execute: async ({ user_text, preferred_deadline_weeks }) => {
+        const preset = matchPreset(user_text);
+        const deadlineWeeks = preferred_deadline_weeks ?? preset?.suggestedDeadlineWeeks ?? 12;
+        const deadlineDate = new Date();
+        deadlineDate.setDate(deadlineDate.getDate() + deadlineWeeks * 7);
 
-    add_goal: makeTool({
-      description: "Add a new fitness goal",
-      parameters: z.object({
-        description: z.string(),
-        bodyArea: z.string().optional(),
-        direction: z.enum(["increase", "decrease", "maintain", "achieve"]),
-        magnitude: z.number().optional(),
-        unit: z.string().optional(),
-        deadline: z.string().optional(),
-      }),
-      execute: async (input) => {
-        const goal = await prisma.goal.create({
-          data: { ...input, userId, deadline: input.deadline ? new Date(input.deadline) : undefined },
-        });
-        return { goalId: goal.id, description: goal.description, status: goal.status };
-      },
-    }),
+        if (preset) {
+          return {
+            matched_preset: preset.slug,
+            title: preset.title,
+            category: preset.category,
+            visionText: user_text,
+            targetMetric: preset.defaultMeasurements[0] ?? null,
+            deadline: deadlineDate.toISOString().split("T")[0],
+            deadlineWeeks,
+            habits: preset.defaultHabits,
+            workouts: preset.defaultWorkouts,
+            measurements: preset.defaultMeasurements,
+          };
+        }
 
-    list_goals: makeTool({
-      description: "List goals",
-      parameters: z.object({ status: z.string().optional() }),
-      execute: async ({ status }) => {
-        return prisma.goal.findMany({
-          where: { userId, status: status ?? "active" },
-          orderBy: { createdAt: "desc" },
-        });
-      },
-    }),
-
-    update_goal: makeTool({
-      description: "Update a goal's status or description",
-      parameters: z.object({
-        goalId: z.string(),
-        status: z.enum(["active", "achieved", "paused", "cancelled"]).optional(),
-        description: z.string().optional(),
-      }),
-      execute: async ({ goalId, ...data }) => {
-        await prisma.goal.update({ where: { id: goalId, userId }, data });
-        return { ok: true };
-      },
-    }),
-
-    add_habit: makeTool({
-      description: "Add a recurring habit",
-      parameters: z.object({
-        description: z.string(),
-        cadence: z.enum(["daily", "weekly", "2x/week", "3x/week", "5x/week"]),
-      }),
-      execute: async (input) => {
-        const targetMap: Record<string, number> = { daily: 7, weekly: 1, "2x/week": 2, "3x/week": 3, "5x/week": 5 };
-        const habit = await prisma.habit.create({
-          data: { ...input, userId, targetPerWeek: targetMap[input.cadence] ?? 1 },
-        });
-        return { habitId: habit.id };
-      },
-    }),
-
-    list_habits: makeTool({
-      description: "List active habits",
-      parameters: z.object({}),
-      execute: async () => prisma.habit.findMany({ where: { userId, active: true } }),
-    }),
-
-    log_workout: makeTool({
-      description: "Log a completed workout session",
-      parameters: z.object({
-        workoutName: z.string(),
-        durationMin: z.number(),
-        intensity: z.number().min(1).max(10).optional(),
-        caloriesEst: z.number().optional(),
-        notes: z.string().optional(),
-      }),
-      execute: async (input) => {
-        const log = await prisma.workoutLog.create({ data: { ...input, userId } });
-        return { workoutId: log.id, workoutName: log.workoutName, durationMin: log.durationMin, xpAwarded: log.xpAwarded };
-      },
-    }),
-
-    list_workouts: makeTool({
-      description: "List recent workout logs",
-      parameters: z.object({ limit: z.number().optional() }),
-      execute: async ({ limit }) => {
-        return prisma.workoutLog.findMany({
-          where: { userId }, orderBy: { startedAt: "desc" }, take: limit ?? 10,
-        });
-      },
-    }),
-
-    log_measurement: makeTool({
-      description: "Log a body measurement",
-      parameters: z.object({
-        kind: z.enum(["weight", "waist", "hips", "bust", "thigh_l", "thigh_r", "glute", "bicep_l", "bicep_r"]),
-        value: z.number(),
-        unit: z.string().optional(),
-        notes: z.string().optional(),
-      }),
-      execute: async (input) => {
-        const m = await prisma.measurement.create({ data: { ...input, userId } });
-        return { measurementId: m.id, kind: m.kind, value: m.value, unit: m.unit };
-      },
-    }),
-
-    list_measurements: makeTool({
-      description: "List measurements, optionally filtered by kind",
-      parameters: z.object({ kind: z.string().optional(), limit: z.number().optional() }),
-      execute: async ({ kind, limit }) => {
-        return prisma.measurement.findMany({
-          where: { userId, ...(kind ? { kind } : {}) },
-          orderBy: { capturedAt: "desc" },
-          take: limit ?? 20,
-        });
-      },
-    }),
-
-    get_todays_checklist: makeTool({
-      description: "Get today's checklist items",
-      parameters: z.object({}),
-      execute: async () => {
-        return prisma.checklistItem.findMany({
-          where: { userId, date: today() },
-          orderBy: { createdAt: "asc" },
-        });
-      },
-    }),
-
-    complete_checklist_item: makeTool({
-      description: "Mark a checklist item as done",
-      parameters: z.object({ itemId: z.string() }),
-      execute: async ({ itemId }) => {
-        await prisma.checklistItem.update({
-          where: { id: itemId, userId },
-          data: { doneAt: new Date() },
-        });
-        return { ok: true };
-      },
-    }),
-
-    get_xp: makeTool({
-      description: "Get the user's current XP and level",
-      parameters: z.object({}),
-      execute: async () => {
-        const [workouts, measurements, goals, checklist] = await Promise.all([
-          prisma.workoutLog.count({ where: { userId } }),
-          prisma.measurement.count({ where: { userId } }),
-          prisma.goal.count({ where: { userId, status: "achieved" } }),
-          prisma.checklistItem.findMany({ where: { userId }, select: { doneAt: true } }),
-        ]);
-        const total = workouts * 25 + measurements * 10 + goals * 150 +
-          (checklist.length > 0 ? Math.round((checklist.filter((c) => c.doneAt).length / checklist.length) * 100) : 0);
-        const levels = [0, 200, 500, 1000, 2000, 4000, Infinity];
-        const levelIdx = levels.findIndex((_, i) => total < levels[i + 1]);
+        // No preset — generic decomposition
         return {
-          totalXp: total, level: levelIdx + 1,
-          xpForNext: levels[levelIdx + 1] === Infinity ? null : levels[levelIdx + 1],
-          xpInLevel: total - levels[levelIdx],
+          matched_preset: null,
+          title: user_text.slice(0, 80),
+          category: "lifestyle",
+          visionText: user_text,
+          targetMetric: null,
+          deadline: deadlineDate.toISOString().split("T")[0],
+          deadlineWeeks,
+          habits: [
+            { title: "Daily check-in", cadence: "daily", icon: "CheckCircle" },
+          ],
+          workouts: [],
+          measurements: ["weight_kg"],
         };
       },
     }),
 
-    parse_goal: makeTool({
-      description: "Parse a natural language goal description into structured goal data",
-      parameters: z.object({ text: z.string() }),
-      execute: async ({ text }) => {
-        return parseGoalFromNL(text);
+    create_full_plan: makeTool({
+      description: "Create a goal, its habits, weekly workout targets, and 4 weeks of scheduled workouts in one atomic operation. Only call after the user confirms the draft from propose_goal_decomposition.",
+      parameters: z.object({
+        title: z.string(),
+        category: z.string().optional(),
+        visionText: z.string().optional(),
+        targetMetric: z.string().optional(),
+        targetValue: z.number().optional(),
+        unit: z.string().optional(),
+        deadline: z.string().optional().describe("ISO date YYYY-MM-DD"),
+        habits: z.array(z.object({
+          title: z.string(),
+          cadence: z.string().default("daily"),
+          targetPerWeek: z.number().optional(),
+          specificDays: z.array(z.number()).optional(),
+          duration: z.number().optional(),
+          icon: z.string().optional(),
+          pointsOnComplete: z.number().optional(),
+        })),
+        workouts: z.array(z.object({
+          workoutTypeName: z.string(),
+          timesPerWeek: z.number(),
+          duration: z.number().default(45),
+          icon: z.string().optional(),
+        })),
+      }),
+      execute: async ({ title, category, visionText, targetMetric, targetValue, unit, deadline, habits, workouts }) => {
+        const deadlineDate = deadline ? toDate(deadline) : undefined;
+
+        // Create the goal
+        const goal = await prisma.goal.create({
+          data: {
+            userId,
+            title,
+            description: visionText ?? title, // compat
+            category: category ?? "lifestyle",
+            visionText: visionText ?? null,
+            targetMetric: targetMetric ?? null,
+            targetValue: targetValue ?? null,
+            unit: unit ?? null,
+            deadline: deadlineDate,
+            status: "active",
+          },
+        });
+
+        // Create habits
+        const createdHabits = await Promise.all(habits.map((h) =>
+          prisma.habit.create({
+            data: {
+              userId,
+              goalId: goal.id,
+              title: h.title,
+              cadence: h.cadence ?? "daily",
+              cadenceType: cadenceStrToEnum(h.cadence ?? "daily"),
+              targetPerWeek: h.targetPerWeek ?? null,
+              specificDays: h.specificDays ?? [],
+              duration: h.duration ?? null,
+              icon: h.icon ?? null,
+              pointsOnComplete: h.pointsOnComplete ?? 10,
+              active: true,
+            },
+          })
+        ));
+
+        // Create weekly targets and schedule 4 weeks of workouts
+        const scheduledWorkouts: { date: string; name: string }[] = [];
+        const now = new Date();
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+
+        await Promise.all(workouts.map(async (w) => {
+          // Upsert WorkoutType by name
+          const wt = await prisma.workoutType.upsert({
+            where: { name: w.workoutTypeName },
+            create: {
+              name: w.workoutTypeName,
+              slug: w.workoutTypeName.toLowerCase().replace(/\s+/g, "_"),
+              icon: w.icon ?? "Dumbbell",
+              defaultDuration: w.duration,
+            },
+            update: {},
+          });
+
+          // Weekly target
+          await prisma.weeklyTarget.create({
+            data: {
+              userId,
+              goalId: goal.id,
+              workoutTypeId: wt.id,
+              workoutTypeName: w.workoutTypeName,
+              targetCount: w.timesPerWeek,
+            },
+          });
+
+          // 4 weeks of scheduled sessions — spread evenly across week days
+          const days = spreadDaysInWeek(w.timesPerWeek);
+          for (let week = 0; week < 4; week++) {
+            for (const dayOffset of days) {
+              const date = addDays(weekStart, week * 7 + dayOffset);
+              if (date < now) continue; // don't schedule past dates
+              const sw = await prisma.scheduledWorkout.create({
+                data: {
+                  userId,
+                  goalId: goal.id,
+                  workoutTypeId: wt.id,
+                  workoutTypeName: w.workoutTypeName,
+                  scheduledDate: date,
+                  duration: w.duration,
+                  status: "PLANNED",
+                },
+              });
+              scheduledWorkouts.push({ date: format(date, "yyyy-MM-dd"), name: w.workoutTypeName });
+              void sw; // used for side effects
+            }
+          }
+        }));
+
+        return {
+          goalId: goal.id,
+          title: goal.title ?? goal.description,
+          habitsCreated: createdHabits.length,
+          workoutsScheduled: scheduledWorkouts.length,
+          deadline: deadline ?? null,
+          nextSteps: "Open /today to see your checklist.",
+        };
       },
     }),
 
-    generate_weekly_plan: makeTool({
-      description: "Generate a personalized 7-day workout plan based on the user's goals and history",
+    update_goal: makeTool({
+      description: "Update a goal's title, deadline, status, or target value",
+      parameters: z.object({
+        goalId: z.string(),
+        title: z.string().optional(),
+        status: z.enum(["active", "paused", "achieved", "archived"]).optional(),
+        deadline: z.string().optional(),
+        targetValue: z.number().optional(),
+        currentValue: z.number().optional(),
+      }),
+      execute: async ({ goalId, deadline, ...rest }) => {
+        const data: Record<string, unknown> = { ...rest };
+        if (deadline) data.deadline = toDate(deadline);
+        await prisma.goal.update({ where: { id: goalId, userId }, data });
+        return { ok: true, goalId };
+      },
+    }),
+
+    list_goals: makeTool({
+      description: "List active (or filtered) goals",
+      parameters: z.object({ status: z.string().optional() }),
+      execute: async ({ status }) => {
+        const goals = await prisma.goal.findMany({
+          where: { userId, status: status ?? "active" },
+          orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
+          include: { habits: { where: { active: true }, select: { id: true, title: true, icon: true } } },
+        });
+        return { goals: goals.map((g) => ({
+          goalId: g.id,
+          title: g.title ?? g.description,
+          category: g.category,
+          status: g.status,
+          deadline: g.deadline?.toISOString().split("T")[0] ?? null,
+          targetMetric: g.targetMetric,
+          targetValue: g.targetValue,
+          currentValue: g.currentValue,
+          predictedHitDate: g.predictedHitDate?.toISOString().split("T")[0] ?? null,
+          habitCount: g.habits.length,
+        })) };
+      },
+    }),
+
+    // ── Habit tools ────────────────────────────────────────────────────────────
+
+    add_habit: makeTool({
+      description: "Add a new standalone habit (not part of a full plan)",
+      parameters: z.object({
+        title: z.string(),
+        cadence: z.string().default("daily"),
+        targetPerWeek: z.number().optional(),
+        duration: z.number().optional(),
+        icon: z.string().optional(),
+        goalId: z.string().optional(),
+        pointsOnComplete: z.number().optional(),
+      }),
+      execute: async (input) => {
+        const habit = await prisma.habit.create({
+          data: {
+            userId,
+            title: input.title,
+            description: null,
+            cadence: input.cadence ?? "daily",
+            cadenceType: cadenceStrToEnum(input.cadence ?? "daily"),
+            targetPerWeek: input.targetPerWeek ?? null,
+            duration: input.duration ?? null,
+            icon: input.icon ?? null,
+            goalId: input.goalId ?? null,
+            pointsOnComplete: input.pointsOnComplete ?? 10,
+            active: true,
+          },
+        });
+        return { habitId: habit.id, title: habit.title, cadence: habit.cadence };
+      },
+    }),
+
+    list_habits: makeTool({
+      description: "List active habits with today's completion status",
       parameters: z.object({}),
       execute: async () => {
-        return generateWeeklyPlan(userId);
+        const habits = await prisma.habit.findMany({
+          where: { userId, active: true },
+          orderBy: { createdAt: "asc" },
+          include: {
+            completions: {
+              where: { date: new Date(todayStr()) },
+              take: 1,
+            },
+          },
+        });
+        return { habits: habits.map((h) => ({
+          habitId: h.id,
+          title: h.title,
+          cadence: h.cadence,
+          duration: h.duration,
+          icon: h.icon,
+          pointsOnComplete: h.pointsOnComplete,
+          doneToday: h.completions.length > 0,
+        })) };
       },
     }),
 
-    predict_goal_date: makeTool({
-      description: "Predict when a goal will be reached based on measurement trends",
-      parameters: z.object({ goalId: z.string() }),
-      execute: async ({ goalId }) => {
-        const date = await predictHitDate(userId, goalId);
-        return { predictedDate: date ? date.toISOString() : null };
+    complete_habit: makeTool({
+      description: "Mark a habit as done for today (or a specific date). Idempotent.",
+      parameters: z.object({
+        habitId: z.string(),
+        date: z.string().optional().describe("YYYY-MM-DD, defaults to today"),
+        note: z.string().optional(),
+      }),
+      execute: async ({ habitId, date, note }) => {
+        const habit = await prisma.habit.findFirst({ where: { id: habitId, userId } });
+        if (!habit) throw new Error("Habit not found");
+
+        const dateObj = new Date(date ?? todayStr());
+
+        const completion = await prisma.habitCompletion.upsert({
+          where: { habitId_date: { habitId, date: dateObj } },
+          create: { habitId, userId, date: dateObj, note: note ?? null, points: habit.pointsOnComplete },
+          update: { note: note ?? undefined },
+        });
+
+        // Grant XP
+        const totalXp = await grantXp(userId, habit.pointsOnComplete);
+
+        // Check all-habits-done bonus
+        const activeHabits = await prisma.habit.count({ where: { userId, active: true } });
+        const doneToday = await prisma.habitCompletion.count({
+          where: { userId, date: dateObj },
+        });
+        let bonus = 0;
+        if (doneToday === activeHabits && activeHabits > 0) {
+          bonus = XP.ALL_HABITS_BONUS;
+          await grantXp(userId, bonus);
+        }
+
+        return {
+          completionId: completion.id,
+          habitTitle: habit.title,
+          pointsEarned: habit.pointsOnComplete + bonus,
+          bonusEarned: bonus > 0,
+          ...computeLevel(totalXp + bonus),
+        };
+      },
+    }),
+
+    uncomplete_habit: makeTool({
+      description: "Un-mark a habit completion for a date",
+      parameters: z.object({
+        habitId: z.string(),
+        date: z.string().optional(),
+      }),
+      execute: async ({ habitId, date }) => {
+        const dateObj = new Date(date ?? todayStr());
+        await prisma.habitCompletion.deleteMany({ where: { habitId, userId, date: dateObj } });
+        return { ok: true };
+      },
+    }),
+
+    update_habit: makeTool({
+      description: "Update a habit's title, cadence, or active status",
+      parameters: z.object({
+        habitId: z.string(),
+        title: z.string().optional(),
+        cadence: z.string().optional(),
+        targetPerWeek: z.number().optional(),
+        active: z.boolean().optional(),
+        icon: z.string().optional(),
+      }),
+      execute: async ({ habitId, cadence, ...rest }) => {
+        const data: Record<string, unknown> = { ...rest };
+        if (cadence) {
+          data.cadence = cadence;
+          data.cadenceType = cadenceStrToEnum(cadence);
+        }
+        await prisma.habit.update({ where: { id: habitId, userId }, data });
+        return { ok: true, habitId };
+      },
+    }),
+
+    // ── Workout scheduling tools ───────────────────────────────────────────────
+
+    schedule_workout: makeTool({
+      description: "Schedule a future workout session",
+      parameters: z.object({
+        workoutTypeName: z.string(),
+        scheduledDate: z.string().describe("YYYY-MM-DD"),
+        scheduledTime: z.string().optional().describe("HH:MM"),
+        duration: z.number().default(45),
+        goalId: z.string().optional(),
+        notes: z.string().optional(),
+      }),
+      execute: async ({ workoutTypeName, scheduledDate, scheduledTime, duration, goalId, notes }) => {
+        const wt = await prisma.workoutType.upsert({
+          where: { name: workoutTypeName },
+          create: { name: workoutTypeName, slug: workoutTypeName.toLowerCase().replace(/\s+/g, "_"), defaultDuration: duration },
+          update: {},
+        });
+        const sw = await prisma.scheduledWorkout.create({
+          data: {
+            userId,
+            goalId: goalId ?? null,
+            workoutTypeId: wt.id,
+            workoutTypeName,
+            scheduledDate: toDate(scheduledDate),
+            scheduledTime: scheduledTime ?? null,
+            duration,
+            notes: notes ?? null,
+            status: "PLANNED",
+          },
+        });
+        return { scheduledWorkoutId: sw.id, workoutTypeName, scheduledDate, scheduledTime };
+      },
+    }),
+
+    reschedule_workout: makeTool({
+      description: "Move a scheduled workout to a different date/time",
+      parameters: z.object({
+        scheduledWorkoutId: z.string(),
+        newDate: z.string().describe("YYYY-MM-DD"),
+        newTime: z.string().optional(),
+      }),
+      execute: async ({ scheduledWorkoutId, newDate, newTime }) => {
+        await prisma.scheduledWorkout.update({
+          where: { id: scheduledWorkoutId, userId },
+          data: {
+            scheduledDate: toDate(newDate),
+            scheduledTime: newTime ?? undefined,
+            status: "MOVED",
+          },
+        });
+        return { ok: true, newDate, newTime };
+      },
+    }),
+
+    complete_workout: makeTool({
+      description: "Mark a scheduled workout as done and log it",
+      parameters: z.object({
+        scheduledWorkoutId: z.string(),
+        durationMin: z.number().optional(),
+        intensity: z.number().min(1).max(10).optional(),
+        notes: z.string().optional(),
+      }),
+      execute: async ({ scheduledWorkoutId, durationMin, intensity, notes }) => {
+        const sw = await prisma.scheduledWorkout.findFirst({
+          where: { id: scheduledWorkoutId, userId },
+        });
+        if (!sw) throw new Error("Scheduled workout not found");
+
+        // Create WorkoutLog
+        const log = await prisma.workoutLog.create({
+          data: {
+            userId,
+            typeId: sw.workoutTypeId ?? null,
+            workoutName: sw.workoutTypeName ?? "Workout",
+            durationMin: durationMin ?? sw.duration,
+            intensity: intensity ?? null,
+            notes: notes ?? null,
+            xpAwarded: XP.WORKOUT_COMPLETE,
+          },
+        });
+
+        // Mark scheduled as done
+        await prisma.scheduledWorkout.update({
+          where: { id: scheduledWorkoutId },
+          data: { status: "DONE", completedAt: new Date(), workoutLogId: log.id, pointsEarned: XP.WORKOUT_COMPLETE },
+        });
+
+        const totalXp = await grantXp(userId, XP.WORKOUT_COMPLETE);
+
+        return {
+          workoutLogId: log.id,
+          workoutName: log.workoutName,
+          durationMin: log.durationMin,
+          xpAwarded: XP.WORKOUT_COMPLETE,
+          ...computeLevel(totalXp),
+        };
+      },
+    }),
+
+    skip_workout: makeTool({
+      description: "Mark a scheduled workout as skipped",
+      parameters: z.object({
+        scheduledWorkoutId: z.string(),
+        reason: z.string().optional(),
+      }),
+      execute: async ({ scheduledWorkoutId, reason }) => {
+        await prisma.scheduledWorkout.update({
+          where: { id: scheduledWorkoutId, userId },
+          data: { status: "SKIPPED", skippedReason: reason ?? null },
+        });
+        return { ok: true };
+      },
+    }),
+
+    // ── Measurement tools ──────────────────────────────────────────────────────
+
+    log_measurement: makeTool({
+      description: "Log a body measurement (weight, waist, hips, body fat %, etc.)",
+      parameters: z.object({
+        kind: z.string().describe("weight_kg / waist_cm / hips_cm / body_fat_pct / glute_cm / thigh_cm / etc."),
+        value: z.number(),
+        unit: z.string().optional(),
+        date: z.string().optional(),
+        goalId: z.string().optional(),
+        notes: z.string().optional(),
+      }),
+      execute: async ({ kind, value, unit, date, goalId, notes }) => {
+        const capturedAt = date ? toDate(date) : new Date();
+        const m = await prisma.measurement.create({
+          data: { userId, kind, value, unit: unit ?? inferUnit(kind), capturedAt, goalId: goalId ?? null, notes: notes ?? null },
+        });
+        await grantXp(userId, XP.MEASUREMENT);
+
+        // Update goal currentValue if linked
+        if (goalId) {
+          await prisma.goal.update({ where: { id: goalId }, data: { currentValue: value } });
+        }
+
+        // Previous value for delta
+        const prev = await prisma.measurement.findFirst({
+          where: { userId, kind, id: { not: m.id } },
+          orderBy: { capturedAt: "desc" },
+        });
+        const delta = prev ? value - prev.value : null;
+
+        return { measurementId: m.id, kind, value, unit: m.unit, delta, xpEarned: XP.MEASUREMENT };
+      },
+    }),
+
+    list_measurements: makeTool({
+      description: "List recent measurements, optionally filtered by kind",
+      parameters: z.object({ kind: z.string().optional(), limit: z.number().optional() }),
+      execute: async ({ kind, limit }) => {
+        const rows = await prisma.measurement.findMany({
+          where: { userId, ...(kind ? { kind } : {}) },
+          orderBy: { capturedAt: "desc" },
+          take: limit ?? 20,
+        });
+        return { measurements: rows.map((r) => ({ id: r.id, kind: r.kind, value: r.value, unit: r.unit, date: r.capturedAt.toISOString().split("T")[0] })) };
+      },
+    }),
+
+    // ── Profile / utility tools ────────────────────────────────────────────────
+
+    get_profile: makeTool({
+      description: "Get the user's profile, current XP level, active goals and habits",
+      parameters: z.object({}),
+      execute: async () => {
+        const user = await prisma.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { name: true, heightCm: true, activityLevel: true, goalWeightKg: true, totalXp: true, currentStreak: true, bestStreak: true },
+        });
+        const activeGoals = await prisma.goal.count({ where: { userId, status: "active" } });
+        const activeHabits = await prisma.habit.count({ where: { userId, active: true } });
+        return { ...user, activeGoals, activeHabits, ...computeLevel(user.totalXp) };
+      },
+    }),
+
+    get_today_plan: makeTool({
+      description: "Get today's habits and scheduled workout",
+      parameters: z.object({}),
+      execute: async () => {
+        const today = new Date(todayStr());
+        const [habits, scheduledWorkouts, completions] = await Promise.all([
+          prisma.habit.findMany({
+            where: { userId, active: true },
+            orderBy: { createdAt: "asc" },
+          }),
+          prisma.scheduledWorkout.findMany({
+            where: { userId, scheduledDate: today, status: { in: ["PLANNED", "MOVED"] } },
+          }),
+          prisma.habitCompletion.findMany({
+            where: { userId, date: today },
+            select: { habitId: true },
+          }),
+        ]);
+
+        const completedIds = new Set(completions.map((c) => c.habitId));
+
+        return {
+          habits: habits.map((h) => ({
+            habitId: h.id,
+            title: h.title,
+            icon: h.icon,
+            duration: h.duration,
+            pointsOnComplete: h.pointsOnComplete,
+            done: completedIds.has(h.id),
+          })),
+          scheduledWorkouts: scheduledWorkouts.map((sw) => ({
+            scheduledWorkoutId: sw.id,
+            name: sw.workoutTypeName ?? "Workout",
+            scheduledTime: sw.scheduledTime,
+            duration: sw.duration,
+            status: sw.status,
+          })),
+        };
       },
     }),
 
     get_wearable_data: makeTool({
-      description: "Get the user's most recent wearable health data across all connected devices. Returns a summary including steps, sleep hours, HRV, and resting heart rate.",
+      description: "Get the user's most recent wearable health data",
       parameters: z.object({}),
       execute: async () => {
-        // Find all connected devices for the user
         const devices = await prisma.device.findMany({
           where: { userId, connected: true },
           select: { id: true, provider: true },
         });
+        if (devices.length === 0) return { connected: false, message: "No wearable devices connected." };
 
-        if (devices.length === 0) {
-          return { connected: false, message: "No wearable devices connected." };
-        }
-
-        // Get the most recent DeviceData entry per device
         const deviceIds = devices.map((d) => d.id);
         const rows = await prisma.deviceData.findMany({
           where: { deviceId: { in: deviceIds } },
           orderBy: { date: "desc" },
-          take: deviceIds.length * 7, // up to 7 days per device
+          take: deviceIds.length * 7,
         });
 
-        // Aggregate: use the most recent non-null value for each metric
         let steps: number | null = null;
         let sleepHours: number | null = null;
         let hrv: number | null = null;
@@ -272,126 +660,66 @@ export function vitaTools(userId: string) {
           if (latestDate == null) latestDate = row.date;
         }
 
-        return {
-          connected: true,
-          providers: devices.map((d) => d.provider),
-          latestDate,
-          steps,
-          sleepHours,
-          hrv,
-          restingHr,
-        };
-      },
-    }),
-
-    list_integrations: makeTool({
-      description: "List all connected wearable devices for the user.",
-      parameters: z.object({}),
-      execute: async () => {
-        const devices = await prisma.device.findMany({
-          where: { userId },
-          select: {
-            id: true,
-            provider: true,
-            connected: true,
-            connectedAt: true,
-            lastSyncAt: true,
-          },
-          orderBy: { connectedAt: "desc" },
-        });
-        return { devices };
-      },
-    }),
-
-    show_form_check: makeTool({
-      description: "Open the live camera form check overlay so the user can check their exercise form with a rep counter.",
-      parameters: z.object({
-        exercise: z.string().optional().describe("The exercise to check (e.g. 'Squat', 'Push-up')"),
-      }),
-      execute: async ({ exercise }) => {
-        return { action: "open_form_check", exercise: exercise ?? "Squat" };
-      },
-    }),
-
-    estimate_body_measurements: makeTool({
-      description: "Open the photo measurement tool so the user can estimate body measurements from a photo.",
-      parameters: z.object({}),
-      execute: async () => {
-        return { action: "open_photo_measure" };
+        return { connected: true, providers: devices.map((d) => d.provider), latestDate, steps, sleepHours, hrv, restingHr };
       },
     }),
 
     start_timer: makeTool({
-      description: "Show a countdown timer (e.g. for rest periods between sets).",
+      description: "Show a countdown timer (e.g. for rest periods between sets)",
       parameters: z.object({
-        durationSec: z.number().describe("Timer duration in seconds"),
-        label: z.string().optional().describe("Label for the timer (e.g. 'Rest Timer')"),
+        durationSec: z.number(),
+        label: z.string().optional(),
       }),
       execute: async ({ durationSec, label }) => {
         return { durationSec, label: label ?? "Rest Timer" };
       },
     }),
 
-    get_today_signals: makeTool({
-      description: "Get today's health signals (steps, sleep, HRV, heart rate, etc.) for the user",
-      parameters: z.object({}),
-      execute: async () => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const rows = await prisma.healthDaily.findMany({
-          where: { userId, date: today },
-        });
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        yesterday.setHours(0, 0, 0, 0);
-        const sleepRows = await prisma.healthDaily.findMany({
-          where: { userId, date: yesterday, metric: { in: ["sleepHours", "hrvMs", "restingHr"] } },
-        });
-        return [...rows, ...sleepRows].map(r => ({
-          metric: r.metric, value: r.value, unit: r.unit, source: r.source, trust: r.trust,
-        }));
-      },
-    }),
-
-    get_health_trend: makeTool({
-      description: "Get trend data for a specific health metric over recent days",
-      parameters: z.object({
-        metric: z.string().describe("Metric name: steps, sleepHours, hrvMs, restingHr, weightKg, etc."),
-        days: z.number().default(7).describe("Number of days to look back"),
-      }),
-      execute: async ({ metric, days }) => {
-        const since = new Date();
-        since.setDate(since.getDate() - (days ?? 7));
-        const rows = await prisma.healthDaily.findMany({
-          where: { userId, metric, date: { gte: since } },
-          orderBy: { date: "asc" },
-        });
-        return rows.map(r => ({ date: r.date.toISOString().split("T")[0], value: r.value, source: r.source, trust: r.trust }));
-      },
-    }),
-
-    override_health_metric: makeTool({
-      description: "Override a health metric for a specific date with a user-provided value",
-      parameters: z.object({
-        date: z.string().describe("Date in YYYY-MM-DD format"),
-        metric: z.string().describe("Metric to override"),
-        value: z.number().describe("The correct value"),
-        note: z.string().optional().describe("Reason for override"),
-      }),
-      execute: async ({ date, metric, value, note }) => {
-        const d = new Date(date);
-        await prisma.healthOverride.upsert({
-          where: { userId_date_metric: { userId, date: d, metric } },
-          create: { userId, date: d, metric, value, note },
-          update: { value, note },
-        });
-        await prisma.healthDaily.upsert({
-          where: { userId_date_metric: { userId, date: d, metric } },
-          create: { userId, date: d, metric, value, unit: "", source: "MANUAL", sources: {}, trust: 100, overridden: true },
-          update: { value, source: "MANUAL", overridden: true, trust: 100 },
-        });
-        return { ok: true, message: `Override saved: ${value} ${metric} on ${date}` };
+    show_crisis_resources: makeTool({
+      description: "Show crisis support resources — only call when the user expresses crisis-level distress",
+      parameters: z.object({ message: z.string().optional() }),
+      execute: async ({ message }) => {
+        return { message: message ?? "You don't have to face this alone. Support is available right now." };
       },
     }),
   };
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function cadenceStrToEnum(cadence: string) {
+  const map: Record<string, "DAILY" | "WEEKLY_N" | "SPECIFIC_DAYS" | "EVERY_OTHER" | "WEEKDAYS" | "WEEKENDS"> = {
+    daily: "DAILY",
+    weekly_n: "WEEKLY_N",
+    "2x/week": "WEEKLY_N",
+    "3x/week": "WEEKLY_N",
+    "5x/week": "WEEKLY_N",
+    specific_days: "SPECIFIC_DAYS",
+    every_other: "EVERY_OTHER",
+    weekdays: "WEEKDAYS",
+    weekends: "WEEKENDS",
+    weekly: "WEEKLY_N",
+  };
+  return map[cadence.toLowerCase()] ?? "DAILY";
+}
+
+function inferUnit(kind: string): string {
+  if (kind.endsWith("_kg")) return "kg";
+  if (kind.endsWith("_cm")) return "cm";
+  if (kind.endsWith("_pct")) return "%";
+  if (kind.includes("weight")) return "kg";
+  if (kind.includes("hr") || kind.includes("heart")) return "bpm";
+  return "cm";
+}
+
+/** Spread N workouts across 7 weekdays as evenly as possible, starting Monday. */
+function spreadDaysInWeek(count: number): number[] {
+  if (count <= 0) return [];
+  if (count >= 7) return [0, 1, 2, 3, 4, 5, 6];
+  const gap = Math.floor(7 / count);
+  const days: number[] = [];
+  for (let i = 0; i < count; i++) {
+    days.push((i * gap) % 7);
+  }
+  return days.sort((a, b) => a - b);
 }

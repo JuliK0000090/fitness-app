@@ -12,36 +12,52 @@ export default async function WeekPage() {
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  const workouts = await prisma.workoutLog.findMany({
-    where: { userId, startedAt: { gte: weekStart, lte: weekEnd } },
-    orderBy: { startedAt: "asc" },
-  });
+  const [scheduledWorkouts, completions, habits, weeklyTargets, allHabits] = await Promise.all([
+    prisma.scheduledWorkout.findMany({
+      where: { userId, scheduledDate: { gte: weekStart, lte: weekEnd } },
+      orderBy: { scheduledDate: "asc" },
+    }),
+    prisma.habitCompletion.findMany({
+      where: { userId, date: { gte: weekStart, lte: weekEnd } },
+      select: { habitId: true, date: true },
+    }),
+    prisma.habit.findMany({ where: { userId, active: true }, select: { id: true } }),
+    prisma.weeklyTarget.findMany({
+      where: { userId, active: true },
+      include: { workoutType: { select: { name: true, icon: true } } },
+    }),
+    prisma.habit.count({ where: { userId, active: true } }),
+  ]);
 
-  const checklistItems = await prisma.checklistItem.findMany({
-    where: {
-      userId,
-      date: { in: days.map((d) => format(d, "yyyy-MM-dd")) },
-    },
-  });
-
-  const weeklyReviews = await prisma.weeklyReview.findMany({
-    where: { userId },
-    orderBy: { weekStart: "desc" },
-    take: 4,
-  });
+  const doneCounts: Record<string, number> = {};
+  for (const sw of scheduledWorkouts.filter((s) => s.status === "DONE")) {
+    const key = sw.workoutTypeName ?? "Unknown";
+    doneCounts[key] = (doneCounts[key] ?? 0) + 1;
+  }
 
   const dayData = days.map((d) => {
     const dateStr = format(d, "yyyy-MM-dd");
-    const dayWorkouts = workouts.filter((w) => format(w.startedAt, "yyyy-MM-dd") === dateStr);
-    const dayChecklist = checklistItems.filter((c) => c.date === dateStr);
-    const doneTasks = dayChecklist.filter((c) => c.doneAt).length;
+    const dayWorkouts = scheduledWorkouts.filter(
+      (w) => format(new Date(w.scheduledDate), "yyyy-MM-dd") === dateStr
+    );
+    const dayCompletions = completions.filter(
+      (c) => format(new Date(c.date), "yyyy-MM-dd") === dateStr
+    );
+    const pct = allHabits > 0 ? Math.round((dayCompletions.length / allHabits) * 100) : 0;
+
     return {
       date: dateStr,
       dayLabel: format(d, "EEE"),
-      workoutCount: dayWorkouts.length,
-      checklistDone: doneTasks,
-      checklistTotal: dayChecklist.length,
-      xp: dayWorkouts.length * 25 + doneTasks * 5,
+      dayNum: format(d, "d"),
+      isToday: dateStr === format(now, "yyyy-MM-dd"),
+      workouts: dayWorkouts.map((w) => ({
+        id: w.id,
+        name: w.workoutTypeName ?? "Workout",
+        status: w.status,
+        duration: w.duration,
+      })),
+      habitPct: pct,
+      xp: dayWorkouts.filter((w) => w.status === "DONE").length * 50 + dayCompletions.length * 10,
     };
   });
 
@@ -49,13 +65,12 @@ export default async function WeekPage() {
     <WeekView
       weekLabel={`${format(weekStart, "MMM d")} – ${format(weekEnd, "MMM d, yyyy")}`}
       days={dayData}
-      weeklyReviews={weeklyReviews.map((r) => ({
-        id: r.id,
-        weekOf: r.weekOf,
-        adherencePct: r.adherencePct ?? 0,
-        workoutsCompleted: r.workoutsCompleted,
-        workoutsPlanned: r.workoutsPlanned,
-        aiVerdict: r.aiSummary ?? "",
+      weeklyTargets={weeklyTargets.map((wt) => ({
+        id: wt.id,
+        label: wt.workoutTypeName ?? wt.workoutType?.name ?? "Workout",
+        icon: wt.workoutType?.icon ?? "Dumbbell",
+        target: wt.targetCount,
+        done: doneCounts[wt.workoutTypeName ?? ""] ?? 0,
       }))}
     />
   );

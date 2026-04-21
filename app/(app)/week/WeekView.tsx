@@ -1,106 +1,154 @@
 "use client";
 
-import { Dumbbell, CheckCircle2, Zap } from "lucide-react";
-import { WeeklyReviewCard } from "@/components/cards/WeeklyReviewCard";
+import { cn } from "@/lib/utils";
+import { Dumbbell, CheckCircle2 } from "lucide-react";
 
 interface DayData {
   date: string;
   dayLabel: string;
-  workoutCount: number;
-  checklistDone: number;
-  checklistTotal: number;
+  dayNum: string;
+  isToday: boolean;
+  workouts: { id: string; name: string; status: string; duration: number }[];
+  habitPct: number;
   xp: number;
 }
 
-interface WeeklyReviewData {
+interface WeeklyTarget {
   id: string;
-  weekOf: string;
-  adherencePct: number;
-  workoutsCompleted: number;
-  workoutsPlanned: number;
-  aiVerdict: string;
+  label: string;
+  icon: string;
+  target: number;
+  done: number;
 }
 
 interface WeekViewProps {
   weekLabel: string;
   days: DayData[];
-  weeklyReviews: WeeklyReviewData[];
+  weeklyTargets: WeeklyTarget[];
 }
 
-export function WeekView({ weekLabel, days, weeklyReviews }: WeekViewProps) {
-  const totalXp = days.reduce((sum, d) => sum + d.xp, 0);
-  const totalWorkouts = days.reduce((sum, d) => sum + d.workoutCount, 0);
-  const today = new Date().toISOString().split("T")[0];
-
+function HabitRing({ pct, size = 20 }: { pct: number; size?: number }) {
+  const r = (size - 3) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.min(1, pct / 100));
   return (
-    <div className="max-w-lg mx-auto py-4 px-4 space-y-4">
-      <div className="fu">
-        <h1 className="text-lg font-bold">This Week</h1>
-        <p className="text-xs text-muted-foreground">{weekLabel}</p>
+    <svg width={size} height={size} className="-rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={2} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none"
+        stroke={pct === 100 ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.35)"}
+        strokeWidth={2}
+        strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function WeekView({ weekLabel, days, weeklyTargets }: WeekViewProps) {
+  return (
+    <div className="max-w-lg mx-auto py-4 px-4 space-y-5">
+      <div>
+        <p className="text-[9px] tracking-[0.25em] uppercase text-white/25 mb-1">This week</p>
+        <h1 className="text-lg font-bold text-white/80">{weekLabel}</h1>
       </div>
 
-      {/* Summary bar */}
-      <div className="grid grid-cols-3 gap-2 fu2">
-        <div className="glass rounded-2xl p-3 text-center">
-          <Dumbbell size={16} className="mx-auto mb-1 text-white/50" />
-          <p className="text-xl font-bold text-white/60">{totalWorkouts}</p>
-          <p className="text-[10px] text-muted-foreground">Workouts</p>
-        </div>
-        <div className="glass rounded-2xl p-3 text-center">
-          <CheckCircle2 size={16} className="mx-auto mb-1 text-white/50" />
-          <p className="text-xl font-bold text-white/60">{days.reduce((s, d) => s + d.checklistDone, 0)}</p>
-          <p className="text-[10px] text-muted-foreground">Tasks done</p>
-        </div>
-        <div className="glass rounded-2xl p-3 text-center">
-          <Zap size={16} className="mx-auto mb-1 text-white/50" />
-          <p className="text-xl font-bold text-white/60">{totalXp}</p>
-          <p className="text-[10px] text-muted-foreground">XP earned</p>
-        </div>
-      </div>
-
-      {/* Day-by-day grid */}
-      <div className="glass rounded-2xl p-4 fu2">
-        <p className="text-xs font-semibold text-muted-foreground mb-3">Daily breakdown</p>
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((d) => {
-            const isToday = d.date === today;
-            const hasActivity = d.workoutCount > 0 || d.checklistDone > 0;
-            return (
-              <div key={d.date} className="flex flex-col items-center gap-1">
-                <span className={`text-[9px] uppercase ${isToday ? "text-white/60 font-bold" : "text-muted-foreground"}`}>{d.dayLabel}</span>
-                <div
-                  className={`w-full aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 ${
-                    isToday ? "ring-1 ring-white/[0.07]" : ""
-                  } ${hasActivity ? "bg-white/[0.04]" : "bg-secondary"}`}
-                >
-                  {d.workoutCount > 0 && <Dumbbell size={8} className="text-white/50" />}
-                  {d.checklistDone > 0 && <span className="text-[8px] text-white/60">{d.checklistDone}</span>}
-                  {!hasActivity && <span className="text-[8px] text-muted-foreground/40">–</span>}
-                </div>
-                {d.xp > 0 && <span className="text-[8px] text-white/60">+{d.xp}</span>}
+      {/* Weekly targets */}
+      {weeklyTargets.length > 0 && (
+        <div className="space-y-2">
+          {weeklyTargets.map((wt) => (
+            <div key={wt.id} className="glass rounded-xl px-4 py-3 flex items-center gap-3">
+              <span className="text-sm text-white/65 flex-1">{wt.label}</span>
+              <div className="flex gap-1.5 items-center">
+                {Array.from({ length: wt.target }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "w-2 h-2 rounded-full",
+                      i < wt.done ? "bg-white/55" : "bg-white/15"
+                    )}
+                  />
+                ))}
+                <span className="text-[10px] text-white/30 ml-1">{wt.done}/{wt.target}</span>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Weekly reviews */}
-      {weeklyReviews.length > 0 && (
-        <div className="space-y-1 fu3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Past reviews</p>
-          {weeklyReviews.map((r) => r.aiVerdict ? (
-            <WeeklyReviewCard
-              key={r.id}
-              weekOf={r.weekOf}
-              adherencePct={r.adherencePct}
-              workoutsCompleted={r.workoutsCompleted}
-              workoutsPlanned={r.workoutsPlanned}
-              aiVerdict={r.aiVerdict}
-              reviewId={r.id}
-            />
-          ) : null)}
+            </div>
+          ))}
         </div>
       )}
+
+      {/* Day cards */}
+      <div className="grid grid-cols-7 gap-1.5">
+        {days.map((day) => {
+          const done = day.workouts.filter((w) => w.status === "DONE").length;
+          const total = day.workouts.length;
+          return (
+            <div
+              key={day.date}
+              className={cn(
+                "glass rounded-2xl p-2 flex flex-col items-center gap-1.5 min-h-[90px]",
+                day.isToday && "border border-white/20"
+              )}
+            >
+              <p className="text-[9px] text-white/30">{day.dayLabel}</p>
+              <p className={cn("text-sm font-medium", day.isToday ? "text-white/90" : "text-white/50")}>{day.dayNum}</p>
+
+              {/* Workout dots */}
+              <div className="flex flex-col gap-0.5 w-full items-center">
+                {day.workouts.slice(0, 3).map((w) => (
+                  <div
+                    key={w.id}
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full",
+                      w.status === "DONE" ? "bg-white/60" : w.status === "SKIPPED" ? "bg-white/15" : "bg-white/30"
+                    )}
+                  />
+                ))}
+              </div>
+
+              {/* Habit ring */}
+              {day.habitPct > 0 && <HabitRing pct={day.habitPct} />}
+
+              {/* XP */}
+              {day.xp > 0 && (
+                <p className="text-[8px] text-white/20">{day.xp}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Day detail — expanded list below grid */}
+      <div className="space-y-3">
+        {days.filter((d) => d.workouts.length > 0).map((day) => (
+          <div key={day.date} className={cn("glass rounded-2xl p-4 space-y-2", day.isToday && "border border-white/[0.12]")}>
+            <p className="text-xs font-medium text-white/50">
+              {day.dayLabel} {day.dayNum}
+              {day.isToday && <span className="ml-2 text-[9px] text-white/30 uppercase tracking-wider">today</span>}
+            </p>
+            {day.workouts.map((w) => (
+              <div key={w.id} className="flex items-center gap-2.5">
+                <div className={cn(
+                  "w-6 h-6 rounded-lg border flex items-center justify-center shrink-0",
+                  w.status === "DONE" ? "border-white/30 bg-white/10" : "border-white/[0.07]"
+                )}>
+                  {w.status === "DONE"
+                    ? <CheckCircle2 size={12} className="text-white/50" />
+                    : <Dumbbell size={10} className="text-white/25" />
+                  }
+                </div>
+                <p className={cn("text-sm", w.status === "DONE" ? "text-white/50 line-through" : "text-white/70")}>
+                  {w.name}
+                </p>
+                <span className="text-[10px] text-white/25 ml-auto">{w.duration} min</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-2 pt-0.5">
+              <HabitRing pct={day.habitPct} size={16} />
+              <p className="text-[10px] text-white/25">{day.habitPct}% habits done · {day.xp} XP</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
