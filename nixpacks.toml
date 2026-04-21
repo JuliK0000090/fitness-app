@@ -8,4 +8,4 @@ cmds = ["npm ci --legacy-peer-deps"]
 cmds = ["npx prisma generate", "npm run build"]
 
 [start]
-cmd = "node scripts/migrate.js && npm run start"
+cmd = "npx prisma db push --accept-data-loss && npm run start"
