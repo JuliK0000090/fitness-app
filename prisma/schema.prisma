@@ -279,7 +279,7 @@ model Habit {
   id               String       @id @default(cuid())
   userId           String
   goalId           String?
-  title            String
+  title            String?
   description      String?      @db.Text
   cadence          String       @default("daily") // kept as string for compat
   cadenceType      HabitCadence @default(DAILY)
