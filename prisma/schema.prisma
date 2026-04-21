@@ -55,6 +55,9 @@ model User {
   auditLogs         AuditLog[]
   feedbackItems     MessageFeedback[]
   pushSubscriptions PushSubscription[]
+  emails            Email[]
+  emailPreference   EmailPreference?
+  unsubscribeTokens UnsubscribeToken[]
 
   @@index([email])
 }
@@ -471,4 +474,80 @@ model AuditLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+// ─── Email System ─────────────────────────────────────────────────────────────
+
+model Email {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId String
+  subject    String
+  to         String
+  resendId   String?     @unique
+  status     EmailStatus @default(QUEUED)
+  sentAt     DateTime?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+  events     EmailEvent[]
+
+  @@index([userId, createdAt])
+  @@index([templateId])
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  BOUNCED
+  COMPLAINED
+  OPENED
+  CLICKED
+  FAILED
+  SUPPRESSED
+  PREFERENCE_BLOCKED
+}
+
+model EmailEvent {
+  id        String   @id @default(cuid())
+  emailId   String
+  email     Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+}
+
+model EmailPreference {
+  userId            String   @id
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyMorningPlan  Boolean  @default(true)
+  tomorrowEvening   Boolean  @default(false)
+  weeklyReview      Boolean  @default(true)
+  monthlyReport     Boolean  @default(true)
+  workoutReminders  Boolean  @default(true)
+  measurementNudges Boolean  @default(true)
+  photoNudges       Boolean  @default(true)
+  milestones        Boolean  @default(true)
+  winback           Boolean  @default(true)
+  birthday          Boolean  @default(true)
+  onboardingSeries  Boolean  @default(true)
+  morningTime       String   @default("07:00")
+  eveningTime       String   @default("20:00")
+  timezone          String   @default("UTC")
+  updatedAt         DateTime @updatedAt
+}
+
+model EmailSuppression {
+  email     String   @id
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+model UnsubscribeToken {
+  token     String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String?
+  createdAt DateTime @default(now())
 }
