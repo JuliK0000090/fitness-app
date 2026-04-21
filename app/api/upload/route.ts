@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       Body: Buffer.from(bytes),
       ContentType: mime,
     }));
-    fileUrl = publicUrl(key);
+    fileUrl = publicUrl(key) ?? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${process.env.R2_BUCKET_NAME ?? "vita-uploads"}/${key}`;
   } else {
     // Fallback: encode as data URL (no external storage needed)
     const b64 = Buffer.from(bytes).toString("base64");
