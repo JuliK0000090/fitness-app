@@ -91,6 +91,13 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
       : file.type.startsWith("video/") ? "video"
       : "document";
 
+    // Reject images over 4MB (base64 would exceed Railway body limit)
+    const MAX_IMAGE_MB = 4;
+    if (type === "image" && file.size > MAX_IMAGE_MB * 1024 * 1024) {
+      toast.error(`Image too large — please use one under ${MAX_IMAGE_MB}MB`);
+      return { id, file, type, previewUrl, uploading: false };
+    }
+
     const pending: PendingAttachment = { id, file, type, previewUrl, uploading: true };
     setPendingAttachments((prev) => [...prev, pending]);
 

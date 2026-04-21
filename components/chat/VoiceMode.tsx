@@ -13,6 +13,7 @@ export function VoiceMode({ onClose, onTranscript }: VoiceModeProps) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [status, setStatus] = useState<"idle" | "listening" | "processing">("idle");
+  const [supported, setSupported] = useState(true);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
 
@@ -21,7 +22,7 @@ export function VoiceMode({ onClose, onTranscript }: VoiceModeProps) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!SR) return;
+    if (!SR) { setSupported(false); return; }
 
     const recognition = new SR();
     recognition.continuous = true;
@@ -60,6 +61,24 @@ export function VoiceMode({ onClose, onTranscript }: VoiceModeProps) {
       setListening(true);
       setStatus("listening");
     }
+  }
+
+  if (!supported) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center px-6 text-center">
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-secondary">
+          <X size={20} />
+        </button>
+        <MicOff size={32} className="text-muted-foreground mb-4" />
+        <p className="text-sm font-medium mb-2">Voice mode not supported</p>
+        <p className="text-xs text-muted-foreground mb-6">
+          Use the microphone button to record a voice message instead — it works on all devices.
+        </p>
+        <button onClick={onClose} className="text-xs px-4 py-2 rounded-xl bg-secondary text-foreground">
+          Got it
+        </button>
+      </div>
+    );
   }
 
   return (

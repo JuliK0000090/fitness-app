@@ -7,7 +7,7 @@ import { nanoid } from "nanoid";
 const MAX_SIZE_MB = 50;
 const ALLOWED_IMAGE = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic"];
 const ALLOWED_DOC = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
-const ALLOWED_AUDIO = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"];
+const ALLOWED_AUDIO = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav", "audio/aac", "audio/x-m4a"];
 const ALLOWED_VIDEO = ["video/webm", "video/mp4", "video/quicktime"];
 
 export async function POST(req: NextRequest) {

@@ -16,15 +16,34 @@ export function VoiceRecorder({ onRecorded }: VoiceRecorderProps) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert("Microphone not available in this browser.");
+      return;
+    }
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+    // iOS Safari only supports audio/mp4; Chrome/Firefox support audio/webm
+    const mimeType =
+      typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/mp4")
+        ? "audio/mp4"
+        : "";
+
+    const recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+
+    const ext = mimeType.includes("mp4") ? "mp4" : "webm";
+    const type = mimeType || "audio/webm";
+
     recorderRef.current = recorder;
     chunksRef.current = [];
 
     recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-      const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+      const blob = new Blob(chunksRef.current, { type });
+      const file = new File([blob], `voice-${Date.now()}.${ext}`, { type });
       onRecorded(file);
       stream.getTracks().forEach((t) => t.stop());
     };
