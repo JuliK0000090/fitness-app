@@ -32,6 +32,7 @@ const PUBLIC_PATHS = [
   "/api/auth/callback",
   "/api/webhooks",
   "/api/admin",
+  "/api/debug",
   "/api/unsubscribe",
   "/unsubscribe",
   "/mockups",

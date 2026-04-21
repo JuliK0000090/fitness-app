@@ -29,8 +29,8 @@ async function run() {
   const { execSync } = require("child_process");
   try {
     execSync(
-      `npx prisma db push --accept-data-loss --schema=prisma/schema.prisma --url=${JSON.stringify(url)}`,
-      { stdio: "inherit", env: process.env }
+      `npx prisma db push --accept-data-loss`,
+      { stdio: "inherit", env: { ...process.env, DATABASE_URL: url } }
     );
   } catch (e) {
     console.error("prisma db push failed:", e.message);
