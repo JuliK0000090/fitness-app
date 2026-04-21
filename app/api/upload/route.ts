@@ -33,23 +33,37 @@ export async function POST(req: NextRequest) {
   // Strip EXIF from images server-side (basic: just store as-is for now, can add sharp later)
   const key = `uploads/${session.userId}/${nanoid()}/${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
 
-  // Upload directly to R2
   const bytes = await file.arrayBuffer();
-  const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
-  const client = new S3Client({
-    region: "auto",
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    },
-  });
-  await client.send(new PutObjectCommand({
-    Bucket: process.env.R2_BUCKET_NAME ?? "vita-uploads",
-    Key: key,
-    Body: Buffer.from(bytes),
-    ContentType: mime,
-  }));
+  let fileUrl: string;
+
+  const r2Configured =
+    process.env.R2_ACCOUNT_ID &&
+    process.env.R2_ACCESS_KEY_ID &&
+    process.env.R2_SECRET_ACCESS_KEY;
+
+  if (r2Configured) {
+    // Upload to Cloudflare R2
+    const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+    const client = new S3Client({
+      region: "auto",
+      endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+      },
+    });
+    await client.send(new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME ?? "vita-uploads",
+      Key: key,
+      Body: Buffer.from(bytes),
+      ContentType: mime,
+    }));
+    fileUrl = publicUrl(key);
+  } else {
+    // Fallback: encode as data URL (no external storage needed)
+    const b64 = Buffer.from(bytes).toString("base64");
+    fileUrl = `data:${mime};base64,${b64}`;
+  }
 
   // Extract transcript for audio/video via Deepgram (optional)
   let transcript: string | undefined;
@@ -111,7 +125,7 @@ export async function POST(req: NextRequest) {
     ok: true,
     attachmentId,
     key,
-    url: publicUrl(key),
+    url: fileUrl,
     type,
     fileName: file.name,
     mimeType: mime,

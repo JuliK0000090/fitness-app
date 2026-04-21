@@ -30,6 +30,6 @@ export async function deleteObject(key: string) {
 
 export function publicUrl(key: string) {
   const base = process.env.R2_PUBLIC_URL;
-  if (!base) throw new Error("R2_PUBLIC_URL is not configured");
+  if (!base) return null;
   return `${base}/${key}`;
 }
