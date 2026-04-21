@@ -1,24 +1,4 @@
 import { prisma } from "./prisma";
-import { Prisma } from "@prisma/client";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { embed } from "ai";
-
-const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-// ─── Embed text via Claude's embedding model ──────────────────────────────────
-async function embedText(text: string): Promise<number[] | null> {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-  try {
-    const { embedding } = await embed({
-      model: anthropic.textEmbeddingModel("voyage-3"),
-      value: text,
-    });
-    return embedding;
-  } catch {
-    // Embedding is optional — falls back to keyword search
-    return null;
-  }
-}
 
 // ─── Save a memory ────────────────────────────────────────────────────────────
 export async function saveMemory(
@@ -27,71 +7,47 @@ export async function saveMemory(
   content: string,
   opts: { title?: string; source?: string; weekOf?: Date; eventDate?: Date } = {}
 ) {
-  const embedding = await embedText(content);
-
-  return prisma.$executeRaw`
-    INSERT INTO "Memory" (id, "userId", type, title, content, embedding, source, "weekOf", "eventDate", "createdAt", "updatedAt")
-    VALUES (
-      gen_random_uuid()::text,
-      ${userId},
-      ${type},
-      ${opts.title ?? null},
-      ${content},
-      ${embedding ? `[${embedding.join(",")}]` : null}::vector,
-      ${opts.source ?? "auto"},
-      ${opts.weekOf ?? null},
-      ${opts.eventDate ?? null},
-      now(), now()
-    )
-  `;
+  return prisma.memory.create({
+    data: {
+      userId,
+      type,
+      content,
+      title: opts.title ?? null,
+      source: opts.source ?? "auto",
+      weekOf: opts.weekOf ?? null,
+      eventDate: opts.eventDate ?? null,
+    },
+  });
 }
 
-// ─── Semantic recall (cosine similarity, fallback to keyword) ─────────────────
+// ─── Recall recent memories ───────────────────────────────────────────────────
 export async function recallMemories(
   userId: string,
-  query: string,
+  _query: string,
   opts: { limit?: number; type?: string } = {}
 ): Promise<{ id: string; type: string; title: string | null; content: string; createdAt: Date }[]> {
   const { limit = 5, type } = opts;
-  const embedding = await embedText(query);
-
-  if (embedding) {
-    const vec = `[${embedding.join(",")}]`;
-    const typeFilter = type ? Prisma.sql`AND type = ${type}` : Prisma.empty;
-    // Raw SQL for pgvector cosine similarity
-    const rows = await prisma.$queryRaw<{ id: string; type: string; title: string | null; content: string; createdAt: Date }[]>`
-      SELECT id, type, title, content, "createdAt"
-      FROM "Memory"
-      WHERE "userId" = ${userId}
-        AND "deletedAt" IS NULL
-        ${typeFilter}
-        AND embedding IS NOT NULL
-      ORDER BY embedding <=> ${vec}::vector
-      LIMIT ${limit}
-    `;
-    return rows;
-  }
-
-  // Fallback: recency-based
   return prisma.memory.findMany({
     where: { userId, deletedAt: null, ...(type ? { type } : {}) },
     orderBy: { createdAt: "desc" },
     take: limit,
     select: { id: true, type: true, title: true, content: true, createdAt: true },
-  }) as Promise<{ id: string; type: string; title: string | null; content: string; createdAt: Date }[]>;
+  });
 }
 
 // ─── Build memory context string for system prompt ───────────────────────────
 export async function buildMemoryContext(userId: string, query: string): Promise<string> {
-  const memories = await recallMemories(userId, query, { limit: 6 });
-  if (memories.length === 0) return "";
-
-  const lines = memories.map((m) => {
-    const label = m.type === "profile" ? "Profile note" : m.type === "journal" ? "Journal" : "Past event";
-    return `[${label}${m.title ? ` — ${m.title}` : ""}]: ${m.content}`;
-  });
-
-  return `Relevant memories:\n${lines.join("\n")}`;
+  try {
+    const memories = await recallMemories(userId, query, { limit: 6 });
+    if (memories.length === 0) return "";
+    const lines = memories.map((m) => {
+      const label = m.type === "profile" ? "Profile note" : m.type === "journal" ? "Journal" : "Past event";
+      return `[${label}${m.title ? ` — ${m.title}` : ""}]: ${m.content}`;
+    });
+    return `Relevant memories:\n${lines.join("\n")}`;
+  } catch {
+    return "";
+  }
 }
 
 // ─── Auto-extract and save memories from a conversation turn ─────────────────
@@ -104,6 +60,9 @@ export async function extractAndSaveMemories(
 
   try {
     const { generateText } = await import("ai");
+    const { createAnthropic } = await import("@ai-sdk/anthropic");
+    const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
     const { text } = await generateText({
       model: anthropic("claude-haiku-4-5-20251001"),
       prompt: `Extract factual memories worth saving from this fitness coaching conversation.
