@@ -21,7 +21,7 @@ function Icon({ name, size = 14, className }: { name: string; size?: number; cla
 
 interface Habit {
   id: string;
-  title: string;
+  title: string | null;
   icon: string;
   duration: number | null;
   pointsOnComplete: number;
@@ -178,7 +178,7 @@ export function TodayView({
                 </div>
                 <Icon name={habit.icon} size={13} className="text-white/35 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm", habit.done && "line-through text-white/40")}>{habit.title}</p>
+                  <p className={cn("text-sm", habit.done && "line-through text-white/40")}>{habit.title ?? "Habit"}</p>
                   {habit.duration && !habit.done && (
                     <p className="text-[10px] text-white/25 mt-0.5">{habit.duration} min</p>
                   )}
