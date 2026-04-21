@@ -16,7 +16,12 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const session = await requireSession();
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  }
   const userId = session.userId;
 
   // Rate limit: 60 messages per minute per user
@@ -160,30 +165,41 @@ export async function POST(req: NextRequest) {
     finalSystemPrompt += `\n\n[SAFETY NOTE] The user may be considering training through a serious injury. Respond with caution — recommend rest, professional medical evaluation, and safe alternatives. Do not endorse training that could worsen injury.`;
   }
 
-  const result = streamText({
-    model: anthropic("claude-sonnet-4-6"),
-    system: finalSystemPrompt,
-    messages: body.messages,
-    tools: vitaTools(userId),
-    maxSteps: 10,
-    onFinish: async ({ text }) => {
-      if (text) {
-        await prisma.message.create({
-          data: {
-            conversationId: body.conversationId,
-            role: "assistant",
-            content: text,
-          },
-        });
-        // Async memory extraction — fire and forget
-        extractAndSaveMemories(userId, lastUserContent, text).catch(() => {});
-      }
-      await prisma.conversation.update({
-        where: { id: body.conversationId },
-        data: { updatedAt: new Date() },
-      });
-    },
-  });
+  try {
+    const result = streamText({
+      model: anthropic("claude-sonnet-4-6"),
+      system: finalSystemPrompt,
+      messages: body.messages,
+      tools: vitaTools(userId),
+      maxSteps: 10,
+      onFinish: async ({ text }) => {
+        try {
+          if (text) {
+            await prisma.message.create({
+              data: {
+                conversationId: body.conversationId,
+                role: "assistant",
+                content: text,
+              },
+            });
+            extractAndSaveMemories(userId, lastUserContent, text).catch(() => {});
+          }
+          await prisma.conversation.update({
+            where: { id: body.conversationId },
+            data: { updatedAt: new Date() },
+          });
+        } catch (e) {
+          console.error("[chat] onFinish error:", e);
+        }
+      },
+    });
 
-  return result.toDataStreamResponse();
+    return result.toDataStreamResponse();
+  } catch (e) {
+    console.error("[chat] streamText error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "AI error" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 }
