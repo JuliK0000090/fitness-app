@@ -13,5 +13,5 @@ export async function generateUnsubscribeUrl(userId: string, category?: string):
   const token = nanoid(32);
   await prisma.unsubscribeToken.create({ data: { token, userId, category: category ?? null } });
   const base = process.env.APP_URL ?? "http://localhost:3000";
-  return `${base}/unsubscribe/${token}`;
+  return `${base}/api/unsubscribe/${token}`;
 }
