@@ -63,13 +63,18 @@ export async function POST(req: NextRequest) {
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-  const healthRows = await prisma.healthDaily.findMany({
-    where: {
-      userId,
-      date: { gte: new Date(yesterdayStr) },
-      metric: { in: ["steps", "sleepHours", "hrvMs", "restingHr", "readinessScore", "activeMinutes"] },
-    },
-  });
+  let healthRows: { metric: string; value: number; unit: string; source: string; trust: number }[] = [];
+  try {
+    healthRows = await prisma.healthDaily.findMany({
+      where: {
+        userId,
+        date: { gte: new Date(yesterdayStr) },
+        metric: { in: ["steps", "sleepHours", "hrvMs", "restingHr", "readinessScore", "activeMinutes"] },
+      },
+    });
+  } catch {
+    // HealthDaily table may not exist yet — skip health context gracefully
+  }
 
   const healthLines = healthRows.map(r =>
     `- ${r.metric}: ${r.value.toFixed(r.metric === "sleepHours" ? 1 : 0)} ${r.unit} (${r.source}, trust ${r.trust})`
@@ -96,13 +101,17 @@ export async function POST(req: NextRequest) {
     healthContext,
   });
   if (lastMessage?.role === "user") {
-    await prisma.message.create({
-      data: {
-        conversationId: body.conversationId,
-        role: "user",
-        content: typeof lastMessage.content === "string" ? lastMessage.content : JSON.stringify(lastMessage.content),
-      },
-    });
+    try {
+      await prisma.message.create({
+        data: {
+          conversationId: body.conversationId,
+          role: "user",
+          content: typeof lastMessage.content === "string" ? lastMessage.content : JSON.stringify(lastMessage.content),
+        },
+      });
+    } catch (e) {
+      console.error("[chat] persist user message error:", e);
+    }
   }
 
   // Auto-title conversation on first message
