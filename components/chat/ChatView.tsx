@@ -53,7 +53,7 @@ const SUGGESTIONS = [
 export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -330,23 +330,20 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
             onRemove={(id) => setPendingAttachments((prev) => prev.filter((a) => a.id !== id))}
           />
           <form onSubmit={submitWithAttachments} className="flex items-end gap-2 px-3 py-2">
-            {/* Attach file */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary shrink-0"
+            {/* Attach file — use label so iOS WebKit handles the tap natively */}
+            <label
+              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary shrink-0 cursor-pointer"
               title="Attach file"
             >
               <Paperclip size={14} />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*,.pdf,.docx,.txt"
-              className="hidden"
-              onChange={(e) => e.target.files && handleFiles(e.target.files)}
-            />
+              <input
+                type="file"
+                multiple
+                accept="image/*,.pdf,.txt"
+                className="sr-only"
+                onChange={(e) => e.target.files && handleFiles(e.target.files)}
+              />
+            </label>
 
             <textarea
               ref={inputRef}
