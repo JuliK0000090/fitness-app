@@ -82,6 +82,29 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
     return () => document.removeEventListener("keydown", handler);
   }, [voiceMode]);
 
+  // ── Image resize helper ─────────────────────────────────────────────────────
+  function resizeImageToDataUrl(file: File, maxPx: number, quality: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("canvas")); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = objectUrl;
+    });
+  }
+
   // ── Upload helpers ──────────────────────────────────────────────────────────
   async function uploadFile(file: File): Promise<PendingAttachment> {
     const id = nanoid();
@@ -91,24 +114,20 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
       : file.type.startsWith("video/") ? "video"
       : "document";
 
-    // Images: read as base64 client-side — no upload API needed, avoids iOS crashes
+    // Images: resize+compress on canvas then encode as base64 — avoids iOS crash and large bodies
     if (type === "image") {
-      const MAX_IMAGE_MB = 5;
-      if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
-        toast.error(`Image too large — please use one under ${MAX_IMAGE_MB}MB`);
-        return { id, file, type, previewUrl, uploading: false };
-      }
       const pending: PendingAttachment = { id, file, type, previewUrl, uploading: true };
       setPendingAttachments((prev) => [...prev, pending]);
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      const updated: PendingAttachment = { ...pending, uploading: false, url: dataUrl };
-      setPendingAttachments((prev) => prev.map((a) => a.id === id ? updated : a));
-      return updated;
+      try {
+        const dataUrl = await resizeImageToDataUrl(file, 1120, 0.82);
+        const updated: PendingAttachment = { ...pending, uploading: false, url: dataUrl };
+        setPendingAttachments((prev) => prev.map((a) => a.id === id ? updated : a));
+        return updated;
+      } catch {
+        toast.error("Could not process image: " + file.name);
+        setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
+        throw new Error("image processing failed");
+      }
     }
 
     const pending: PendingAttachment = { id, file, type, previewUrl, uploading: true };
