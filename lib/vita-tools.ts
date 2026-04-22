@@ -345,25 +345,34 @@ export function vitaTools(userId: string) {
 
         const dateObj = new Date(date ?? todayStr());
 
-        const completion = await prisma.habitCompletion.upsert({
-          where: { habitId_date: { habitId, date: dateObj } },
-          create: { habitId, userId, date: dateObj, note: note ?? null, points: habit.pointsOnComplete },
-          update: { note: note ?? undefined },
-        });
+        const { completion, totalXp, bonus } = await prisma.$transaction(async (tx) => {
+          const completion = await tx.habitCompletion.upsert({
+            where: { habitId_date: { habitId, date: dateObj } },
+            create: { habitId, userId, date: dateObj, note: note ?? null, points: habit.pointsOnComplete },
+            update: { note: note ?? undefined },
+          });
 
-        // Grant XP
-        const totalXp = await grantXp(userId, habit.pointsOnComplete);
+          // Grant base XP
+          const updated = await tx.user.update({
+            where: { id: userId },
+            data: { totalXp: { increment: habit.pointsOnComplete } },
+            select: { totalXp: true },
+          });
 
-        // Check all-habits-done bonus
-        const activeHabits = await prisma.habit.count({ where: { userId, active: true } });
-        const doneToday = await prisma.habitCompletion.count({
-          where: { userId, date: dateObj },
+          // Check all-habits-done bonus
+          const activeHabits = await tx.habit.count({ where: { userId, active: true } });
+          const doneToday = await tx.habitCompletion.count({ where: { userId, date: dateObj } });
+          let bonus = 0;
+          if (doneToday === activeHabits && activeHabits > 0) {
+            bonus = XP.ALL_HABITS_BONUS;
+            await tx.user.update({
+              where: { id: userId },
+              data: { totalXp: { increment: bonus } },
+            });
+          }
+
+          return { completion, totalXp: updated.totalXp, bonus };
         });
-        let bonus = 0;
-        if (doneToday === activeHabits && activeHabits > 0) {
-          bonus = XP.ALL_HABITS_BONUS;
-          await grantXp(userId, bonus);
-        }
 
         return {
           completionId: completion.id,
@@ -735,12 +744,12 @@ export function vitaTools(userId: string) {
                 durationMin: w.durationMin ?? 45,
                 source: "screenshot_import",
                 notes: [w.instructor, w.studio].filter(Boolean).join(" — ") || null,
-                xpAwarded: XP.WORKOUT_LATE,
+                xpAwarded: XP.WORKOUT_COMPLETE,
               },
             });
             await prisma.user.update({
               where: { id: userId },
-              data: { totalXp: { increment: XP.WORKOUT_LATE } },
+              data: { totalXp: { increment: XP.WORKOUT_COMPLETE } },
             });
             results.push({ date: w.date, time: w.time ?? "", className: w.className, status: "logged", logId: log.id });
           } else {
@@ -824,7 +833,7 @@ export function vitaTools(userId: string) {
           // Refund XP for removed duplicates
           await prisma.user.update({
             where: { id: userId },
-            data: { totalXp: { decrement: toDelete.length * XP.WORKOUT_LATE } },
+            data: { totalXp: { decrement: toDelete.length * XP.WORKOUT_COMPLETE } },
           });
         }
 

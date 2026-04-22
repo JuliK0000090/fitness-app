@@ -11,7 +11,10 @@ const CreateSchema = z.object({
 });
 
 export async function GET() {
-  const session = await requireSession();
+  let session;
+  try { session = await requireSession(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const memories = await prisma.memory.findMany({
     where: { userId: session.userId, deletedAt: null },
@@ -23,7 +26,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireSession();
+  let session;
+  try { session = await requireSession(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const body = await req.json();
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) {

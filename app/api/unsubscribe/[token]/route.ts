@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const ALLOWED_CATEGORIES = new Set([
+  "dailyMorningPlan", "tomorrowEvening", "weeklyReview", "monthlyReport",
+  "workoutReminders", "measurementNudges", "photoNudges", "milestones",
+  "winback", "birthday", "onboardingSeries",
+]);
+
 // Handle RFC 8058 one-click unsubscribe POST from Gmail/Yahoo
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const record = await prisma.unsubscribeToken.findUnique({ where: { token } });
   if (!record) return new NextResponse(null, { status: 404 });
 
-  if (record.category) {
+  if (record.category && ALLOWED_CATEGORIES.has(record.category)) {
     await prisma.emailPreference.upsert({
       where: { userId: record.userId },
       create: { userId: record.userId, [record.category]: false },

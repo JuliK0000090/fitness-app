@@ -179,7 +179,7 @@ export function MonthView({ monthLabel, prevMonth, nextMonth, todayStr, monthSta
         <div className="space-y-2">
           <p className="text-[9px] tracking-[0.25em] uppercase text-white/20 px-1">Active goals</p>
           {goals.map((g) => {
-            const pct = g.targetValue != null && g.currentValue != null
+            const pct = g.targetValue != null && g.targetValue !== 0 && g.currentValue != null
               ? Math.max(0, Math.min(100, (g.currentValue / g.targetValue) * 100))
               : null;
             const onTrack = g.predictedHitDate && g.deadline

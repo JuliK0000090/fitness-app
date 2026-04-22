@@ -3,7 +3,10 @@ import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const session = await requireSession();
+  let session;
+  try { session = await requireSession(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const goals = await prisma.goal.findMany({
     where: { userId: session.userId },
@@ -13,7 +16,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireSession();
+  let session;
+  try { session = await requireSession(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const body = await req.json();
 
   const { description, direction, magnitude, unit, deadline } = body as {

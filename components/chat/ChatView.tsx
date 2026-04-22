@@ -66,12 +66,13 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
     onError: (err: Error) => toast.error(err.message || "Something went wrong"),
   });
 
-  // Auto-resume: if the last persisted message is from the user (unanswered), send it again.
-  // Use append (not reload) so existing messages stay visible.
+  // Auto-resume: if the last persisted message is from the user (no AI reply yet),
+  // trigger a completion. Use reload() — it re-runs with the existing messages array
+  // without adding a duplicate user message to the UI or the DB.
   useEffect(() => {
     const last = initialMessages[initialMessages.length - 1];
     if (last?.role === "user") {
-      append({ role: "user", content: last.content });
+      reload();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -126,6 +127,11 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
 
     // Images: resize+compress on canvas then encode as base64 — avoids iOS crash and large bodies
     if (type === "image") {
+      // HEIC/HEIF not supported by browser canvas — give a clear error
+      if (file.type === "image/heic" || file.type === "image/heif" || file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif")) {
+        toast.error("HEIC photos aren't supported yet. Please convert to JPEG first (share → save image in Photos app).");
+        return { id, file, type, uploading: false } as PendingAttachment;
+      }
       const pending: PendingAttachment = { id, file, type, previewUrl, uploading: true };
       setPendingAttachments((prev) => [...prev, pending]);
       try {

@@ -3,7 +3,10 @@ import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const session = await requireSession();
+  let session;
+  try { session = await requireSession(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const conversations = await prisma.conversation.findMany({
     where: { userId: session.userId, deletedAt: null },
     orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
@@ -16,7 +19,10 @@ export async function GET() {
 }
 
 export async function POST() {
-  const session = await requireSession();
+  let session;
+  try { session = await requireSession(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const conversation = await prisma.conversation.create({
     data: { userId: session.userId },
   });

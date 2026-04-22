@@ -216,6 +216,8 @@ model MessageFeedback {
 
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
 }
 
 // ─── Memory ───────────────────────────────────────────────────────────────────

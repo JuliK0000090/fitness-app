@@ -15,7 +15,10 @@ const measurementSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const session = await requireSession();
+  let session;
+  try { session = await requireSession(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { searchParams } = req.nextUrl;
   const kind = searchParams.get("kind") ?? undefined;
   const limit = parseInt(searchParams.get("limit") ?? "20");
@@ -29,7 +32,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireSession();
+  let session;
+  try { session = await requireSession(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const parsed = measurementSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });

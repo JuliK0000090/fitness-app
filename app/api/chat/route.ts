@@ -121,13 +121,24 @@ export async function POST(req: NextRequest) {
   });
   if (lastMessage?.role === "user") {
     try {
-      await prisma.message.create({
-        data: {
-          conversationId: body.conversationId,
-          role: "user",
-          content: typeof lastMessage.content === "string" ? lastMessage.content : JSON.stringify(lastMessage.content),
-        },
+      const userContent = typeof lastMessage.content === "string" ? lastMessage.content : JSON.stringify(lastMessage.content);
+      // Skip persisting if this exact message is already the last one in the DB
+      // (happens on auto-resume: the unanswered message is already saved)
+      const existingLast = await prisma.message.findFirst({
+        where: { conversationId: body.conversationId },
+        orderBy: { createdAt: "desc" },
+        select: { role: true, content: true },
       });
+      const alreadySaved = existingLast?.role === "user" && existingLast.content === userContent;
+      if (!alreadySaved) {
+        await prisma.message.create({
+          data: {
+            conversationId: body.conversationId,
+            role: "user",
+            content: userContent,
+          },
+        });
+      }
     } catch (e) {
       console.error("[chat] persist user message error:", e);
     }
