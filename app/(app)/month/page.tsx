@@ -19,10 +19,15 @@ export default async function MonthPage({
   const prevMonth = format(new Date(refDate.getFullYear(), refDate.getMonth() - 1, 1), "yyyy-MM");
   const nextMonth = format(new Date(refDate.getFullYear(), refDate.getMonth() + 1, 1), "yyyy-MM");
 
-  const [scheduledWorkouts, completions, habits, goals] = await Promise.all([
+  const [scheduledWorkouts, workoutLogs, completions, habits, goals] = await Promise.all([
     prisma.scheduledWorkout.findMany({
       where: { userId, scheduledDate: { gte: monthStart, lte: monthEnd } },
       orderBy: { scheduledDate: "asc" },
+    }),
+    // WorkoutLogs include screenshot-imported past workouts
+    prisma.workoutLog.findMany({
+      where: { userId, startedAt: { gte: monthStart, lte: monthEnd } },
+      orderBy: { startedAt: "asc" },
     }),
     prisma.habitCompletion.findMany({
       where: { userId, date: { gte: monthStart, lte: monthEnd } },
@@ -36,12 +41,22 @@ export default async function MonthPage({
     }),
   ]);
 
-  // Build per-day maps
+  // Build per-day maps — merge ScheduledWorkouts + WorkoutLogs
   const swByDay: Record<string, { id: string; name: string; status: string; duration: number }[]> = {};
   for (const sw of scheduledWorkouts) {
     const key = format(new Date(sw.scheduledDate), "yyyy-MM-dd");
     if (!swByDay[key]) swByDay[key] = [];
     swByDay[key].push({ id: sw.id, name: sw.workoutTypeName ?? "Workout", status: sw.status, duration: sw.duration });
+  }
+  // WorkoutLogs show as DONE entries (they're already completed)
+  for (const log of workoutLogs) {
+    const key = format(new Date(log.startedAt), "yyyy-MM-dd");
+    if (!swByDay[key]) swByDay[key] = [];
+    // Avoid duplicates if a ScheduledWorkout already references this log
+    const alreadyLinked = scheduledWorkouts.some((sw) => sw.workoutLogId === log.id);
+    if (!alreadyLinked) {
+      swByDay[key].push({ id: log.id, name: log.workoutName, status: "DONE", duration: log.durationMin });
+    }
   }
 
   const completionsByDay: Record<string, number> = {};
@@ -55,10 +70,14 @@ export default async function MonthPage({
   heatmapStart.setFullYear(heatmapStart.getFullYear() - 1);
   const heatmapEnd = new Date();
 
-  const [heatmapWorkouts, heatmapCompletions] = await Promise.all([
+  const [heatmapScheduled, heatmapLogs, heatmapCompletions] = await Promise.all([
     prisma.scheduledWorkout.findMany({
       where: { userId, scheduledDate: { gte: heatmapStart, lte: heatmapEnd }, status: "DONE" },
-      select: { scheduledDate: true },
+      select: { scheduledDate: true, workoutLogId: true },
+    }),
+    prisma.workoutLog.findMany({
+      where: { userId, startedAt: { gte: heatmapStart, lte: heatmapEnd } },
+      select: { startedAt: true, id: true },
     }),
     prisma.habitCompletion.findMany({
       where: { userId, date: { gte: heatmapStart, lte: heatmapEnd } },
@@ -67,9 +86,16 @@ export default async function MonthPage({
   ]);
 
   const heatmapByDay: Record<string, number> = {};
-  for (const w of heatmapWorkouts) {
+  const linkedLogIds = new Set(heatmapScheduled.map((s) => s.workoutLogId).filter(Boolean));
+  for (const w of heatmapScheduled) {
     const key = format(new Date(w.scheduledDate), "yyyy-MM-dd");
     heatmapByDay[key] = (heatmapByDay[key] ?? 0) + 2;
+  }
+  for (const log of heatmapLogs) {
+    if (!linkedLogIds.has(log.id)) {
+      const key = format(new Date(log.startedAt), "yyyy-MM-dd");
+      heatmapByDay[key] = (heatmapByDay[key] ?? 0) + 2;
+    }
   }
   for (const c of heatmapCompletions) {
     const key = format(new Date(c.date), "yyyy-MM-dd");

@@ -65,8 +65,8 @@ function HabitRing({ pct, size = 14 }: { pct: number; size?: number }) {
 
 function DayDrawer({ day, onClose }: { day: CalendarDay; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4" onClick={onClose}>
-      <div className="glass rounded-2xl w-full max-w-sm p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 pb-24" onClick={onClose}>
+      <div className="glass rounded-2xl w-full max-w-sm p-5 space-y-3 max-h-[60vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-white/70">{format(new Date(day.dateStr), "EEEE, MMMM d")}</p>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/[0.07]">
@@ -107,7 +107,7 @@ export function MonthView({ monthLabel, prevMonth, nextMonth, todayStr, monthSta
   const offset = (monthStartDay + 6) % 7; // convert Sun=0 to Mon=0
 
   return (
-    <div className="max-w-lg mx-auto py-4 px-4 space-y-5">
+    <div className="w-full max-w-lg mx-auto py-4 px-3 space-y-4 pb-6">
 
       {/* Month nav */}
       <div className="flex items-center justify-between">
@@ -121,14 +121,14 @@ export function MonthView({ monthLabel, prevMonth, nextMonth, todayStr, monthSta
       </div>
 
       {/* DOW headers */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7">
         {DOW.map((d) => (
           <p key={d} className="text-center text-[9px] text-white/20 uppercase tracking-wider py-1">{d}</p>
         ))}
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-px">
         {/* Leading blank cells */}
         {Array.from({ length: offset }).map((_, i) => <div key={`blank-${i}`} />)}
 
@@ -139,37 +139,39 @@ export function MonthView({ monthLabel, prevMonth, nextMonth, todayStr, monthSta
               key={day.dateStr}
               onClick={() => setSelectedDay(day)}
               className={cn(
-                "rounded-xl p-1.5 flex flex-col items-center gap-0.5 min-h-[54px] transition-colors",
+                "rounded-lg p-1 flex flex-col items-center gap-0.5 aspect-square justify-center transition-colors",
                 SHADE_CLASS[day.shade],
                 isToday && "ring-1 ring-white/30",
-                "hover:bg-white/[0.06]"
+                "hover:bg-white/[0.06] active:bg-white/[0.08]"
               )}
             >
-              <p className={cn("text-[11px] font-medium", isToday ? "text-white/90" : "text-white/45")}>{day.dayNum}</p>
+              <p className={cn("text-[11px] font-medium leading-none", isToday ? "text-white/90" : "text-white/45")}>{day.dayNum}</p>
               {/* Workout dots */}
-              <div className="flex flex-wrap gap-0.5 justify-center">
-                {day.workouts.slice(0, 3).map((w, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "w-1 h-1 rounded-full",
-                      w.status === "DONE" ? "bg-white/60" : w.status === "SKIPPED" ? "bg-white/10" : "bg-white/30"
-                    )}
-                  />
-                ))}
-              </div>
+              {day.workouts.length > 0 && (
+                <div className="flex gap-px justify-center flex-wrap">
+                  {day.workouts.slice(0, 3).map((w, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "w-1 h-1 rounded-full",
+                        w.status === "DONE" ? "bg-white/60" : w.status === "SKIPPED" ? "bg-white/10" : "bg-white/30"
+                      )}
+                    />
+                  ))}
+                </div>
+              )}
               {/* Habit ring */}
-              {day.habitPct > 0 && <HabitRing pct={day.habitPct} />}
+              {day.habitPct > 0 && <HabitRing pct={day.habitPct} size={12} />}
             </button>
           );
         })}
       </div>
 
       {/* Legend */}
-      <div className="flex gap-4 text-[9px] text-white/25 px-1">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white/50" /> Workout done</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white/20" /> Planned</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white/10" /> Skipped</span>
+      <div className="flex gap-3 text-[9px] text-white/25 px-1 flex-wrap">
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/50 shrink-0" /> Done</span>
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" /> Planned</span>
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/10 shrink-0" /> Skipped</span>
       </div>
 
       {/* Active goals */}
