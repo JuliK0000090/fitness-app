@@ -66,6 +66,18 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
     onError: (err: Error) => toast.error(err.message || "Something went wrong"),
   });
 
+  // Auto-resume: if the last persisted message is from the user (unanswered due to an error
+  // or crash), trigger the AI response immediately on mount.
+  useEffect(() => {
+    if (
+      initialMessages.length > 0 &&
+      initialMessages[initialMessages.length - 1].role === "user"
+    ) {
+      reload();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);

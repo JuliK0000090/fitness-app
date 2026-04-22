@@ -92,6 +92,24 @@ export async function POST(req: NextRequest) {
     : JSON.stringify(lastMessage?.content ?? "");
   const memoryContext = await buildMemoryContext(userId, lastUserContent);
 
+  // Build a brief inline summary of prior conversation turns so the AI always has context
+  // even if the message list is trimmed by the client.
+  const priorMessages = body.messages.slice(0, -1); // everything except the current message
+  const conversationContext = priorMessages.length > 0
+    ? priorMessages
+        .filter((m: { role: string; content: unknown }) => m.role === "user" || m.role === "assistant")
+        .slice(-30) // last 30 turns is plenty; full list is in messages array anyway
+        .map((m: { role: string; content: unknown }) => {
+          const text = typeof m.content === "string"
+            ? m.content
+            : Array.isArray(m.content)
+              ? (m.content as { type: string; text?: string }[]).filter(p => p.type === "text").map(p => p.text).join(" ")
+              : "";
+          return `${m.role === "user" ? "User" : "Vita"}: ${text.slice(0, 300)}`;
+        })
+        .join("\n")
+    : "";
+
   const systemPrompt = buildSystemPrompt({
     userName: user.name,
     customInstructions: user.customInstructions,
@@ -99,6 +117,7 @@ export async function POST(req: NextRequest) {
     profileContext,
     memoryContext,
     healthContext,
+    conversationContext,
   });
   if (lastMessage?.role === "user") {
     try {
