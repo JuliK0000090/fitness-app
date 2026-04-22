@@ -211,6 +211,7 @@ export async function POST(req: NextRequest) {
       messages: body.messages,
       tools: vitaTools(userId),
       maxSteps: 10,
+      experimental_continueSteps: true,
       onFinish: async ({ text }) => {
         try {
           if (text) {

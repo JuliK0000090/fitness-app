@@ -45,12 +45,25 @@ function computeLevel(totalXp: number) {
 }
 
 // ─── Tool factory ─────────────────────────────────────────────────────────────
+// Wraps execute so tool errors never crash the stream — they return a structured
+// error result that the AI can read and relay to the user gracefully.
 function makeTool<TInput, TOutput>(config: {
   description: string;
   parameters: z.ZodType<TInput>;
   execute: (input: TInput) => Promise<TOutput>;
 }) {
-  return config;
+  return {
+    ...config,
+    execute: async (input: TInput): Promise<TOutput | { error: string }> => {
+      try {
+        return await config.execute(input);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Unknown error";
+        console.error(`[vita-tool] error:`, msg);
+        return { error: msg };
+      }
+    },
+  };
 }
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
@@ -512,6 +525,44 @@ export function vitaTools(userId: string) {
           workoutLogId: log.id,
           workoutName: log.workoutName,
           durationMin: log.durationMin,
+          xpAwarded: XP.WORKOUT_COMPLETE,
+          ...computeLevel(totalXp),
+        };
+      },
+    }),
+
+    log_workout: makeTool({
+      description: "Log a workout the user has already completed — use this when the user says they JUST DID a workout (not pre-scheduled). For scheduled workouts, use complete_workout instead.",
+      parameters: z.object({
+        workoutName: z.string().describe("Name of the workout, e.g. 'Hot Yoga', 'Run', 'HIIT'"),
+        durationMin: z.number().describe("Duration in minutes"),
+        intensity: z.number().min(1).max(10).optional().describe("Perceived effort 1-10"),
+        caloriesEst: z.number().optional(),
+        notes: z.string().optional(),
+        date: z.string().optional().describe("YYYY-MM-DD, defaults to today"),
+      }),
+      execute: async ({ workoutName, durationMin, intensity, caloriesEst, notes, date }) => {
+        const startedAt = date ? toDate(date) : new Date();
+        const log = await prisma.workoutLog.create({
+          data: {
+            userId,
+            workoutName,
+            startedAt,
+            durationMin,
+            intensity: intensity ?? null,
+            caloriesEst: caloriesEst ?? null,
+            notes: notes ?? null,
+            source: "manual",
+            xpAwarded: XP.WORKOUT_COMPLETE,
+          },
+        });
+        const totalXp = await grantXp(userId, XP.WORKOUT_COMPLETE);
+        return {
+          workoutId: log.id,
+          workoutName: log.workoutName,
+          durationMin: log.durationMin,
+          intensity: log.intensity,
+          caloriesEst: log.caloriesEst,
           xpAwarded: XP.WORKOUT_COMPLETE,
           ...computeLevel(totalXp),
         };
