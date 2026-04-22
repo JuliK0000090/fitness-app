@@ -682,6 +682,70 @@ export function vitaTools(userId: string) {
         return { message: message ?? "You don't have to face this alone. Support is available right now." };
       },
     }),
+
+    import_workouts_from_screenshot: makeTool({
+      description: "Parse and bulk-import past workouts extracted from a screenshot of a booking/reservation app (e.g. ClassPass, Mindbody). Call this whenever the user shares an image showing a list of past classes or reservations. Extract every visible workout and log it.",
+      parameters: z.object({
+        workouts: z.array(z.object({
+          date: z.string().describe("ISO date YYYY-MM-DD, infer current year if only month/day shown"),
+          time: z.string().optional().describe("HH:MM 24h format"),
+          className: z.string().describe("Full class name as shown"),
+          instructor: z.string().optional(),
+          studio: z.string().optional(),
+          status: z.enum(["completed", "cancelled"]).describe("completed = attended, cancelled = late cancellation or no-show"),
+          durationMin: z.number().default(45).describe("Estimated duration in minutes — default 45 if unknown"),
+        })).min(1),
+      }),
+      execute: async ({ workouts }) => {
+        const results: { date: string; className: string; status: string; logId?: string }[] = [];
+
+        for (const w of workouts) {
+          const dateObj = toDate(w.date);
+          if (!isValid(dateObj)) continue;
+
+          if (w.status === "completed") {
+            const log = await prisma.workoutLog.create({
+              data: {
+                userId,
+                workoutName: w.className,
+                startedAt: dateObj,
+                durationMin: w.durationMin ?? 45,
+                source: "screenshot_import",
+                notes: [w.instructor, w.studio].filter(Boolean).join(" — ") || null,
+                xpAwarded: XP.WORKOUT_LATE,
+              },
+            });
+            await prisma.user.update({
+              where: { id: userId },
+              data: { totalXp: { increment: XP.WORKOUT_LATE } },
+            });
+            results.push({ date: w.date, className: w.className, status: "logged", logId: log.id });
+          } else {
+            // Cancelled — record as skipped scheduled workout so it shows in the calendar
+            await prisma.scheduledWorkout.create({
+              data: {
+                userId,
+                workoutTypeName: w.className,
+                scheduledDate: dateObj,
+                scheduledTime: w.time ?? null,
+                duration: w.durationMin,
+                status: "SKIPPED",
+                skippedReason: "Late cancellation (imported from screenshot)",
+                notes: [w.instructor, w.studio].filter(Boolean).join(" — ") || null,
+              },
+            });
+            results.push({ date: w.date, className: w.className, status: "skipped" });
+          }
+        }
+
+        return {
+          imported: results.length,
+          completed: results.filter((r) => r.status === "logged").length,
+          cancelled: results.filter((r) => r.status === "skipped").length,
+          workouts: results,
+        };
+      },
+    }),
   };
 }
 

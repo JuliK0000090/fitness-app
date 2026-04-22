@@ -264,6 +264,28 @@ export function ToolResultRenderer({ toolName, result }: ToolResultRendererProps
           />
         );
 
+      case "import_workouts_from_screenshot":
+        return (
+          <div className="glass rounded-2xl p-4 my-2 fu border border-white/[0.07] space-y-2">
+            <p className="text-xs font-semibold text-white/60 uppercase tracking-wider">
+              Imported {result.imported} workout{result.imported !== 1 ? "s" : ""}
+            </p>
+            <div className="flex gap-4 text-[11px] text-white/40">
+              <span>{result.completed} logged</span>
+              {result.cancelled > 0 && <span>{result.cancelled} cancelled</span>}
+            </div>
+            <div className="divide-y divide-white/[0.05]">
+              {(result.workouts as { date: string; className: string; status: string }[]).map((w, i) => (
+                <div key={i} className="flex items-center gap-2 py-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${w.status === "logged" ? "bg-white/50" : "bg-white/15"}`} />
+                  <span className="text-xs text-white/60 flex-1 truncate">{w.className}</span>
+                  <span className="text-[10px] text-white/25">{w.date}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
       case "show_crisis_resources":
         return <CrisisCard message={result.message} />;
 

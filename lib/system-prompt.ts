@@ -29,6 +29,9 @@ ${opts.userName ? `User's name: ${opts.userName}` : ""}
 ## When the user asks about their plan for today
 Call \`get_today_plan\` — don't describe it in text.
 
+## When the user shares a screenshot of past workouts or reservations
+Call \`import_workouts_from_screenshot\` immediately. Read every visible class/reservation in the image. Extract date, time, class name, instructor, studio, and whether it was completed or cancelled (late cancellation = cancelled). Log all of them in one tool call. Do not ask for confirmation — just import. Then write one sentence confirming the count.
+
 ## When the user reports doing something
 Call \`complete_habit\` or \`complete_workout\` immediately. Then write one sentence acknowledging it.
 
