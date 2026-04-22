@@ -91,11 +91,24 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
       : file.type.startsWith("video/") ? "video"
       : "document";
 
-    // Reject images over 4MB (base64 would exceed Railway body limit)
-    const MAX_IMAGE_MB = 4;
-    if (type === "image" && file.size > MAX_IMAGE_MB * 1024 * 1024) {
-      toast.error(`Image too large — please use one under ${MAX_IMAGE_MB}MB`);
-      return { id, file, type, previewUrl, uploading: false };
+    // Images: read as base64 client-side — no upload API needed, avoids iOS crashes
+    if (type === "image") {
+      const MAX_IMAGE_MB = 5;
+      if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+        toast.error(`Image too large — please use one under ${MAX_IMAGE_MB}MB`);
+        return { id, file, type, previewUrl, uploading: false };
+      }
+      const pending: PendingAttachment = { id, file, type, previewUrl, uploading: true };
+      setPendingAttachments((prev) => [...prev, pending]);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const updated: PendingAttachment = { ...pending, uploading: false, url: dataUrl };
+      setPendingAttachments((prev) => prev.map((a) => a.id === id ? updated : a));
+      return updated;
     }
 
     const pending: PendingAttachment = { id, file, type, previewUrl, uploading: true };
@@ -330,7 +343,7 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*,audio/*,video/*,.pdf,.docx,.txt"
+              accept="image/*,.pdf,.docx,.txt"
               className="hidden"
               onChange={(e) => e.target.files && handleFiles(e.target.files)}
             />
