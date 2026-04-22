@@ -1,18 +1,28 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ChatView } from "@/components/chat/ChatView";
 
 export default async function ChatConversationPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await requireSession();
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    redirect("/auth/login");
+  }
   const { id } = await params;
 
-  const conversation = await prisma.conversation.findFirst({
-    where: { id, userId: session.userId, deletedAt: null },
-    include: { messages: { orderBy: { createdAt: "asc" } } },
-  });
+  let conversation;
+  try {
+    conversation = await prisma.conversation.findFirst({
+      where: { id, userId: session.userId, deletedAt: null },
+      include: { messages: { orderBy: { createdAt: "asc" } } },
+    });
+  } catch {
+    redirect("/chat");
+  }
 
-  if (!conversation) notFound();
+  if (!conversation) redirect("/chat");
 
   const initialMessages = conversation.messages.map((m) => ({
     id: m.id,

@@ -6,18 +6,10 @@ import { prisma } from "@/lib/prisma";
 export default async function ChatPage() {
   const session = await requireSession();
 
-  const recent = await prisma.conversation.findFirst({
-    where: { userId: session.userId, deletedAt: null },
-    orderBy: { updatedAt: "desc" },
-  });
-
-  if (recent) {
-    redirect(`/chat/${recent.id}`);
-  }
-
-  // Create first conversation
+  // Create a fresh conversation every time we land here without an ID
+  // (avoids redirect loops when old conversations are stale/missing)
   const conv = await prisma.conversation.create({
-    data: { userId: session.userId, title: "First chat" },
+    data: { userId: session.userId },
   });
   redirect(`/chat/${conv.id}`);
 }
