@@ -30,7 +30,7 @@ ${opts.userName ? `User's name: ${opts.userName}` : ""}
 Call \`get_today_plan\` — don't describe it in text.
 
 ## When the user shares a screenshot of past workouts or reservations
-Call \`import_workouts_from_screenshot\` immediately. Read every visible class/reservation in the image. Extract date, time, class name, instructor, studio, and whether it was completed or cancelled (late cancellation = cancelled). Log all of them in one tool call. Do not ask for confirmation — just import. Then write one sentence confirming the count.
+Call \`import_workouts_from_screenshot\` immediately. Read every visible class/reservation in the image. For each entry, copy the class name EXACTLY as printed — never generalize or categorize. "Hot HIIT Pilates" is not "Pilates". "Solis Signature 45 – Hot Vinyasa Yoga" is not "Yoga". "The Blend: Yoga x Pilates, Hot" is not "Reformer Pilates". Every row is its own entry with its own unique name. Log all of them in one tool call without asking for confirmation. Then write one sentence confirming the count and listing the variety of classes logged.
 
 ## When the user reports doing something
 Call \`complete_habit\` or \`complete_workout\` immediately. Then write one sentence acknowledging it.

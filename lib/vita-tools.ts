@@ -684,16 +684,16 @@ export function vitaTools(userId: string) {
     }),
 
     import_workouts_from_screenshot: makeTool({
-      description: "Parse and bulk-import past workouts extracted from a screenshot of a booking/reservation app (e.g. ClassPass, Mindbody). Call this whenever the user shares an image showing a list of past classes or reservations. Extract every visible workout and log it.",
+      description: "Parse and bulk-import past workouts extracted from a screenshot of a booking/reservation app (e.g. ClassPass, Mindbody). Call this whenever the user shares an image showing a list of past classes or reservations. CRITICAL: Use the EXACT class name as printed — never normalize, never guess category. 'Hot HIIT Pilates' stays 'Hot HIIT Pilates', NOT 'Pilates'. 'Solis Signature 45 – Hot Vinyasa Yoga' stays exactly that, NOT 'Yoga'. 'The Blend: Yoga x Pilates, Hot' is NOT 'Reformer Pilates'. Preserve every word. Each row in the screenshot is a separate entry.",
       parameters: z.object({
         workouts: z.array(z.object({
-          date: z.string().describe("ISO date YYYY-MM-DD, infer current year if only month/day shown"),
+          date: z.string().describe("ISO date YYYY-MM-DD — infer current year if only month/day shown"),
           time: z.string().optional().describe("HH:MM 24h format"),
-          className: z.string().describe("Full class name as shown"),
-          instructor: z.string().optional(),
-          studio: z.string().optional(),
-          status: z.enum(["completed", "cancelled"]).describe("completed = attended, cancelled = late cancellation or no-show"),
-          durationMin: z.number().default(45).describe("Estimated duration in minutes — default 45 if unknown"),
+          className: z.string().describe("VERBATIM class name exactly as written in the screenshot. DO NOT normalize, summarize, or guess a category. Copy character-for-character. Examples: 'Hot HIIT Pilates', 'Reformer Sculpt & Tone Intermediate', 'The Blend: Yoga x Pilates, Hot', 'Solis Signature 45 – Hot Vinyasa Yoga', 'Lagree Full Body', 'SIGNATURE MAT (HEATED)'."),
+          instructor: z.string().optional().describe("Instructor name as shown"),
+          studio: z.string().optional().describe("Studio/location name as shown"),
+          status: z.enum(["completed", "cancelled"]).describe("completed = shows 'Add a review' or similar attended indicator. cancelled = shows 'Late cancellation' or no-show"),
+          durationMin: z.number().default(45).describe("Estimated class duration in minutes — 45 if unknown"),
         })).min(1),
       }),
       execute: async ({ workouts }) => {
