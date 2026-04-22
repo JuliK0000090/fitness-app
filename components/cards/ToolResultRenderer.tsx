@@ -271,18 +271,31 @@ export function ToolResultRenderer({ toolName, result }: ToolResultRendererProps
               Imported {result.imported} workout{result.imported !== 1 ? "s" : ""}
             </p>
             <div className="flex gap-4 text-[11px] text-white/40">
-              <span>{result.completed} logged</span>
+              {result.completed > 0 && <span>{result.completed} logged</span>}
               {result.cancelled > 0 && <span>{result.cancelled} cancelled</span>}
+              {result.duplicates > 0 && <span className="text-yellow-400/60">{result.duplicates} already existed — skipped</span>}
             </div>
             <div className="divide-y divide-white/[0.05]">
               {(result.workouts as { date: string; time?: string; className: string; status: string }[]).map((w, i) => (
                 <div key={i} className="flex items-center gap-2 py-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${w.status === "logged" ? "bg-white/50" : "bg-white/15"}`} />
-                  <span className="text-xs text-white/60 flex-1 truncate">{w.className}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    w.status === "logged" ? "bg-white/50" :
+                    w.status === "duplicate" ? "bg-yellow-400/40" :
+                    "bg-white/15"
+                  }`} />
+                  <span className={`text-xs flex-1 truncate ${w.status === "duplicate" ? "text-white/30 line-through" : "text-white/60"}`}>{w.className}</span>
                   <span className="text-[10px] text-white/25 shrink-0">{w.date}{w.time ? ` ${w.time}` : ""}</span>
                 </div>
               ))}
             </div>
+          </div>
+        );
+
+      case "delete_duplicate_workouts":
+        return (
+          <div className="glass rounded-2xl px-4 py-3 my-2 fu border border-white/[0.07] flex items-center gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-white/40 shrink-0" />
+            <p className="text-xs text-white/55">{result.message}</p>
           </div>
         );
 

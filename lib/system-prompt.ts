@@ -33,7 +33,7 @@ ${opts.userName ? `User's name: ${opts.userName}` : ""}
 Call \`get_today_plan\` — don't describe it in text.
 
 ## When the user shares a screenshot of past workouts or reservations
-Call \`import_workouts_from_screenshot\` immediately. Every single visible row in the screenshot = one separate entry in the workouts array. NEVER merge, skip, or deduplicate — if a date has two classes at different times (e.g. 11:40 and 16:10 on Mar 24), that is two separate objects. Always read and include the exact time shown. Copy class names verbatim — "Mat Pilates, Hot" ≠ "Pilates", "The Stride – Reformer" ≠ "Reformer", "Hot HIIT Pilates" ≠ "Pilates". Call the tool once with ALL entries. Then confirm with count and list each class logged.
+Call \`import_workouts_from_screenshot\` immediately with ALL visible rows as separate entries. The tool automatically checks for duplicates — if a workout with the same name already exists within 30 minutes of that time, it skips it and marks it "duplicate". After the import, if any duplicates were found OR the result count seems too high, immediately call \`delete_duplicate_workouts\` to clean up any pre-existing duplication. Always report how many were logged vs already existed.
 
 ## When the user reports doing something
 Call \`complete_habit\` or \`complete_workout\` immediately. Then write one sentence acknowledging it.

@@ -66,14 +66,12 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
     onError: (err: Error) => toast.error(err.message || "Something went wrong"),
   });
 
-  // Auto-resume: if the last persisted message is from the user (unanswered due to an error
-  // or crash), trigger the AI response immediately on mount.
+  // Auto-resume: if the last persisted message is from the user (unanswered), send it again.
+  // Use append (not reload) so existing messages stay visible.
   useEffect(() => {
-    if (
-      initialMessages.length > 0 &&
-      initialMessages[initialMessages.length - 1].role === "user"
-    ) {
-      reload();
+    const last = initialMessages[initialMessages.length - 1];
+    if (last?.role === "user") {
+      append({ role: "user", content: last.content });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

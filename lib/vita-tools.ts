@@ -712,6 +712,21 @@ export function vitaTools(userId: string) {
           }
 
           if (w.status === "completed") {
+            // ── Deduplication: check ±30 min window for same workout name ──────
+            const windowStart = new Date(dateObj.getTime() - 30 * 60 * 1000);
+            const windowEnd   = new Date(dateObj.getTime() + 30 * 60 * 1000);
+            const existing = await prisma.workoutLog.findFirst({
+              where: {
+                userId,
+                workoutName: w.className,
+                startedAt: { gte: windowStart, lte: windowEnd },
+              },
+            });
+            if (existing) {
+              results.push({ date: w.date, time: w.time ?? "", className: w.className, status: "duplicate" });
+              continue;
+            }
+
             const log = await prisma.workoutLog.create({
               data: {
                 userId,
@@ -729,12 +744,28 @@ export function vitaTools(userId: string) {
             });
             results.push({ date: w.date, time: w.time ?? "", className: w.className, status: "logged", logId: log.id });
           } else {
-            // Cancelled — record as skipped scheduled workout so it shows in the calendar
+            // Cancelled — check for duplicate skipped entry too
+            const dayStart = toDate(w.date);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(dayStart.getTime() + 86400000);
+            const existingSW = await prisma.scheduledWorkout.findFirst({
+              where: {
+                userId,
+                workoutTypeName: w.className,
+                scheduledDate: { gte: dayStart, lt: dayEnd },
+                status: "SKIPPED",
+              },
+            });
+            if (existingSW) {
+              results.push({ date: w.date, time: w.time ?? "", className: w.className, status: "duplicate" });
+              continue;
+            }
+
             await prisma.scheduledWorkout.create({
               data: {
                 userId,
                 workoutTypeName: w.className,
-                scheduledDate: toDate(w.date), // date-only for scheduled
+                scheduledDate: toDate(w.date),
                 scheduledTime: w.time ?? null,
                 duration: w.durationMin,
                 status: "SKIPPED",
@@ -746,11 +777,62 @@ export function vitaTools(userId: string) {
           }
         }
 
+        const logged = results.filter((r) => r.status === "logged").length;
+        const duplicates = results.filter((r) => r.status === "duplicate").length;
+
         return {
-          imported: results.length,
-          completed: results.filter((r) => r.status === "logged").length,
+          imported: logged,
+          completed: logged,
           cancelled: results.filter((r) => r.status === "skipped").length,
+          duplicates,
           workouts: results,
+        };
+      },
+    }),
+
+    delete_duplicate_workouts: makeTool({
+      description: "Find and remove duplicate WorkoutLog entries — workouts with the same name logged within 30 minutes of each other on the same day. Call this when the user reports duplicate workouts, or proactively after any import that found duplicates. Always call this after a screenshot import that returned duplicate entries.",
+      parameters: z.object({
+        confirm: z.boolean().default(true).describe("Always true — proceed with deletion"),
+      }),
+      execute: async () => {
+        // Find all workout logs for this user, ordered by startedAt
+        const logs = await prisma.workoutLog.findMany({
+          where: { userId },
+          orderBy: { startedAt: "asc" },
+          select: { id: true, workoutName: true, startedAt: true },
+        });
+
+        const toDelete: string[] = [];
+        const seen: { name: string; at: Date }[] = [];
+
+        for (const log of logs) {
+          const duplicate = seen.find(
+            (s) =>
+              s.name === log.workoutName &&
+              Math.abs(s.at.getTime() - log.startedAt.getTime()) < 30 * 60 * 1000
+          );
+          if (duplicate) {
+            toDelete.push(log.id);
+          } else {
+            seen.push({ name: log.workoutName, at: log.startedAt });
+          }
+        }
+
+        if (toDelete.length > 0) {
+          await prisma.workoutLog.deleteMany({ where: { id: { in: toDelete }, userId } });
+          // Refund XP for removed duplicates
+          await prisma.user.update({
+            where: { id: userId },
+            data: { totalXp: { decrement: toDelete.length * XP.WORKOUT_LATE } },
+          });
+        }
+
+        return {
+          removed: toDelete.length,
+          message: toDelete.length > 0
+            ? `Removed ${toDelete.length} duplicate workout${toDelete.length > 1 ? "s" : ""}.`
+            : "No duplicates found — your workout history is clean.",
         };
       },
     }),
