@@ -6,7 +6,7 @@ import { Bell, X, MessageSquarePlus, Flame, CheckCircle2, Circle, Clock, Dumbbel
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { completeHabit, uncompleteHabit, completeWorkout, skipWorkout } from "@/app/actions/habits";
+import { completeHabit, uncompleteHabit, completeWorkout, skipWorkout, deleteHabit } from "@/app/actions/habits";
 import { TodaySignals } from "@/components/health/TodaySignals";
 
 // Map lucide icon name string → component
@@ -65,6 +65,7 @@ export function TodayView({
   notifications: initNotifications, hasGoals,
 }: TodayViewProps) {
   const [notifications, setNotifications] = useState(initNotifications);
+  const [editMode, setEditMode] = useState(false);
   const [, startTransition] = useTransition();
 
   const greeting = (() => {
@@ -157,34 +158,51 @@ export function TodayView({
         <div className="glass rounded-2xl overflow-hidden fu2">
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Daily habits</p>
-            <span className="text-[10px] text-white/30">{doneCount} / {totalCount}</span>
+            <div className="flex items-center gap-3">
+              {!editMode && <span className="text-[10px] text-white/30">{doneCount} / {totalCount}</span>}
+              <button
+                onClick={() => setEditMode((v) => !v)}
+                className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+              >
+                {editMode ? "Done" : "Edit"}
+              </button>
+            </div>
           </div>
           <div className="divide-y divide-white/[0.05]">
             {optimisticHabits.map((habit) => (
-              <button
-                key={habit.id}
-                onClick={() => toggleHabit(habit)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
-                  "hover:bg-white/[0.03] active:bg-white/[0.05]",
-                  habit.done && "opacity-50"
+              <div key={habit.id} className="flex items-center">
+                {editMode && (
+                  <button
+                    onClick={() => startTransition(async () => { await deleteHabit(habit.id); })}
+                    className="pl-4 pr-2 py-3 text-red-400/60 hover:text-red-400 transition-colors shrink-0"
+                  >
+                    <X size={14} />
+                  </button>
                 )}
-              >
-                <div className={cn(
-                  "w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors",
-                  habit.done ? "border-white/40 bg-white/10" : "border-white/20"
-                )}>
-                  {habit.done && <CheckCircle2 size={12} className="text-white/60" />}
-                </div>
-                <Icon name={habit.icon} size={13} className="text-white/35 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm", habit.done && "line-through text-white/40")}>{habit.title ?? "Habit"}</p>
-                  {habit.duration && !habit.done && (
-                    <p className="text-[10px] text-white/25 mt-0.5">{habit.duration} min</p>
+                <button
+                  onClick={() => !editMode && toggleHabit(habit)}
+                  className={cn(
+                    "flex-1 flex items-center gap-3 px-4 py-3 text-left transition-colors",
+                    !editMode && "hover:bg-white/[0.03] active:bg-white/[0.05]",
+                    habit.done && "opacity-50"
                   )}
-                </div>
-                <span className="text-[10px] text-white/20 shrink-0">+{habit.pointsOnComplete}</span>
-              </button>
+                >
+                  <div className={cn(
+                    "w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors",
+                    habit.done ? "border-white/40 bg-white/10" : "border-white/20"
+                  )}>
+                    {habit.done && <CheckCircle2 size={12} className="text-white/60" />}
+                  </div>
+                  <Icon name={habit.icon} size={13} className="text-white/35 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("text-sm", habit.done && "line-through text-white/40")}>{habit.title ?? "Habit"}</p>
+                    {habit.duration && !habit.done && (
+                      <p className="text-[10px] text-white/25 mt-0.5">{habit.duration} min</p>
+                    )}
+                  </div>
+                  {!editMode && <span className="text-[10px] text-white/20 shrink-0">+{habit.pointsOnComplete}</span>}
+                </button>
+              </div>
             ))}
           </div>
           <div className="px-4 pb-3 pt-1">

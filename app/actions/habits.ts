@@ -45,6 +45,13 @@ export async function uncompleteHabit(habitId: string, date?: string) {
   return { ok: true };
 }
 
+export async function deleteHabit(habitId: string) {
+  const session = await requireSession();
+  await prisma.habit.deleteMany({ where: { id: habitId, userId: session.userId } });
+  revalidatePath("/today");
+  return { ok: true };
+}
+
 export async function skipWorkout(scheduledWorkoutId: string, reason?: string) {
   const session = await requireSession();
   await prisma.scheduledWorkout.update({
