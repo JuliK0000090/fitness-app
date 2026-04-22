@@ -684,24 +684,32 @@ export function vitaTools(userId: string) {
     }),
 
     import_workouts_from_screenshot: makeTool({
-      description: "Parse and bulk-import past workouts extracted from a screenshot of a booking/reservation app (e.g. ClassPass, Mindbody). Call this whenever the user shares an image showing a list of past classes or reservations. CRITICAL: Use the EXACT class name as printed — never normalize, never guess category. 'Hot HIIT Pilates' stays 'Hot HIIT Pilates', NOT 'Pilates'. 'Solis Signature 45 – Hot Vinyasa Yoga' stays exactly that, NOT 'Yoga'. 'The Blend: Yoga x Pilates, Hot' is NOT 'Reformer Pilates'. Preserve every word. Each row in the screenshot is a separate entry.",
+      description: "Parse and bulk-import past workouts from a screenshot of a booking/reservation app (ClassPass, Mindbody, etc). EVERY visible row is a separate entry — even if two classes share the same date. NEVER merge, skip, or deduplicate entries. CRITICAL: Use the EXACT verbatim class name — never normalize or guess category. 'Hot HIIT Pilates' stays 'Hot HIIT Pilates'. 'Mat Pilates, Hot' stays 'Mat Pilates, Hot'. 'The Stride – Reformer' stays exactly that. Two entries on Mar 24 at 16:10 and 11:40 = two separate objects in the array. Each row = one object, always.",
       parameters: z.object({
         workouts: z.array(z.object({
-          date: z.string().describe("ISO date YYYY-MM-DD — infer current year if only month/day shown"),
-          time: z.string().optional().describe("HH:MM 24h format"),
-          className: z.string().describe("VERBATIM class name exactly as written in the screenshot. DO NOT normalize, summarize, or guess a category. Copy character-for-character. Examples: 'Hot HIIT Pilates', 'Reformer Sculpt & Tone Intermediate', 'The Blend: Yoga x Pilates, Hot', 'Solis Signature 45 – Hot Vinyasa Yoga', 'Lagree Full Body', 'SIGNATURE MAT (HEATED)'."),
+          date: z.string().describe("ISO date YYYY-MM-DD — infer year from context (screenshots show recent months)"),
+          time: z.string().describe("HH:MM 24h format — REQUIRED, read directly from the screenshot (e.g. '16:10', '11:40'). This is what distinguishes two classes on the same day."),
+          className: z.string().describe("VERBATIM class name exactly as written — copy character-for-character. 'The Stride – Reformer', 'Mat Pilates, Hot', 'Red Light Therapy Bed', 'Hot HIIT Pilates', 'Reformer Sculpt & Tone Intermediate' etc."),
           instructor: z.string().optional().describe("Instructor name as shown"),
-          studio: z.string().optional().describe("Studio/location name as shown"),
-          status: z.enum(["completed", "cancelled"]).describe("completed = shows 'Add a review' or similar attended indicator. cancelled = shows 'Late cancellation' or no-show"),
-          durationMin: z.number().default(45).describe("Estimated class duration in minutes — 45 if unknown"),
+          studio: z.string().optional().describe("Studio/location as shown"),
+          status: z.enum(["completed", "cancelled"]).describe("completed = 'Add a review' shown. cancelled = 'Late cancellation' shown."),
+          durationMin: z.number().default(45).describe("Class duration in minutes — 45 if not shown"),
         })).min(1),
       }),
       execute: async ({ workouts }) => {
-        const results: { date: string; className: string; status: string; logId?: string }[] = [];
+        const results: { date: string; time: string; className: string; status: string; logId?: string }[] = [];
 
         for (const w of workouts) {
           const dateObj = toDate(w.date);
           if (!isValid(dateObj)) continue;
+
+          // Build startedAt with actual class time so same-day workouts are distinct
+          if (w.time) {
+            const [hh, mm] = w.time.split(":").map(Number);
+            if (!isNaN(hh) && !isNaN(mm)) {
+              dateObj.setHours(hh, mm, 0, 0);
+            }
+          }
 
           if (w.status === "completed") {
             const log = await prisma.workoutLog.create({
@@ -719,14 +727,14 @@ export function vitaTools(userId: string) {
               where: { id: userId },
               data: { totalXp: { increment: XP.WORKOUT_LATE } },
             });
-            results.push({ date: w.date, className: w.className, status: "logged", logId: log.id });
+            results.push({ date: w.date, time: w.time ?? "", className: w.className, status: "logged", logId: log.id });
           } else {
             // Cancelled — record as skipped scheduled workout so it shows in the calendar
             await prisma.scheduledWorkout.create({
               data: {
                 userId,
                 workoutTypeName: w.className,
-                scheduledDate: dateObj,
+                scheduledDate: toDate(w.date), // date-only for scheduled
                 scheduledTime: w.time ?? null,
                 duration: w.durationMin,
                 status: "SKIPPED",
@@ -734,7 +742,7 @@ export function vitaTools(userId: string) {
                 notes: [w.instructor, w.studio].filter(Boolean).join(" — ") || null,
               },
             });
-            results.push({ date: w.date, className: w.className, status: "skipped" });
+            results.push({ date: w.date, time: w.time ?? "", className: w.className, status: "skipped" });
           }
         }
 

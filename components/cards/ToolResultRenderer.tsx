@@ -275,11 +275,11 @@ export function ToolResultRenderer({ toolName, result }: ToolResultRendererProps
               {result.cancelled > 0 && <span>{result.cancelled} cancelled</span>}
             </div>
             <div className="divide-y divide-white/[0.05]">
-              {(result.workouts as { date: string; className: string; status: string }[]).map((w, i) => (
+              {(result.workouts as { date: string; time?: string; className: string; status: string }[]).map((w, i) => (
                 <div key={i} className="flex items-center gap-2 py-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${w.status === "logged" ? "bg-white/50" : "bg-white/15"}`} />
                   <span className="text-xs text-white/60 flex-1 truncate">{w.className}</span>
-                  <span className="text-[10px] text-white/25">{w.date}</span>
+                  <span className="text-[10px] text-white/25 shrink-0">{w.date}{w.time ? ` ${w.time}` : ""}</span>
                 </div>
               ))}
             </div>
