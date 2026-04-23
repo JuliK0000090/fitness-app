@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { TodayView } from "./TodayView";
-import { userTodayStr } from "@/lib/time/today";
+import { userTodayStr, localMidnightUTC } from "@/lib/time/today";
 
 function computeLevel(totalXp: number) {
   const level = Math.max(1, Math.floor(Math.sqrt(totalXp / 50)));
@@ -11,9 +11,8 @@ function computeLevel(totalXp: number) {
 }
 
 function isHabitDueToday(cadence: string, specificDays: number[], timezone: string): boolean {
-  // Use user's local timezone to determine day-of-week
   const localDateStr = new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date());
-  const dow = new Date(localDateStr + "T12:00:00Z").getUTCDay(); // noon UTC of that local date
+  const dow = new Date(localDateStr + "T12:00:00Z").getUTCDay();
   switch (cadence.toLowerCase()) {
     case "daily": return true;
     case "weekdays": return dow >= 1 && dow <= 5;
@@ -27,18 +26,19 @@ export default async function TodayPage() {
   const session = await requireSession();
   const userId = session.userId;
 
-  // Fetch user first to get timezone before computing today's date
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { name: true, totalXp: true, currentStreak: true, timezone: true },
   });
 
-  // Use user's local timezone — fixes the UTC-offset carry-over bug
   const timezone = user.timezone ?? "UTC";
   const todayStr = userTodayStr(timezone);
   const todayDate = new Date(todayStr + "T00:00:00.000Z");
 
-  // Format date label in user's local timezone
+  // The UTC instant corresponding to local midnight — used to exclude completions
+  // that happened yesterday evening but got stored with today's UTC date.
+  const todayLocalMidnightUTC = localMidnightUTC(todayStr, timezone);
+
   const dateLabel = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     weekday: "long",
@@ -46,37 +46,75 @@ export default async function TodayPage() {
     day: "numeric",
   }).format(new Date());
 
-  // Monday of this week in UTC (weekly targets don't need per-user tz)
+  // Week bounds in UTC (for @db.Date scheduled workouts)
   const monday = new Date(todayDate);
   monday.setUTCDate(todayDate.getUTCDate() - ((todayDate.getUTCDay() + 6) % 7));
   const sunday = new Date(monday);
   sunday.setUTCDate(monday.getUTCDate() + 6);
 
-  const [habits, completions, scheduledWorkouts, weeklyTargets, notifications, weeklyDone, hasGoals] = await Promise.all([
+  // Week bounds as timestamps for WorkoutLog (which uses a DateTime, not Date)
+  const mondayStart = new Date(monday.toISOString().split("T")[0] + "T00:00:00.000Z");
+  const sundayEnd = new Date(sunday.toISOString().split("T")[0] + "T23:59:59.999Z");
+
+  const [
+    habits,
+    completions,
+    scheduledWorkouts,
+    weeklyTargets,
+    notifications,
+    weeklyDoneScheduled,
+    weeklyDoneLogs,
+    hasGoals,
+  ] = await Promise.all([
     prisma.habit.findMany({ where: { userId, active: true }, orderBy: { createdAt: "asc" } }),
+
+    // Filter by BOTH local date AND completedAt timestamp to prevent cross-midnight UTC bleed.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (prisma.habitCompletion as any).findMany({ where: { userId, date: todayDate, status: "DONE" }, select: { habitId: true } }),
+    (prisma.habitCompletion as any).findMany({
+      where: {
+        userId,
+        date: todayDate,
+        status: "DONE",
+        completedAt: { gte: todayLocalMidnightUTC },
+      },
+      select: { habitId: true },
+    }),
+
     prisma.scheduledWorkout.findMany({
       where: { userId, scheduledDate: todayDate, status: { in: ["PLANNED", "MOVED"] } },
       orderBy: { scheduledTime: "asc" },
     }),
+
     prisma.weeklyTarget.findMany({
       where: { userId, active: true },
       include: { workoutType: { select: { name: true, icon: true } } },
     }),
+
     prisma.notification.findMany({ where: { userId, readAt: null }, orderBy: { createdAt: "desc" }, take: 3 }),
+
+    // Scheduled workouts completed this week
     prisma.scheduledWorkout.findMany({
       where: { userId, scheduledDate: { gte: monday, lte: sunday }, status: "DONE" },
-      select: { workoutTypeName: true },
+      select: { workoutTypeName: true, workoutTypeId: true },
     }),
+
+    // Ad-hoc workout logs this week (from Vita's log_workout tool or manual logging)
+    prisma.workoutLog.findMany({
+      where: { userId, startedAt: { gte: mondayStart, lte: sundayEnd } },
+      select: { workoutName: true, typeId: true },
+    }),
+
     prisma.goal.count({ where: { userId, status: "active" } }).then((c) => c > 0),
   ]);
 
+  // Merge weekly done counts from both sources (scheduled completions + ad-hoc logs)
   const doneCounts: Record<string, number> = {};
-  for (const w of weeklyDone) {
-    const key = w.workoutTypeName ?? "Unknown";
-    doneCounts[key] = (doneCounts[key] ?? 0) + 1;
-  }
+  const addCount = (name: string | null | undefined) => {
+    if (!name) return;
+    doneCounts[name] = (doneCounts[name] ?? 0) + 1;
+  };
+  for (const w of weeklyDoneScheduled) addCount(w.workoutTypeName);
+  for (const w of weeklyDoneLogs) addCount(w.workoutName);
 
   const { level, totalXp, xpToNext, xpInLevel } = computeLevel(user.totalXp);
   const xpPct = Math.min(100, (xpInLevel / Math.max(1, xpInLevel + xpToNext)) * 100);
@@ -113,7 +151,8 @@ export default async function TodayPage() {
         label: wt.workoutTypeName ?? wt.workoutType?.name ?? "Workout",
         icon: wt.workoutType?.icon ?? "Dumbbell",
         target: wt.targetCount,
-        done: doneCounts[wt.workoutTypeName ?? ""] ?? 0,
+        // Match by workoutTypeName first, then by workoutType.name
+        done: doneCounts[wt.workoutTypeName ?? ""] ?? doneCounts[wt.workoutType?.name ?? ""] ?? 0,
       }))}
       notifications={notifications.map((n) => ({ id: n.id, title: n.title, body: n.body }))}
       hasGoals={hasGoals}
