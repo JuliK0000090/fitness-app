@@ -3,7 +3,12 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   experimental: {
-    serverActions: { allowedOrigins: ["*"] },
+    serverActions: {
+      allowedOrigins: [
+        process.env.APP_URL?.replace(/^https?:\/\//, "") ?? "localhost:3000",
+        "fitness-app-production-2ef2.up.railway.app",
+      ],
+    },
   },
   images: {
     remotePatterns: [

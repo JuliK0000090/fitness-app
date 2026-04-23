@@ -178,7 +178,7 @@ export const weeklyReviewJob = inngest.createFunction(
 
     for (const user of users) {
       await step.run(`weekly-review-${user.id}`, async () => {
-        const [workouts, goals, recentMeasurements, prevMeasurements] = await Promise.all([
+        const [workouts, goals, recentMeasurements, prevMeasurements, weeklyTargets] = await Promise.all([
           prisma.workoutLog.findMany({
             where: { userId: user.id, startedAt: { gte: weekStart } },
           }),
@@ -198,6 +198,11 @@ export const weeklyReviewJob = inngest.createFunction(
             where: { userId: user.id, capturedAt: { gte: new Date(weekStart.getTime() - 28 * 86400000), lt: weekStart } },
             orderBy: { capturedAt: "desc" },
             take: 10,
+          }),
+          // Actual weekly workout targets for correct adherence calculation
+          prisma.weeklyTarget.findMany({
+            where: { userId: user.id, active: true },
+            select: { targetCount: true },
           }),
         ]);
 
@@ -245,6 +250,7 @@ export const weeklyReviewJob = inngest.createFunction(
           where: { userId: user.id, weekStart },
         });
 
+        const workoutsPlanned = weeklyTargets.reduce((sum, wt) => sum + wt.targetCount, 0) || 3;
         if (!existing) {
           await prisma.weeklyReview.create({
             data: {
@@ -252,8 +258,8 @@ export const weeklyReviewJob = inngest.createFunction(
               weekStart,
               weekOf,
               workoutsCompleted: workouts.length,
-              workoutsPlanned: 3,
-              adherencePct: workouts.length >= 3 ? 100 : (workouts.length / 3) * 100,
+              workoutsPlanned,
+              adherencePct: workoutsPlanned > 0 ? Math.min(100, (workouts.length / workoutsPlanned) * 100) : 100,
               aiSummary: text,
             },
           });

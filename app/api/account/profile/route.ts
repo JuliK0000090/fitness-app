@@ -6,7 +6,8 @@ export async function PATCH(req: NextRequest) {
   const session = await requireSession();
   const body = await req.json();
 
-  const allowed = ["name", "heightCm", "sex", "activityLevel", "goalWeightKg", "medicalNotes", "onGlp1", "customInstructions", "customResponseStyle", "onboardingComplete", "analyticsConsent"];
+  // onboardingComplete intentionally excluded — users cannot self-reset their onboarding status
+  const allowed = ["name", "heightCm", "sex", "activityLevel", "goalWeightKg", "medicalNotes", "onGlp1", "customInstructions", "customResponseStyle", "analyticsConsent"];
   const data = Object.fromEntries(Object.entries(body).filter(([k]) => allowed.includes(k)));
 
   const user = await prisma.user.update({ where: { id: session.userId }, data });

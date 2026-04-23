@@ -3,15 +3,24 @@ import { prisma } from "@/lib/prisma";
 import { addSuppression } from "@/lib/email/suppressions";
 
 export async function POST(req: NextRequest) {
-  // Verify Resend webhook signature if secret is set
+  const rawBody = await req.text();
   const secret = process.env.RESEND_WEBHOOK_SECRET;
+
   if (secret) {
-    const signature = req.headers.get("svix-signature");
-    if (!signature) return NextResponse.json({ error: "No signature" }, { status: 401 });
-    // Basic verification — in production use the svix library
+    const { Webhook } = await import("svix");
+    const wh = new Webhook(secret);
+    try {
+      wh.verify(rawBody, {
+        "svix-id": req.headers.get("svix-id") ?? "",
+        "svix-timestamp": req.headers.get("svix-timestamp") ?? "",
+        "svix-signature": req.headers.get("svix-signature") ?? "",
+      });
+    } catch {
+      return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
+    }
   }
 
-  const payload = await req.json();
+  const payload = JSON.parse(rawBody);
   const { type, data } = payload;
 
   // Find email record by resendId

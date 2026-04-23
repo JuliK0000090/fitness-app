@@ -24,6 +24,16 @@ export async function POST(req: NextRequest) {
 
     const userAgent = req.headers.get("user-agent") ?? undefined;
 
+    // Check if endpoint already belongs to a different user — prevent hijacking
+    const existing = await prisma.pushSubscription.findUnique({
+      where: { endpoint: subscription.endpoint },
+      select: { userId: true },
+    });
+    if (existing && existing.userId !== session.userId) {
+      // Different user owns this endpoint — delete their subscription (device re-registered)
+      await prisma.pushSubscription.delete({ where: { endpoint: subscription.endpoint } });
+    }
+
     await prisma.pushSubscription.upsert({
       where: { endpoint: subscription.endpoint },
       create: {

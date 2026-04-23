@@ -18,7 +18,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Goal not found" }, { status: 404 });
   }
 
-  const allowedStatuses = ["active", "achieved", "paused", "cancelled"] as const;
+  const allowedStatuses = ["active", "achieved", "paused", "archived"] as const;
   type GoalStatus = (typeof allowedStatuses)[number];
 
   const updateData: { status?: GoalStatus } = {};

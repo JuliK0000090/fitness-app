@@ -49,12 +49,18 @@ export async function POST(req: NextRequest) {
   const userId = session.userId;
 
   // Rate limit: 60 messages per minute per user
-  const rl = rateLimit(`chat:${userId}`, 60, 60_000);
+  const rl = await rateLimit(`chat:${userId}`, 60, 60_000);
   if (!rl.ok) {
     return new Response("Too many requests", { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } });
   }
 
-  const body = bodySchema.parse(await req.json());
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: { messages: any[]; conversationId: string };
+  try {
+    body = bodySchema.parse(await req.json());
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid request body" }), { status: 400, headers: { "Content-Type": "application/json" } });
+  }
 
   // Verify conversation belongs to user
   const conversation = await prisma.conversation.findFirst({
