@@ -264,7 +264,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return result.toDataStreamResponse();
+    return result.toDataStreamResponse({
+      getErrorMessage: (error) => {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error("[chat] stream error:", msg);
+        // Return the actual error so the UI shows it instead of generic "An error occurred."
+        return msg;
+      },
+    });
   } catch (e) {
     console.error("[chat] streamText error:", e);
     return new Response(
