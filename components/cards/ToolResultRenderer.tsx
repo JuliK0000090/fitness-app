@@ -183,7 +183,7 @@ export function ToolResultRenderer({ toolName, result }: ToolResultRendererProps
       case "update_habit":
         return (
           <HabitStreakCard
-            habitName={result.name}
+            habitName={result.title ?? result.name ?? "Habit"}
             currentStreak={result.currentStreak ?? 0}
             longestStreak={result.longestStreak ?? 0}
             last30Days={result.last30Days}

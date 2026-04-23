@@ -289,7 +289,7 @@ export function vitaTools(userId: string) {
     // ── Habit tools ────────────────────────────────────────────────────────────
 
     add_habit: makeTool({
-      description: "Add a new standalone habit (not part of a full plan)",
+      description: "Add a new standalone habit. If the user says they ALREADY did this today, set markDoneToday: true to log it immediately in one step.",
       parameters: z.object({
         title: z.string(),
         cadence: z.string().default("daily"),
@@ -298,6 +298,7 @@ export function vitaTools(userId: string) {
         icon: z.string().optional(),
         goalId: z.string().optional(),
         pointsOnComplete: z.number().optional(),
+        markDoneToday: z.boolean().optional().describe("Set true if the user said they already did this habit today"),
       }),
       execute: async (input) => {
         const habit = await prisma.habit.create({
@@ -315,7 +316,31 @@ export function vitaTools(userId: string) {
             active: true,
           },
         });
-        return { habitId: habit.id, title: habit.title, cadence: habit.cadence };
+
+        let completedToday = false;
+        let xpAwarded = 0;
+        if (input.markDoneToday) {
+          const dateObj = new Date(todayStr());
+          await prisma.habitCompletion.upsert({
+            where: { habitId_date: { habitId: habit.id, date: dateObj } },
+            create: { habitId: habit.id, userId, date: dateObj, points: habit.pointsOnComplete },
+            update: {},
+          });
+          await prisma.user.update({ where: { id: userId }, data: { totalXp: { increment: habit.pointsOnComplete } } });
+          completedToday = true;
+          xpAwarded = habit.pointsOnComplete;
+        }
+
+        return {
+          habitId: habit.id,
+          title: habit.title,
+          name: habit.title, // backward compat
+          cadence: habit.cadence,
+          currentStreak: completedToday ? 1 : 0,
+          longestStreak: 0,
+          completedToday,
+          xpAwarded,
+        };
       },
     }),
 
