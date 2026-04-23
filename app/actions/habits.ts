@@ -4,11 +4,23 @@ import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { completeHabit as _completeHabit, uncompleteHabit as _uncompleteHabit } from "@/lib/habits/complete";
+import { userTodayStr } from "@/lib/time/today";
+
+async function getUserTimezone(userId: string): Promise<string> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+  return u?.timezone ?? "UTC";
+}
 
 export async function completeHabit(habitId: string, date?: string) {
   const session = await requireSession();
   const userId = session.userId;
-  const dateObj = date ? new Date(date) : new Date(new Date().toISOString().split("T")[0]);
+  let dateObj: Date;
+  if (date) {
+    dateObj = new Date(date + "T00:00:00.000Z");
+  } else {
+    const tz = await getUserTimezone(userId);
+    dateObj = new Date(userTodayStr(tz) + "T00:00:00.000Z");
+  }
   const result = await _completeHabit(userId, habitId, dateObj, "MANUAL");
   revalidatePath("/today");
   return result;
@@ -17,7 +29,13 @@ export async function completeHabit(habitId: string, date?: string) {
 export async function uncompleteHabit(habitId: string, date?: string) {
   const session = await requireSession();
   const userId = session.userId;
-  const dateObj = date ? new Date(date) : new Date(new Date().toISOString().split("T")[0]);
+  let dateObj: Date;
+  if (date) {
+    dateObj = new Date(date + "T00:00:00.000Z");
+  } else {
+    const tz = await getUserTimezone(userId);
+    dateObj = new Date(userTodayStr(tz) + "T00:00:00.000Z");
+  }
   await _uncompleteHabit(userId, habitId, dateObj);
   revalidatePath("/today");
   return { ok: true };

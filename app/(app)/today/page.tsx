@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { TodayView } from "./TodayView";
-import { format } from "date-fns";
+import { userTodayStr } from "@/lib/time/today";
 
 function computeLevel(totalXp: number) {
   const level = Math.max(1, Math.floor(Math.sqrt(totalXp / 50)));
@@ -10,8 +10,10 @@ function computeLevel(totalXp: number) {
   return { level, totalXp, xpToNext: nextFloor - totalXp, xpInLevel: totalXp - currentFloor };
 }
 
-function isHabitDueToday(cadence: string, specificDays: number[]): boolean {
-  const dow = new Date().getDay();
+function isHabitDueToday(cadence: string, specificDays: number[], timezone: string): boolean {
+  // Use user's local timezone to determine day-of-week
+  const localDateStr = new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date());
+  const dow = new Date(localDateStr + "T12:00:00Z").getUTCDay(); // noon UTC of that local date
   switch (cadence.toLowerCase()) {
     case "daily": return true;
     case "weekdays": return dow >= 1 && dow <= 5;
@@ -24,20 +26,33 @@ function isHabitDueToday(cadence: string, specificDays: number[]): boolean {
 export default async function TodayPage() {
   const session = await requireSession();
   const userId = session.userId;
-  const todayStr = new Date().toISOString().split("T")[0];
-  const todayDate = new Date(todayStr);
 
-  // Monday of this week
+  // Fetch user first to get timezone before computing today's date
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { name: true, totalXp: true, currentStreak: true, timezone: true },
+  });
+
+  // Use user's local timezone — fixes the UTC-offset carry-over bug
+  const timezone = user.timezone ?? "UTC";
+  const todayStr = userTodayStr(timezone);
+  const todayDate = new Date(todayStr + "T00:00:00.000Z");
+
+  // Format date label in user's local timezone
+  const dateLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date());
+
+  // Monday of this week in UTC (weekly targets don't need per-user tz)
   const monday = new Date(todayDate);
-  monday.setDate(todayDate.getDate() - ((todayDate.getDay() + 6) % 7));
+  monday.setUTCDate(todayDate.getUTCDate() - ((todayDate.getUTCDay() + 6) % 7));
   const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
 
-  const [user, habits, completions, scheduledWorkouts, weeklyTargets, notifications, weeklyDone, hasGoals] = await Promise.all([
-    prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { name: true, totalXp: true, currentStreak: true, bestStreak: true },
-    }),
+  const [habits, completions, scheduledWorkouts, weeklyTargets, notifications, weeklyDone, hasGoals] = await Promise.all([
     prisma.habit.findMany({ where: { userId, active: true }, orderBy: { createdAt: "asc" } }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (prisma.habitCompletion as any).findMany({ where: { userId, date: todayDate, status: "DONE" }, select: { habitId: true } }),
@@ -67,12 +82,12 @@ export default async function TodayPage() {
   const xpPct = Math.min(100, (xpInLevel / Math.max(1, xpInLevel + xpToNext)) * 100);
 
   const completedIds = new Set((completions as { habitId: string }[]).map((c) => c.habitId));
-  const dueHabits = habits.filter((h) => isHabitDueToday(h.cadence, h.specificDays));
+  const dueHabits = habits.filter((h) => isHabitDueToday(h.cadence, h.specificDays, timezone));
 
   return (
     <TodayView
       userName={user.name ?? "there"}
-      dateLabel={format(new Date(), "EEEE, MMMM d")}
+      dateLabel={dateLabel}
       level={level}
       totalXp={totalXp}
       xpToNext={xpToNext}
