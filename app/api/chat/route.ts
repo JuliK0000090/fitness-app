@@ -15,6 +15,30 @@ const bodySchema = z.object({
   conversationId: z.string(),
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyMessage = { role: string; content: unknown; [k: string]: unknown };
+
+/**
+ * Anthropic requires strictly alternating user/assistant messages.
+ * If multiple user messages pile up (e.g., after failed retries), merge them
+ * so the AI can still process them without a 400.
+ */
+function sanitizeMessages(messages: AnyMessage[]): AnyMessage[] {
+  const out: AnyMessage[] = [];
+  for (const msg of messages) {
+    const prev = out[out.length - 1];
+    if (prev && prev.role === msg.role && msg.role === "user") {
+      // Merge: append the new content to the previous user message
+      const prevText = typeof prev.content === "string" ? prev.content : JSON.stringify(prev.content);
+      const newText  = typeof msg.content  === "string" ? msg.content  : JSON.stringify(msg.content);
+      out[out.length - 1] = { ...prev, content: `${prevText}\n\n${newText}` };
+    } else {
+      out.push(msg);
+    }
+  }
+  return out;
+}
+
 export async function POST(req: NextRequest) {
   let session;
   try {
@@ -204,14 +228,19 @@ export async function POST(req: NextRequest) {
     finalSystemPrompt += `\n\n[SAFETY NOTE] The user may be considering training through a serious injury. Respond with caution — recommend rest, professional medical evaluation, and safe alternatives. Do not endorse training that could worsen injury.`;
   }
 
+  const sanitized = sanitizeMessages(body.messages as AnyMessage[]);
+
   try {
     const result = streamText({
       model: anthropic("claude-sonnet-4-6"),
       system: finalSystemPrompt,
-      messages: body.messages,
+      messages: sanitized,
       tools: vitaTools(userId),
       maxSteps: 10,
       experimental_continueSteps: true,
+      onError: ({ error }) => {
+        console.error("[chat] stream error:", error);
+      },
       onFinish: async ({ text }) => {
         try {
           if (text) {

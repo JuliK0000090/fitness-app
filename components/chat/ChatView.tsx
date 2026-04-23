@@ -66,12 +66,15 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
     onError: (err: Error) => toast.error(err.message || "Something went wrong"),
   });
 
-  // Auto-resume: if the last persisted message is from the user (no AI reply yet),
-  // trigger a completion. Use reload() — it re-runs with the existing messages array
-  // without adding a duplicate user message to the UI or the DB.
+  // Auto-resume: if the ONLY unanswered message is a single user message at the end,
+  // trigger a completion. Skip if there are consecutive user messages (failed retries)
+  // — those will be merged server-side but the user should just re-send.
   useEffect(() => {
-    const last = initialMessages[initialMessages.length - 1];
-    if (last?.role === "user") {
+    const msgs = initialMessages;
+    const last = msgs[msgs.length - 1];
+    const secondLast = msgs[msgs.length - 2];
+    // Only auto-resume when exactly one unanswered user message (not a pile of failed retries)
+    if (last?.role === "user" && secondLast?.role !== "user") {
       reload();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
