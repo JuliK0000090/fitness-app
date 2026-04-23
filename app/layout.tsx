@@ -40,6 +40,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       navigator.serviceWorker.register('/sw.js');
     });
   }
+  // Sync browser timezone to server (best-effort, once per session)
+  try {
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz && !sessionStorage.getItem('tz_synced')) {
+      fetch('/api/user/timezone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timezone: tz }),
+        credentials: 'same-origin',
+      }).then(function() { sessionStorage.setItem('tz_synced', '1'); }).catch(function(){});
+    }
+  } catch(e) {}
 `,
           }}
         />

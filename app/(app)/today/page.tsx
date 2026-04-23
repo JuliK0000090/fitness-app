@@ -39,7 +39,8 @@ export default async function TodayPage() {
       select: { name: true, totalXp: true, currentStreak: true, bestStreak: true },
     }),
     prisma.habit.findMany({ where: { userId, active: true }, orderBy: { createdAt: "asc" } }),
-    prisma.habitCompletion.findMany({ where: { userId, date: todayDate }, select: { habitId: true } }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (prisma.habitCompletion as any).findMany({ where: { userId, date: todayDate, status: "DONE" }, select: { habitId: true } }),
     prisma.scheduledWorkout.findMany({
       where: { userId, scheduledDate: todayDate, status: { in: ["PLANNED", "MOVED"] } },
       orderBy: { scheduledTime: "asc" },
@@ -65,7 +66,7 @@ export default async function TodayPage() {
   const { level, totalXp, xpToNext, xpInLevel } = computeLevel(user.totalXp);
   const xpPct = Math.min(100, (xpInLevel / Math.max(1, xpInLevel + xpToNext)) * 100);
 
-  const completedIds = new Set(completions.map((c) => c.habitId));
+  const completedIds = new Set((completions as { habitId: string }[]).map((c) => c.habitId));
   const dueHabits = habits.filter((h) => isHabitDueToday(h.cadence, h.specificDays));
 
   return (

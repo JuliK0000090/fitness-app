@@ -40,6 +40,12 @@ export async function POST(req: NextRequest) {
     const token = await createSession(user.id, body.rememberMe);
     const expiryDays = body.rememberMe ? (Number(process.env.SESSION_EXPIRY_DAYS) || 30) : 1;
 
+    // Persist browser timezone if provided (used for per-user local-midnight rollover)
+    const tz = req.headers.get("x-timezone");
+    if (tz && /^[A-Za-z_]+\/[A-Za-z_]+$|^UTC$/.test(tz)) {
+      await prisma.user.update({ where: { id: user.id }, data: { timezone: tz } }).catch(() => {});
+    }
+
     const res = NextResponse.json({ ok: true, userId: user.id });
     res.cookies.set(COOKIE, token, {
       httpOnly: true,

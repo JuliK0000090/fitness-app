@@ -34,6 +34,20 @@ enum WorkoutStatus {
   MOVED
 }
 
+enum CompletionStatus {
+  DONE
+  MISSED
+  SKIPPED
+  PENDING
+}
+
+enum CompletionSource {
+  MANUAL
+  WEARABLE_AUTO
+  ROUTINE
+  ROLLOVER_MISS
+}
+
 // ─── Auth & Accounts ─────────────────────────────────────────────────────────
 
 model User {
@@ -61,6 +75,7 @@ model User {
   gdprConsentAt        DateTime?
   analyticsConsent     Boolean   @default(false)
   timezone             String    @default("UTC")
+  lastRolloverDate     DateTime?
   totalXp              Int       @default(0)
   currentStreak        Int       @default(0)
   bestStreak           Int       @default(0)
@@ -92,6 +107,7 @@ model User {
   emails            Email[]
   emailPreference   EmailPreference?
   unsubscribeTokens UnsubscribeToken[]
+  chatSuggestions   ChatSuggestion[]
 
   @@index([email])
 }
@@ -308,19 +324,40 @@ model Habit {
 }
 
 model HabitCompletion {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   habitId     String
   userId      String
-  date        DateTime @db.Date
-  completedAt DateTime @default(now())
+  date        DateTime         @db.Date
+  status      CompletionStatus @default(DONE)
+  source      CompletionSource @default(MANUAL)
+  completedAt DateTime?        // null for rollover-created MISSED/SKIPPED entries
   note        String?
-  points      Int      @default(0)
+  points      Int              @default(0)
 
   habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([habitId, date])
   @@index([userId, date])
+  @@index([userId, status, date])
+}
+
+// ─── AI Suggestions ───────────────────────────────────────────────────────────
+
+model ChatSuggestion {
+  id          String    @id @default(cuid())
+  userId      String
+  type        String    // habit_adjustment / goal_nudge / streak_recovery / etc.
+  title       String
+  body        String    @db.Text
+  habitId     String?   // linked habit if type = habit_adjustment
+  dismissed   Boolean   @default(false)
+  appliedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dismissed, createdAt])
 }
 
 // ─── Workout Types ────────────────────────────────────────────────────────────
@@ -389,16 +426,20 @@ model WeeklyTarget {
 // ─── Daily Ledger ─────────────────────────────────────────────────────────────
 
 model DailyLedger {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   userId          String
-  date            DateTime @db.Date
-  habitsCompleted Int      @default(0)
-  habitsTotal     Int      @default(0)
-  workoutsDone    Int      @default(0)
-  workoutsPlanned Int      @default(0)
-  points          Int      @default(0)
-  streakCount     Int      @default(0)
-  allComplete     Boolean  @default(false)
+  date            DateTime  @db.Date
+  habitsCompleted Int       @default(0)
+  habitsTotal     Int       @default(0)
+  missedHabits    Int       @default(0)
+  skippedHabits   Int       @default(0)
+  workoutsDone    Int       @default(0)
+  workoutsPlanned Int       @default(0)
+  points          Int       @default(0)
+  xpDeducted      Int       @default(0)
+  streakCount     Int       @default(0)
+  allComplete     Boolean   @default(false)
+  rolloverAt      DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

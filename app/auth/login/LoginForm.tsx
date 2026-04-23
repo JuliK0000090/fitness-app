@@ -30,9 +30,10 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(tz ? { "X-Timezone": tz } : {}) },
         body: JSON.stringify(data),
       });
       const json = await res.json();
