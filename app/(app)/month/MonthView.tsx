@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Target, TrendingDown, TrendingUp, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Target, TrendingDown, TrendingUp, GripVertical, X, CheckCircle2, Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 type DayShade = "done" | "partial" | "rest" | "none";
+
+interface WorkoutItem {
+  id: string;
+  name: string;
+  status: string;
+  duration: number;
+}
 
 interface CalendarDay {
   dateStr: string;
   dayNum: string;
-  workouts: { id: string; name: string; status: string; duration: number }[];
+  workouts: WorkoutItem[];
   habitPct: number;
   shade: DayShade;
 }
@@ -31,7 +39,7 @@ interface MonthViewProps {
   prevMonth: string;
   nextMonth: string;
   todayStr: string;
-  monthStartDay: number; // 0=Sun
+  monthStartDay: number;
   daysInMonth: CalendarDay[];
   goals: GoalSummary[];
   heatmap: Record<string, number>;
@@ -51,7 +59,7 @@ function HabitRing({ pct, size = 14 }: { pct: number; size?: number }) {
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - Math.min(1, pct / 100));
   return (
-    <svg width={size} height={size} className="-rotate-90" style={{ minWidth: size }}>
+    <svg width={size} height={size} className="-rotate-90" style={{ minWidth: size }} aria-hidden>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={1.5} />
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none"
@@ -63,48 +71,89 @@ function HabitRing({ pct, size = 14 }: { pct: number; size?: number }) {
   );
 }
 
-function DayDrawer({ day, onClose }: { day: CalendarDay; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 pb-24" onClick={onClose}>
-      <div className="glass rounded-2xl w-full max-w-sm p-5 space-y-3 max-h-[60vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-white/70">{format(new Date(day.dateStr), "EEEE, MMMM d")}</p>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/[0.07]">
-            <X size={14} className="text-white/40" />
-          </button>
-        </div>
-        {day.workouts.length > 0 ? (
-          <div className="space-y-2">
-            {day.workouts.map((w) => (
-              <div key={w.id} className="flex items-center gap-2.5 py-1">
-                <div className={cn(
-                  "w-2 h-2 rounded-full shrink-0",
-                  w.status === "DONE" ? "bg-white/60" : w.status === "SKIPPED" ? "bg-white/15" : "bg-white/30"
-                )} />
-                <p className="text-sm text-white/65">{w.name}</p>
-                <span className="text-[10px] text-white/25 ml-auto">{w.duration} min</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-white/30">Rest day</p>
-        )}
-        {day.habitPct > 0 && (
-          <div className="flex items-center gap-2 pt-1 border-t border-white/[0.06]">
-            <HabitRing pct={day.habitPct} />
-            <p className="text-[11px] text-white/35">{day.habitPct}% habits completed</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+export function MonthView({
+  monthLabel, prevMonth, nextMonth, todayStr,
+  monthStartDay, daysInMonth: initialDays, goals, heatmap,
+}: MonthViewProps) {
+  const [days, setDays] = useState(initialDays);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [dragWorkout, setDragWorkout] = useState<{ id: string; fromDate: string } | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
-export function MonthView({ monthLabel, prevMonth, nextMonth, todayStr, monthStartDay, daysInMonth, goals, heatmap }: MonthViewProps) {
-  const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
+  const offset = (monthStartDay + 6) % 7;
+  const selectedDay = days.find((d) => d.dateStr === selectedDate) ?? null;
 
-  // Offset for Mon-start calendar (monthStartDay is 0=Sun)
-  const offset = (monthStartDay + 6) % 7; // convert Sun=0 to Mon=0
+  // ── Reschedule ────────────────────────────────────────────────────────────────
+
+  const reschedule = useCallback(async (workoutId: string, fromDate: string, toDate: string) => {
+    if (fromDate === toDate) return;
+
+    // Optimistic: move workout across days
+    setDays((prev) => {
+      let moving: WorkoutItem | undefined;
+      return prev.map((d) => {
+        if (d.dateStr === fromDate) {
+          moving = d.workouts.find((w) => w.id === workoutId);
+          return { ...d, workouts: d.workouts.filter((w) => w.id !== workoutId) };
+        }
+        if (d.dateStr === toDate && moving) {
+          return { ...d, workouts: [...d.workouts, { ...moving, status: "MOVED" }] };
+        }
+        return d;
+      });
+    });
+
+    // If selected day was the source, switch selection to destination
+    if (selectedDate === fromDate) setSelectedDate(toDate);
+
+    const res = await fetch(`/api/scheduled-workouts/${workoutId}/reschedule`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: toDate }),
+    });
+
+    if (!res.ok) {
+      setDays(initialDays);
+      toast.error("Could not move workout — try again");
+    } else {
+      toast.success(`Moved to ${format(new Date(toDate + "T12:00:00Z"), "MMM d")}`);
+    }
+  }, [initialDays, selectedDate]);
+
+  // ── Drag handlers ─────────────────────────────────────────────────────────────
+
+  function onWorkoutDragStart(e: React.DragEvent, workoutId: string, fromDate: string) {
+    e.dataTransfer.setData("workoutId", workoutId);
+    e.dataTransfer.setData("fromDate", fromDate);
+    e.dataTransfer.effectAllowed = "move";
+    setDragWorkout({ id: workoutId, fromDate });
+  }
+
+  function onWorkoutDragEnd() {
+    setDragWorkout(null);
+    setDropTarget(null);
+  }
+
+  function onCellDragOver(e: React.DragEvent, dateStr: string) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDropTarget(dateStr);
+  }
+
+  function onCellDrop(e: React.DragEvent, toDate: string) {
+    e.preventDefault();
+    const workoutId = e.dataTransfer.getData("workoutId");
+    const fromDate = e.dataTransfer.getData("fromDate");
+    setDragWorkout(null);
+    setDropTarget(null);
+    reschedule(workoutId, fromDate, toDate);
+  }
+
+  function onCellClick(day: CalendarDay) {
+    // Don't interfere with drag operations
+    if (dragWorkout) return;
+    setSelectedDate((prev) => prev === day.dateStr ? null : day.dateStr);
+  }
 
   return (
     <div className="w-full max-w-lg mx-auto py-4 px-3 space-y-4 pb-6">
@@ -127,40 +176,52 @@ export function MonthView({ monthLabel, prevMonth, nextMonth, todayStr, monthSta
         ))}
       </div>
 
-      {/* Calendar grid */}
+      {/* Calendar grid — cells are both clickable and drop targets */}
       <div className="grid grid-cols-7 gap-px">
-        {/* Leading blank cells */}
         {Array.from({ length: offset }).map((_, i) => <div key={`blank-${i}`} />)}
 
-        {daysInMonth.map((day) => {
+        {days.map((day) => {
           const isToday = day.dateStr === todayStr;
+          const isSelected = day.dateStr === selectedDate;
+          const isDropTarget = dropTarget === day.dateStr;
+          const isDragSource = dragWorkout?.fromDate === day.dateStr;
+
           return (
             <button
               key={day.dateStr}
-              onClick={() => setSelectedDay(day)}
+              onClick={() => onCellClick(day)}
+              onDragOver={(e) => onCellDragOver(e, day.dateStr)}
+              onDrop={(e) => onCellDrop(e, day.dateStr)}
+              onDragLeave={() => setDropTarget(null)}
               className={cn(
-                "rounded-lg p-1 flex flex-col items-center gap-0.5 aspect-square justify-center transition-colors",
+                "rounded-lg p-1 flex flex-col items-center gap-0.5 aspect-square justify-center transition-all",
                 SHADE_CLASS[day.shade],
                 isToday && "ring-1 ring-white/30",
-                "hover:bg-white/[0.06] active:bg-white/[0.08]"
+                isSelected && "bg-white/[0.10] ring-1 ring-white/25",
+                isDropTarget && "bg-white/[0.12] ring-1 ring-white/40 scale-[1.04]",
+                isDragSource && "opacity-50",
+                !isSelected && !isDropTarget && "hover:bg-white/[0.06] active:bg-white/[0.08]"
               )}
             >
-              <p className={cn("text-[11px] font-medium leading-none", isToday ? "text-white/90" : "text-white/45")}>{day.dayNum}</p>
-              {/* Workout dots */}
+              <p className={cn(
+                "text-[11px] font-medium leading-none",
+                isToday ? "text-white/90" : isSelected ? "text-white/80" : "text-white/45"
+              )}>
+                {day.dayNum}
+              </p>
               {day.workouts.length > 0 && (
                 <div className="flex gap-px justify-center flex-wrap">
                   {day.workouts.slice(0, 3).map((w, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "w-1 h-1 rounded-full",
-                        w.status === "DONE" ? "bg-white/60" : w.status === "SKIPPED" ? "bg-white/10" : "bg-white/30"
-                      )}
-                    />
+                    <div key={i} className={cn(
+                      "w-1 h-1 rounded-full",
+                      w.status === "DONE" ? "bg-white/60" :
+                      w.status === "SKIPPED" ? "bg-white/10" :
+                      w.status === "MOVED" ? "bg-white/20" :
+                      "bg-white/30"
+                    )} />
                   ))}
                 </div>
               )}
-              {/* Habit ring */}
               {day.habitPct > 0 && <HabitRing pct={day.habitPct} size={12} />}
             </button>
           );
@@ -173,6 +234,24 @@ export function MonthView({ monthLabel, prevMonth, nextMonth, todayStr, monthSta
         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" /> Planned</span>
         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/10 shrink-0" /> Skipped</span>
       </div>
+
+      {/* ── Inline day detail — appears here, BELOW the calendar, ABOVE goals ── */}
+      {selectedDay && (
+        <DayDetail
+          day={selectedDay}
+          onClose={() => setSelectedDate(null)}
+          onDragStart={onWorkoutDragStart}
+          onDragEnd={onWorkoutDragEnd}
+          draggingId={dragWorkout?.id ?? null}
+        />
+      )}
+
+      {/* Drag hint — only while something is being dragged */}
+      {dragWorkout && (
+        <p className="text-[10px] text-white/30 text-center animate-pulse">
+          Drop onto any day to reschedule
+        </p>
+      )}
 
       {/* Active goals */}
       {goals.length > 0 && (
@@ -190,9 +269,7 @@ export function MonthView({ monthLabel, prevMonth, nextMonth, todayStr, monthSta
                 <Target size={12} className="text-white/30 shrink-0" />
                 <p className="text-sm text-white/60 flex-1 truncate">{g.title}</p>
                 {pct !== null && (
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-white/50">{Math.round(pct)}%</p>
-                  </div>
+                  <p className="text-xs text-white/50 tabular-nums shrink-0">{Math.round(pct)}%</p>
                 )}
                 {onTrack !== null && (
                   onTrack
@@ -207,12 +284,101 @@ export function MonthView({ monthLabel, prevMonth, nextMonth, todayStr, monthSta
 
       {/* 365-day heatmap */}
       <Heatmap heatmap={heatmap} />
-
-      {/* Day drawer */}
-      {selectedDay && <DayDrawer day={selectedDay} onClose={() => setSelectedDay(null)} />}
     </div>
   );
 }
+
+// ── Inline day detail panel ────────────────────────────────────────────────────
+
+function DayDetail({
+  day,
+  onClose,
+  onDragStart,
+  onDragEnd,
+  draggingId,
+}: {
+  day: CalendarDay;
+  onClose: () => void;
+  onDragStart: (e: React.DragEvent, workoutId: string, fromDate: string) => void;
+  onDragEnd: () => void;
+  draggingId: string | null;
+}) {
+  const dateLabel = format(new Date(day.dateStr + "T12:00:00Z"), "EEEE, MMMM d");
+
+  return (
+    <div className="glass rounded-2xl overflow-hidden border border-white/[0.08]">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+        <p className="text-sm font-semibold text-white/70">{dateLabel}</p>
+        <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/[0.07] transition-colors">
+          <X size={13} className="text-white/35" />
+        </button>
+      </div>
+
+      <div className="p-4 space-y-1">
+        {day.workouts.length === 0 ? (
+          <p className="text-xs text-white/30 py-2">Rest day — no workouts scheduled.</p>
+        ) : (
+          day.workouts.map((w) => (
+            <div
+              key={w.id}
+              draggable={w.status !== "DONE"}
+              onDragStart={(e) => onDragStart(e, w.id, day.dateStr)}
+              onDragEnd={onDragEnd}
+              className={cn(
+                "flex items-center gap-2.5 py-2.5 px-2 rounded-xl transition-all",
+                w.status !== "DONE" && "cursor-grab active:cursor-grabbing hover:bg-white/[0.04]",
+                draggingId === w.id && "opacity-40"
+              )}
+            >
+              {w.status !== "DONE" ? (
+                <GripVertical size={12} className="text-white/20 shrink-0" />
+              ) : (
+                <div className="w-3 shrink-0" />
+              )}
+
+              <div className={cn(
+                "w-6 h-6 rounded-lg border flex items-center justify-center shrink-0",
+                w.status === "DONE" ? "border-white/25 bg-white/[0.08]" : "border-white/[0.07]"
+              )}>
+                {w.status === "DONE"
+                  ? <CheckCircle2 size={11} className="text-white/45" />
+                  : <Dumbbell size={10} className="text-white/25" />
+                }
+              </div>
+
+              <p className={cn(
+                "text-sm flex-1",
+                w.status === "DONE" ? "text-white/40 line-through" :
+                w.status === "SKIPPED" ? "text-white/25 line-through" :
+                w.status === "MOVED" ? "text-white/40 italic" :
+                "text-white/70"
+              )}>
+                {w.name}
+              </p>
+              <span className="text-[10px] text-white/25 shrink-0">{w.duration} min</span>
+            </div>
+          ))
+        )}
+
+        {day.workouts.filter((w) => w.status !== "DONE").length > 0 && (
+          <p className="text-[10px] text-white/20 pt-1 px-2">
+            Drag a workout to another day on the calendar to reschedule it
+          </p>
+        )}
+
+        {day.habitPct > 0 && (
+          <div className="flex items-center gap-2 pt-2 border-t border-white/[0.05] px-2">
+            <HabitRing pct={day.habitPct} />
+            <p className="text-[11px] text-white/35">{day.habitPct}% habits completed</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Past-year heatmap ──────────────────────────────────────────────────────────
 
 function Heatmap({ heatmap }: { heatmap: Record<string, number> }) {
   const today = new Date();
@@ -224,7 +390,6 @@ function Heatmap({ heatmap }: { heatmap: Record<string, number> }) {
     days.push({ dateStr: key, value: heatmap[key] ?? 0 });
   }
 
-  // Pad to start on Monday
   const firstDow = (new Date(days[0].dateStr).getDay() + 6) % 7;
   const padded: ({ dateStr: string; value: number } | null)[] = [
     ...Array.from({ length: firstDow }, () => null),
@@ -239,7 +404,10 @@ function Heatmap({ heatmap }: { heatmap: Record<string, number> }) {
       <div className="overflow-x-auto">
         <div
           className="grid gap-[2px]"
-          style={{ gridTemplateColumns: `repeat(${Math.ceil(padded.length / 7)}, 10px)`, gridTemplateRows: "repeat(7, 10px)" }}
+          style={{
+            gridTemplateColumns: `repeat(${Math.ceil(padded.length / 7)}, 10px)`,
+            gridTemplateRows: "repeat(7, 10px)",
+          }}
         >
           {padded.map((d, i) => (
             <div
