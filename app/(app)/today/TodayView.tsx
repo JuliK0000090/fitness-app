@@ -2,10 +2,9 @@
 
 import { useState, useTransition, useOptimistic } from "react";
 import Link from "next/link";
-import { Bell, X, MessageSquarePlus, Flame, CheckCircle2, Circle, Clock, Dumbbell, Activity, Footprints, Droplets, Wind, Zap, Sun, Moon, Beef, Heart, Camera, ChevronRight } from "lucide-react";
+import { Bell, X, MessageSquarePlus, Flame, CheckCircle2, Circle, Clock, Dumbbell, Activity, Footprints, Droplets, Wind, Zap, Sun, Moon, Beef, Heart, Camera, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import { completeHabit, uncompleteHabit, completeWorkout, skipWorkout, deleteHabit } from "@/app/actions/habits";
 import { TodaySignals } from "@/components/health/TodaySignals";
 
@@ -59,6 +58,8 @@ interface TodayViewProps {
   hasGoals: boolean;
 }
 
+const HABITS_VISIBLE_DEFAULT = 5;
+
 export function TodayView({
   userName, dateLabel, level, totalXp, xpToNext, xpPct, currentStreak,
   habits: initHabits, scheduledWorkouts: initWorkouts, weeklyTargets,
@@ -66,6 +67,7 @@ export function TodayView({
 }: TodayViewProps) {
   const [notifications, setNotifications] = useState(initNotifications);
   const [editMode, setEditMode] = useState(false);
+  const [habitsExpanded, setHabitsExpanded] = useState(false);
   const [, startTransition] = useTransition();
 
   const greeting = (() => {
@@ -101,19 +103,23 @@ export function TodayView({
 
   const doneCount = optimisticHabits.filter((h) => h.done).length;
   const totalCount = optimisticHabits.length;
+  const visibleHabits = habitsExpanded || totalCount <= HABITS_VISIBLE_DEFAULT
+    ? optimisticHabits
+    : optimisticHabits.slice(0, HABITS_VISIBLE_DEFAULT);
+  const hiddenCount = totalCount - HABITS_VISIBLE_DEFAULT;
 
   return (
     <div className="max-w-lg mx-auto py-6 px-5 space-y-5">
 
       {/* Header */}
-      <div className="fu">
+      <div>
         <p className="text-[10px] tracking-[0.25em] uppercase text-white/30 mb-1">{dateLabel}</p>
         <p className="text-sm text-white/45">{greeting},</p>
         <h1 className="font-cormorant text-4xl font-light text-white/90 mt-0.5">{userName}</h1>
       </div>
 
       {/* XP bar */}
-      <div className="glass rounded-2xl p-4 fu2">
+      <div className="glass rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-baseline gap-2">
             <span className="font-cormorant text-2xl font-light text-white/85">Level {level}</span>
@@ -136,7 +142,7 @@ export function TodayView({
 
       {/* Notifications */}
       {notifications.map((n) => (
-        <div key={n.id} className="glass rounded-2xl p-4 flex gap-3 fu border border-white/[0.07]">
+        <div key={n.id} className="glass rounded-2xl p-4 flex gap-3 border border-white/[0.07]">
           <Bell size={13} className="text-white/40 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-white/70">{n.title}</p>
@@ -148,28 +154,41 @@ export function TodayView({
         </div>
       ))}
 
-      {/* Today's workout */}
+      {/* Today's workouts */}
       {initWorkouts.map((sw) => (
         <TodayWorkoutCard key={sw.id} workout={sw} />
       ))}
 
       {/* Habit checklist */}
       {totalCount > 0 ? (
-        <div className="glass rounded-2xl overflow-hidden fu2">
+        <div className="glass rounded-2xl overflow-hidden">
+          {/* Section header */}
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
-            <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Daily habits</p>
-            <div className="flex items-center gap-3">
-              {!editMode && <span className="text-[10px] text-white/30">{doneCount} / {totalCount}</span>}
-              <button
-                onClick={() => setEditMode((v) => !v)}
-                className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
-              >
-                {editMode ? "Done" : "Edit"}
-              </button>
+            <div className="flex items-baseline gap-2">
+              <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Daily habits</p>
+              <span className="text-[10px] text-white/30">{doneCount} / {totalCount}</span>
+            </div>
+            <button
+              onClick={() => setEditMode((v) => !v)}
+              className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+            >
+              {editMode ? "Done" : "Edit"}
+            </button>
+          </div>
+
+          {/* Progress bar */}
+          <div className="px-4 pb-2">
+            <div className="h-px bg-white/[0.08] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white/30 transition-all duration-500"
+                style={{ width: `${totalCount > 0 ? (doneCount / totalCount) * 100 : 0}%` }}
+              />
             </div>
           </div>
+
+          {/* Habit rows */}
           <div className="divide-y divide-white/[0.05]">
-            {optimisticHabits.map((habit) => (
+            {visibleHabits.map((habit) => (
               <div key={habit.id} className="flex items-center">
                 {editMode && (
                   <button
@@ -184,7 +203,6 @@ export function TodayView({
                   className={cn(
                     "flex-1 flex items-center gap-3 px-4 py-3 text-left transition-colors",
                     !editMode && "hover:bg-white/[0.03] active:bg-white/[0.05]",
-                    habit.done && "opacity-50"
                   )}
                 >
                   <div className={cn(
@@ -195,27 +213,38 @@ export function TodayView({
                   </div>
                   <Icon name={habit.icon} size={13} className="text-white/35 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className={cn("text-sm", habit.done && "line-through text-white/40")}>{habit.title ?? "Habit"}</p>
+                    <p className={cn(
+                      "text-sm",
+                      habit.done ? "line-through text-white/30" : "text-white/75"
+                    )}>{habit.title ?? "Habit"}</p>
                     {habit.duration && !habit.done && (
                       <p className="text-[10px] text-white/25 mt-0.5">{habit.duration} min</p>
                     )}
                   </div>
-                  {!editMode && <span className="text-[10px] text-white/20 shrink-0">+{habit.pointsOnComplete}</span>}
+                  {!editMode && (
+                    <span className="text-[10px] text-white/20 shrink-0">+{habit.pointsOnComplete}</span>
+                  )}
                 </button>
               </div>
             ))}
           </div>
-          <div className="px-4 pb-3 pt-1">
-            <div className="h-px bg-white/[0.08] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white/30 transition-all duration-500"
-                style={{ width: `${totalCount > 0 ? (doneCount / totalCount) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
+
+          {/* Show more / less toggle */}
+          {totalCount > HABITS_VISIBLE_DEFAULT && (
+            <button
+              onClick={() => setHabitsExpanded((v) => !v)}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-[11px] text-white/30 hover:text-white/55 transition-colors border-t border-white/[0.05]"
+            >
+              {habitsExpanded ? (
+                <><ChevronUp size={11} /> Show less</>
+              ) : (
+                <><ChevronDown size={11} /> {hiddenCount} more habit{hiddenCount !== 1 ? "s" : ""}</>
+              )}
+            </button>
+          )}
         </div>
       ) : (
-        <div className="glass rounded-2xl p-6 text-center fu2">
+        <div className="glass rounded-2xl p-6 text-center">
           <p className="text-sm text-white/30 mb-3">No habits set up yet.</p>
           <Link
             href="/chat"
@@ -229,31 +258,33 @@ export function TodayView({
 
       {/* Weekly targets */}
       {weeklyTargets.length > 0 && (
-        <div className="fu2">
+        <div>
           <p className="text-[9px] tracking-[0.25em] uppercase text-white/25 px-1 mb-2">This week</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="glass rounded-2xl overflow-hidden divide-y divide-white/[0.05]">
             {weeklyTargets.map((wt) => (
-              <div key={wt.id} className="glass rounded-xl px-3 py-2 flex items-center gap-2">
-                <Icon name={wt.icon} size={11} className="text-white/35" />
-                <span className="text-[11px] text-white/55">{wt.label}</span>
-                <div className="flex gap-0.5">
-                  {Array.from({ length: wt.target }).map((_, i) => (
+              <div key={wt.id} className="flex items-center gap-3 px-4 py-3">
+                <span className="text-sm text-white/60 flex-1">{wt.label}</span>
+                <div className="flex items-center gap-1.5">
+                  {Array.from({ length: Math.min(wt.target, 7) }).map((_, i) => (
                     <div
                       key={i}
-                      className={cn("w-1.5 h-1.5 rounded-full", i < wt.done ? "bg-white/50" : "bg-white/15")}
+                      className={cn("w-2 h-2 rounded-full", i < wt.done ? "bg-white/55" : "bg-white/15")}
                     />
                   ))}
+                  <span className="text-[10px] text-white/30 ml-1 tabular-nums">{wt.done}/{wt.target}</span>
                 </div>
-                <span className="text-[10px] text-white/30">{wt.done}/{wt.target}</span>
               </div>
             ))}
           </div>
+          <Link href="/week" className="block text-[10px] text-white/20 hover:text-white/40 transition-colors text-right mt-1.5 pr-1">
+            View full week →
+          </Link>
         </div>
       )}
 
-      {/* Set goal prompt if no goals */}
+      {/* Set goal prompt */}
       {!hasGoals && (
-        <div className="glass rounded-2xl p-5 text-center fu3 border border-white/[0.06]">
+        <div className="glass rounded-2xl p-5 text-center border border-white/[0.06]">
           <p className="text-sm text-white/40 mb-3">Tell Vita what you want to achieve — she will build your full plan.</p>
           <Link
             href="/chat"
@@ -265,7 +296,7 @@ export function TodayView({
         </div>
       )}
 
-      {/* CTA */}
+      {/* Talk to Vita CTA */}
       <div className="pb-6">
         <Link
           href="/chat"
@@ -282,6 +313,8 @@ export function TodayView({
 
 function TodayWorkoutCard({ workout }: { workout: ScheduledWorkout }) {
   const [status, setStatus] = useState(workout.status);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [moveDate, setMoveDate] = useState("");
   const [, startTransition] = useTransition();
 
   if (status === "DONE" || status === "SKIPPED") return null;
@@ -290,7 +323,7 @@ function TodayWorkoutCard({ workout }: { workout: ScheduledWorkout }) {
     startTransition(async () => {
       await completeWorkout(workout.id);
       setStatus("DONE");
-      toast.success(`Workout logged. +50 XP`);
+      toast.success("Workout logged. +50 XP");
     });
   }
 
@@ -301,8 +334,33 @@ function TodayWorkoutCard({ workout }: { workout: ScheduledWorkout }) {
     });
   }
 
+  async function handleMove() {
+    if (!moveDate) return;
+    const res = await fetch(`/api/scheduled-workouts/${workout.id}/reschedule`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: moveDate }),
+    });
+    if (res.ok) {
+      setStatus("MOVED");
+      toast.success(`Moved to ${new Date(moveDate + "T12:00:00Z").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}`);
+    } else {
+      toast.error("Could not move workout");
+    }
+  }
+
+  // Default move date to tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+  // Min date for past moves = 7 days ago
+  const pastLimit = new Date();
+  pastLimit.setDate(pastLimit.getDate() - 7);
+  const minDate = pastLimit.toISOString().split("T")[0];
+
   return (
-    <div className="glass rounded-2xl p-4 fu border border-white/[0.07]">
+    <div className="glass rounded-2xl p-4 border border-white/[0.07]">
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-xl border border-white/[0.07] flex items-center justify-center shrink-0">
           <Dumbbell size={15} className="text-white/40" />
@@ -315,6 +373,7 @@ function TodayWorkoutCard({ workout }: { workout: ScheduledWorkout }) {
           </p>
         </div>
       </div>
+
       <div className="flex gap-2 mt-3">
         <button
           onClick={handleComplete}
@@ -328,13 +387,40 @@ function TodayWorkoutCard({ workout }: { workout: ScheduledWorkout }) {
         >
           Skip
         </button>
-        <Link
-          href="/chat"
-          className="px-4 py-2 rounded-xl bg-white/[0.03] text-xs text-white/30 hover:bg-white/[0.06] transition-colors"
+        <button
+          onClick={() => setShowDatePicker((v) => !v)}
+          className="px-3 py-2 rounded-xl bg-white/[0.03] text-xs text-white/30 hover:bg-white/[0.06] transition-colors flex items-center gap-1"
         >
+          <CalendarDays size={11} />
           Move
-        </Link>
+        </button>
       </div>
+
+      {/* Date picker to move workout */}
+      {showDatePicker && (
+        <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-2">
+          <input
+            type="date"
+            defaultValue={tomorrowStr}
+            min={minDate}
+            onChange={(e) => setMoveDate(e.target.value)}
+            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-xs text-white/60 [color-scheme:dark]"
+          />
+          <button
+            onClick={handleMove}
+            disabled={!moveDate}
+            className="px-4 py-1.5 rounded-lg bg-white/[0.07] text-xs text-white/65 hover:bg-white/[0.11] transition-colors disabled:opacity-40"
+          >
+            Confirm
+          </button>
+          <button
+            onClick={() => setShowDatePicker(false)}
+            className="p-1.5 rounded-lg text-white/25 hover:text-white/50 transition-colors"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
