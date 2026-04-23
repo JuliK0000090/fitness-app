@@ -77,9 +77,35 @@ export async function POST(req: NextRequest) {
     select: { name: true, customInstructions: true, customResponseStyle: true, heightCm: true, activityLevel: true, goalWeightKg: true, onGlp1: true },
   }) as { name: string | null; customInstructions: string | null; customResponseStyle: string | null; heightCm: number | null; activityLevel: string | null; goalWeightKg: number | null; onGlp1: boolean };
 
-  const latestWeight = await prisma.measurement.findFirst({
-    where: { userId, kind: "weight" }, orderBy: { capturedAt: "desc" },
+  const [latestWeight, activeGoals, activeHabits] = await Promise.all([
+    prisma.measurement.findFirst({ where: { userId, kind: "weight" }, orderBy: { capturedAt: "desc" } }),
+    prisma.goal.findMany({
+      where: { userId, status: { in: ["active", "paused"] } },
+      orderBy: [{ status: "asc" }, { priority: "asc" }],
+      select: {
+        id: true, title: true, category: true, targetMetric: true,
+        targetValue: true, currentValue: true, unit: true,
+        deadline: true, predictedHitDate: true, status: true,
+      },
+      take: 8,
+    }),
+    prisma.habit.findMany({
+      where: { userId, active: true },
+      select: { id: true, title: true, cadence: true, pointsOnComplete: true },
+      take: 12,
+    }),
+  ]);
+
+  // Build goal context lines — injected into every Vita response
+  const goalLines = activeGoals.map((g) => {
+    const parts: string[] = [`[id:${g.id}] ${g.title ?? "Goal"} (${g.status})`];
+    if (g.targetValue != null && g.currentValue != null && g.unit)
+      parts.push(`${g.currentValue} → ${g.targetValue} ${g.unit}`);
+    if (g.deadline) parts.push(`deadline: ${g.deadline.toISOString().split("T")[0]}`);
+    if (g.predictedHitDate) parts.push(`predicted: ${g.predictedHitDate.toISOString().split("T")[0]}`);
+    return parts.join(" · ");
   });
+  const habitLines = activeHabits.map((h) => `[id:${h.id}] ${h.title ?? "Habit"} (${h.cadence})`);
 
   const profileContext = [
     user.heightCm ? `Height: ${user.heightCm}cm` : null,
@@ -87,6 +113,8 @@ export async function POST(req: NextRequest) {
     user.goalWeightKg ? `Goal weight: ${user.goalWeightKg}kg` : null,
     user.activityLevel ? `Activity level: ${user.activityLevel}` : null,
     user.onGlp1 ? `On GLP-1 medication: yes — prioritise strength training and high protein to preserve muscle; avoid recommending large calorie deficits on top of the medication's natural appetite suppression.` : null,
+    goalLines.length > 0 ? `\nUser's goals:\n${goalLines.map((l) => `  - ${l}`).join("\n")}` : "No goals set yet — ask the user what they want to achieve and by when, then call propose_goal_decomposition.",
+    habitLines.length > 0 ? `\nActive habits:\n${habitLines.map((l) => `  - ${l}`).join("\n")}` : null,
   ].filter(Boolean).join("\n");
 
   // Fetch recent health signals for context

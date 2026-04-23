@@ -263,12 +263,12 @@ export function vitaTools(userId: string) {
     }),
 
     list_goals: makeTool({
-      description: "List active (or filtered) goals",
-      parameters: z.object({ status: z.string().optional() }),
+      description: "List all goals (active, paused, achieved). Use status filter only if user explicitly asks for a specific status. Always call this when you need to know the user's goals or goal IDs.",
+      parameters: z.object({ status: z.string().optional().describe("Filter by status — omit to return all goals including active, paused, and achieved") }),
       execute: async ({ status }) => {
         const goals = await prisma.goal.findMany({
-          where: { userId, status: status ?? "active" },
-          orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
+          where: { userId, ...(status ? { status } : { status: { not: "archived" } }) },
+          orderBy: [{ status: "asc" }, { priority: "asc" }, { createdAt: "desc" }],
           include: { habits: { where: { active: true }, select: { id: true, title: true, icon: true } } },
         });
         return { goals: goals.map((g) => ({
