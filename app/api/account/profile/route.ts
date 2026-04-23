@@ -6,7 +6,7 @@ export async function PATCH(req: NextRequest) {
   const session = await requireSession();
   const body = await req.json();
 
-  const allowed = ["name", "heightCm", "sex", "activityLevel", "goalWeightKg", "medicalNotes", "customInstructions", "customResponseStyle", "onboardingComplete", "analyticsConsent"];
+  const allowed = ["name", "heightCm", "sex", "activityLevel", "goalWeightKg", "medicalNotes", "onGlp1", "customInstructions", "customResponseStyle", "onboardingComplete", "analyticsConsent"];
   const data = Object.fromEntries(Object.entries(body).filter(([k]) => allowed.includes(k)));
 
   const user = await prisma.user.update({ where: { id: session.userId }, data });
@@ -15,9 +15,10 @@ export async function PATCH(req: NextRequest) {
 
 export async function GET() {
   const session = await requireSession();
-  const user = await prisma.user.findUniqueOrThrow({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const user = await (prisma.user.findUniqueOrThrow as any)({
     where: { id: session.userId },
-    select: { id: true, name: true, email: true, dob: true, sex: true, heightCm: true, activityLevel: true, goalWeightKg: true, medicalNotes: true, customInstructions: true, customResponseStyle: true, avatarUrl: true, onboardingComplete: true, emailVerified: true },
+    select: { id: true, name: true, email: true, dob: true, sex: true, heightCm: true, activityLevel: true, goalWeightKg: true, medicalNotes: true, onGlp1: true, customInstructions: true, customResponseStyle: true, avatarUrl: true, onboardingComplete: true, emailVerified: true },
   });
   return NextResponse.json(user);
 }

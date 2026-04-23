@@ -93,8 +93,8 @@ export const afternoonNudge = inngest.createFunction(
           data: {
             userId: user.id,
             type: "nudge",
-            title: "Don't break your streak!",
-            body: `Hey ${user.name ?? "there"}, you haven't logged a workout yet today. Even 20 minutes counts — tell Vita what you did!`,
+            title: "Still time today",
+            body: `Hey ${user.name ?? "there"}, you haven't logged a workout yet today. Even 20 minutes counts — tell Vita what you did.`,
           },
         });
       });
@@ -134,13 +134,22 @@ export const eveningReflection = inngest.createFunction(
 
         const done = checklist.filter((c) => c.doneAt).length;
         const total = checklist.length;
+        const allDone = total > 0 && done === total;
+
+        const body = workouts.length > 0
+          ? allDone
+            ? `Strong day — workout logged and every habit done. That's the kind of consistency that moves the needle.`
+            : `Workout logged. ${total > 0 ? `${done}/${total} habits done.` : ""} Open Vita to wrap up the day.`
+          : total > 0 && done > 0
+            ? `${done}/${total} habits checked off. No workout today — that's fine, rest is part of the plan.`
+            : `How did today feel? Open Vita and let her know — even a short check-in keeps momentum going.`;
 
         await prisma.notification.create({
           data: {
             userId: user.id,
             type: "evening_reflection",
-            title: "How did today go?",
-            body: `You completed ${done}/${total} checklist items and logged ${workouts.length} workout(s). Open Vita to reflect on your day.`,
+            title: "End of day",
+            body,
           },
         });
       });
@@ -169,27 +178,64 @@ export const weeklyReviewJob = inngest.createFunction(
 
     for (const user of users) {
       await step.run(`weekly-review-${user.id}`, async () => {
-        const [workouts, goals, measurements] = await Promise.all([
+        const [workouts, goals, recentMeasurements, prevMeasurements] = await Promise.all([
           prisma.workoutLog.findMany({
             where: { userId: user.id, startedAt: { gte: weekStart } },
           }),
-          prisma.goal.findMany({ where: { userId: user.id, status: "active" }, take: 5 }),
+          prisma.goal.findMany({
+            where: { userId: user.id, status: "active" },
+            select: { title: true, targetMetric: true, targetValue: true, currentValue: true, unit: true, deadline: true, predictedHitDate: true },
+            take: 5,
+          }),
+          // Most recent measurement per kind (this week)
           prisma.measurement.findMany({
             where: { userId: user.id, capturedAt: { gte: weekStart } },
+            orderBy: { capturedAt: "desc" },
+            take: 10,
+          }),
+          // Same metric from 4 weeks ago for delta comparison
+          prisma.measurement.findMany({
+            where: { userId: user.id, capturedAt: { gte: new Date(weekStart.getTime() - 28 * 86400000), lt: weekStart } },
+            orderBy: { capturedAt: "desc" },
+            take: 10,
           }),
         ]);
+
+        // Build outcome deltas (e.g. "weight: -0.8 kg in 4 weeks")
+        const deltaLines: string[] = [];
+        for (const m of recentMeasurements) {
+          const prev = prevMeasurements.find((p) => p.kind === m.kind);
+          if (prev) {
+            const delta = m.value - prev.value;
+            const sign = delta > 0 ? "+" : "";
+            deltaLines.push(`${m.kind}: ${sign}${delta.toFixed(1)} ${m.unit ?? ""} over 4 weeks (now ${m.value} ${m.unit ?? ""})`);
+          }
+        }
+
+        // Goal trajectory lines
+        const goalLines = goals.map((g) => {
+          const parts = [g.title];
+          if (g.currentValue != null && g.targetValue != null) parts.push(`${g.currentValue} → ${g.targetValue} ${g.unit ?? ""}`);
+          if (g.predictedHitDate) parts.push(`on track for ${new Date(g.predictedHitDate).toDateString()}`);
+          if (g.deadline && g.predictedHitDate && new Date(g.predictedHitDate) > new Date(g.deadline)) parts.push("behind schedule");
+          return parts.join(", ");
+        });
 
         const systemPrompt = buildSystemPrompt({
           userName: user.name ?? "there",
           customInstructions: user.customInstructions ?? undefined,
           customResponseStyle: user.customResponseStyle ?? undefined,
-          profileContext: `Workouts this week: ${workouts.length}. Active goals: ${goals.length}. Measurements logged: ${measurements.length}.`,
+          profileContext: [
+            `Workouts this week: ${workouts.length}.`,
+            deltaLines.length > 0 ? `Body measurement changes:\n${deltaLines.join("\n")}` : "",
+            goalLines.length > 0 ? `Active goals:\n${goalLines.join("\n")}` : "",
+          ].filter(Boolean).join("\n"),
         });
 
         const { text } = await generateText({
           model: anthropic("claude-haiku-4-5-20251001"),
           system: systemPrompt,
-          prompt: `Write a 2-3 sentence motivating weekly review summary. ${workouts.length} workouts logged this week. Be encouraging but honest. End with one specific action for next week.`,
+          prompt: `Write a 2-3 sentence weekly review. Lead with a concrete outcome if available (e.g. body measurement change, goal progress percentage). Be honest but warm. End with one specific action for next week. Never use markdown tables or emoji.`,
           maxTokens: 200,
         });
 

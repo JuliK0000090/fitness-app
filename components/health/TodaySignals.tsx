@@ -59,12 +59,19 @@ export function TodaySignals() {
   );
 
   if (!hasData) return (
-    <div className="glass rounded-2xl p-4 text-center">
-      <p className="text-xs text-muted-foreground mb-2">No wearable data yet.</p>
-      <a href="/settings/integrations" className="text-xs text-primary underline">
-        Connect a device →
-      </a>
-    </div>
+    <a
+      href="/settings/wearables"
+      className="glass rounded-2xl p-4 flex items-center gap-4 border border-white/[0.07] hover:border-white/20 transition-colors group"
+    >
+      <div className="w-10 h-10 rounded-xl bg-white/[0.05] flex items-center justify-center shrink-0">
+        <Activity size={18} className="text-white/40 group-hover:text-white/60 transition-colors" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-white/70 group-hover:text-white/90 transition-colors">Connect a wearable</p>
+        <p className="text-xs text-white/35 mt-0.5">Apple Health, Oura, Whoop, Garmin — Vita reads your sleep, steps, and HRV automatically.</p>
+      </div>
+      <span className="text-white/25 group-hover:text-white/50 transition-colors text-lg">→</span>
+    </a>
   );
 
   return (

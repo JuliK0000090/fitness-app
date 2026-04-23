@@ -16,6 +16,7 @@ interface UserData {
   heightCm?: number;
   activityLevel?: string;
   goalWeightKg?: number;
+  onGlp1?: boolean;
   customInstructions?: string;
   customResponseStyle?: string;
   createdAt: string;
@@ -30,6 +31,7 @@ export function ProfileView({ user }: ProfileViewProps) {
   const [name, setName] = useState(user.name ?? "");
   const [instructions, setInstructions] = useState(user.customInstructions ?? "");
   const [responseStyle, setResponseStyle] = useState(user.customResponseStyle ?? "");
+  const [onGlp1, setOnGlp1] = useState(user.onGlp1 ?? false);
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -37,7 +39,7 @@ export function ProfileView({ user }: ProfileViewProps) {
     await fetch("/api/account/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, customInstructions: instructions, customResponseStyle: responseStyle }),
+      body: JSON.stringify({ name, customInstructions: instructions, customResponseStyle: responseStyle, onGlp1 }),
     });
     setSaving(false);
     setEditing(false);
@@ -105,6 +107,21 @@ export function ProfileView({ user }: ProfileViewProps) {
             <option value="motivational">Motivational — high energy</option>
             <option value="clinical">Clinical — data-focused</option>
           </select>
+          <label className="flex items-center justify-between gap-3 cursor-pointer py-1">
+            <div>
+              <p className="text-sm text-white/70">GLP-1 medication</p>
+              <p className="text-[11px] text-white/35">On Ozempic, Wegovy, Zepbound, or similar. Vita adjusts protein targets and strength focus to protect muscle.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={onGlp1}
+              onClick={() => setOnGlp1((v) => !v)}
+              className={`relative shrink-0 w-10 h-5.5 rounded-full transition-colors ${onGlp1 ? "bg-white/40" : "bg-white/[0.1]"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform ${onGlp1 ? "translate-x-[18px]" : "translate-x-0"}`} />
+            </button>
+          </label>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/[0.04] text-white/60 text-xs font-medium hover:bg-white/[0.07] disabled:opacity-50 transition-colors">
               <Check size={12} />{saving ? "Saving…" : "Save"}

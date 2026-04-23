@@ -65,10 +65,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Build context
-  const user = await prisma.user.findUniqueOrThrow({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const user = await (prisma.user.findUniqueOrThrow as any)({
     where: { id: userId },
-    select: { name: true, customInstructions: true, customResponseStyle: true, heightCm: true, activityLevel: true, goalWeightKg: true },
-  });
+    select: { name: true, customInstructions: true, customResponseStyle: true, heightCm: true, activityLevel: true, goalWeightKg: true, onGlp1: true },
+  }) as { name: string | null; customInstructions: string | null; customResponseStyle: string | null; heightCm: number | null; activityLevel: string | null; goalWeightKg: number | null; onGlp1: boolean };
 
   const latestWeight = await prisma.measurement.findFirst({
     where: { userId, kind: "weight" }, orderBy: { capturedAt: "desc" },
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
     latestWeight ? `Current weight: ${latestWeight.value}${latestWeight.unit}` : null,
     user.goalWeightKg ? `Goal weight: ${user.goalWeightKg}kg` : null,
     user.activityLevel ? `Activity level: ${user.activityLevel}` : null,
+    user.onGlp1 ? `On GLP-1 medication: yes — prioritise strength training and high protein to preserve muscle; avoid recommending large calorie deficits on top of the medication's natural appetite suppression.` : null,
   ].filter(Boolean).join("\n");
 
   // Fetch recent health signals for context

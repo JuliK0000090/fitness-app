@@ -50,6 +50,7 @@ model User {
   activityLevel        String?
   goalWeightKg         Float?
   medicalNotes         String?
+  onGlp1               Boolean   @default(false)  // User is on GLP-1 medication (Ozempic/Wegovy/etc)
   onboardingComplete   Boolean   @default(false)
   customInstructions   String?   @db.Text
   customResponseStyle  String?   @db.Text
