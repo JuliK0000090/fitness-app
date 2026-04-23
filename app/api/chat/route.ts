@@ -234,7 +234,8 @@ export async function POST(req: NextRequest) {
     const result = streamText({
       model: anthropic("claude-sonnet-4-6"),
       system: finalSystemPrompt,
-      messages: sanitized,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      messages: sanitized as any,
       tools: vitaTools(userId),
       maxSteps: 10,
       experimental_continueSteps: true,
