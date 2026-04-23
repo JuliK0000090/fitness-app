@@ -55,6 +55,8 @@ export default async function WeekPage() {
         name: w.workoutTypeName ?? "Workout",
         status: w.status,
         duration: w.duration,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        source: (w as any).source ?? "manual",
       })),
       habitPct: pct,
       xp: dayWorkouts.filter((w) => w.status === "DONE").length * 50 + dayCompletions.length * 10,

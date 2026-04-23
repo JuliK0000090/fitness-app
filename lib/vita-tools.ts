@@ -216,7 +216,7 @@ export function vitaTools(userId: string) {
             for (const dayOffset of days) {
               const date = addDays(weekStart, week * 7 + dayOffset);
               if (date < now) continue; // don't schedule past dates
-              const sw = await prisma.scheduledWorkout.create({
+              const sw = await (prisma.scheduledWorkout as any).create({
                 data: {
                   userId,
                   goalId: goal.id,
@@ -225,6 +225,7 @@ export function vitaTools(userId: string) {
                   scheduledDate: date,
                   duration: w.duration,
                   status: "PLANNED",
+                  source: "ai_suggested",
                 },
               });
               scheduledWorkouts.push({ date: format(date, "yyyy-MM-dd"), name: w.workoutTypeName });
@@ -474,7 +475,7 @@ export function vitaTools(userId: string) {
           create: { name: workoutTypeName, slug: workoutTypeName.toLowerCase().replace(/\s+/g, "_"), defaultDuration: duration },
           update: {},
         });
-        const sw = await prisma.scheduledWorkout.create({
+        const sw = await (prisma.scheduledWorkout as any).create({
           data: {
             userId,
             goalId: goalId ?? null,
@@ -485,6 +486,7 @@ export function vitaTools(userId: string) {
             duration,
             notes: notes ?? null,
             status: "PLANNED",
+            source: "ai_suggested",
           },
         });
         return { scheduledWorkoutId: sw.id, workoutTypeName, scheduledDate, scheduledTime };

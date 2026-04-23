@@ -42,11 +42,11 @@ export default async function MonthPage({
   ]);
 
   // Build per-day maps — merge ScheduledWorkouts + WorkoutLogs
-  const swByDay: Record<string, { id: string; name: string; status: string; duration: number }[]> = {};
+  const swByDay: Record<string, { id: string; name: string; status: string; duration: number; source: string }[]> = {};
   for (const sw of scheduledWorkouts) {
     const key = format(new Date(sw.scheduledDate), "yyyy-MM-dd");
     if (!swByDay[key]) swByDay[key] = [];
-    swByDay[key].push({ id: sw.id, name: sw.workoutTypeName ?? "Workout", status: sw.status, duration: sw.duration });
+    swByDay[key].push({ id: sw.id, name: sw.workoutTypeName ?? "Workout", status: sw.status, duration: sw.duration, source: (sw as any).source ?? "manual" });
   }
   // WorkoutLogs show as DONE entries (they're already completed)
   for (const log of workoutLogs) {
@@ -55,7 +55,7 @@ export default async function MonthPage({
     // Avoid duplicates if a ScheduledWorkout already references this log
     const alreadyLinked = scheduledWorkouts.some((sw) => sw.workoutLogId === log.id);
     if (!alreadyLinked) {
-      swByDay[key].push({ id: log.id, name: log.workoutName, status: "DONE", duration: log.durationMin });
+      swByDay[key].push({ id: log.id, name: log.workoutName, status: "DONE", duration: log.durationMin, source: "imported" });
     }
   }
 

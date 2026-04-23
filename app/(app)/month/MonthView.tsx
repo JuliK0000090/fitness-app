@@ -14,6 +14,7 @@ interface WorkoutItem {
   name: string;
   status: string;
   duration: number;
+  source: string; // "manual" | "ai_suggested" | "imported"
 }
 
 interface CalendarDay {
@@ -211,15 +212,19 @@ export function MonthView({
               </p>
               {day.workouts.length > 0 && (
                 <div className="flex gap-px justify-center flex-wrap">
-                  {day.workouts.slice(0, 3).map((w, i) => (
-                    <div key={i} className={cn(
-                      "w-1 h-1 rounded-full",
-                      w.status === "DONE" ? "bg-white/60" :
-                      w.status === "SKIPPED" ? "bg-white/10" :
-                      w.status === "MOVED" ? "bg-white/20" :
-                      "bg-white/30"
-                    )} />
-                  ))}
+                  {day.workouts.slice(0, 3).map((w, i) => {
+                    const todayForDot = new Intl.DateTimeFormat("en-CA").format(new Date());
+                    const isPast = day.dateStr <= todayForDot;
+                    return (
+                      <div key={i} className={cn(
+                        "w-1 h-1 rounded-full",
+                        isPast && w.status === "DONE" ? "bg-white/60" :
+                        isPast && w.status === "SKIPPED" ? "bg-white/10" :
+                        w.source === "ai_suggested" ? "bg-white/20 ring-[0.5px] ring-white/30" :
+                        "bg-white/35"
+                      )} />
+                    );
+                  })}
                 </div>
               )}
               {day.habitPct > 0 && <HabitRing pct={day.habitPct} size={12} />}
@@ -230,8 +235,9 @@ export function MonthView({
 
       {/* Legend */}
       <div className="flex gap-3 text-[9px] text-white/25 px-1 flex-wrap">
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/50 shrink-0" /> Done</span>
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" /> Planned</span>
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/55 shrink-0" /> Done</span>
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/35 shrink-0" /> Your plan</span>
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/20 ring-[0.5px] ring-white/30 shrink-0" /> Vita suggests</span>
         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/10 shrink-0" /> Skipped</span>
       </div>
 
@@ -304,6 +310,9 @@ function DayDetail({
   draggingId: string | null;
 }) {
   const dateLabel = format(new Date(day.dateStr + "T12:00:00Z"), "EEEE, MMMM d");
+  const todayStr = new Intl.DateTimeFormat("en-CA").format(new Date());
+  // Only apply done-styling if the date is today or in the past
+  const isPastOrToday = day.dateStr <= todayStr;
 
   return (
     <div className="glass rounded-2xl overflow-hidden border border-white/[0.08]">
@@ -322,16 +331,16 @@ function DayDetail({
           day.workouts.map((w) => (
             <div
               key={w.id}
-              draggable={w.status !== "DONE"}
+              draggable={!(isPastOrToday && w.status === "DONE")}
               onDragStart={(e) => onDragStart(e, w.id, day.dateStr)}
               onDragEnd={onDragEnd}
               className={cn(
                 "flex items-center gap-2.5 py-2.5 px-2 rounded-xl transition-all",
-                w.status !== "DONE" && "cursor-grab active:cursor-grabbing hover:bg-white/[0.04]",
+                !(isPastOrToday && w.status === "DONE") && "cursor-grab active:cursor-grabbing hover:bg-white/[0.04]",
                 draggingId === w.id && "opacity-40"
               )}
             >
-              {w.status !== "DONE" ? (
+              {!(isPastOrToday && w.status === "DONE") ? (
                 <GripVertical size={12} className="text-white/20 shrink-0" />
               ) : (
                 <div className="w-3 shrink-0" />
@@ -339,29 +348,37 @@ function DayDetail({
 
               <div className={cn(
                 "w-6 h-6 rounded-lg border flex items-center justify-center shrink-0",
-                w.status === "DONE" ? "border-white/25 bg-white/[0.08]" : "border-white/[0.07]"
+                isPastOrToday && w.status === "DONE" ? "border-white/25 bg-white/[0.08]" :
+                w.source === "ai_suggested" ? "border-white/15 bg-white/[0.03]" :
+                "border-white/[0.07]"
               )}>
-                {w.status === "DONE"
+                {isPastOrToday && w.status === "DONE"
                   ? <CheckCircle2 size={11} className="text-white/45" />
-                  : <Dumbbell size={10} className="text-white/25" />
+                  : <Dumbbell size={10} className={w.source === "ai_suggested" ? "text-white/40" : "text-white/25"} />
                 }
               </div>
 
-              <p className={cn(
-                "text-sm flex-1",
-                w.status === "DONE" ? "text-white/40 line-through" :
-                w.status === "SKIPPED" ? "text-white/25 line-through" :
-                w.status === "MOVED" ? "text-white/40 italic" :
-                "text-white/70"
-              )}>
-                {w.name}
-              </p>
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  "text-sm",
+                  isPastOrToday && w.status === "DONE" ? "text-white/40 line-through" :
+                  isPastOrToday && w.status === "SKIPPED" ? "text-white/25 line-through" :
+                  w.status === "MOVED" ? "text-white/40 italic" :
+                  w.source === "ai_suggested" ? "text-white/60" :
+                  "text-white/70"
+                )}>
+                  {w.name}
+                </p>
+                {w.source === "ai_suggested" && !(isPastOrToday && (w.status === "DONE" || w.status === "SKIPPED")) && (
+                  <p className="text-[9px] text-white/25 mt-0.5">Vita suggestion</p>
+                )}
+              </div>
               <span className="text-[10px] text-white/25 shrink-0">{w.duration} min</span>
             </div>
           ))
         )}
 
-        {day.workouts.filter((w) => w.status !== "DONE").length > 0 && (
+        {day.workouts.filter((w) => !(isPastOrToday && w.status === "DONE")).length > 0 && (
           <p className="text-[10px] text-white/20 pt-1 px-2">
             Drag a workout to another day on the calendar to reschedule it
           </p>

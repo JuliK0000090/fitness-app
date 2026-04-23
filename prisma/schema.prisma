@@ -392,6 +392,7 @@ model ScheduledWorkout {
   intensity      Int?
   notes          String?       @db.Text
   status         WorkoutStatus @default(PLANNED)
+  source         String        @default("manual") // manual | ai_suggested | imported
   completedAt    DateTime?
   skippedReason  String?
   workoutLogId   String?       @unique

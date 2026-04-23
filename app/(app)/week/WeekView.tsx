@@ -10,6 +10,7 @@ interface WorkoutItem {
   name: string;
   status: string;
   duration: number;
+  source: string;
 }
 
 interface DayData {
@@ -236,47 +237,61 @@ export function WeekView({ weekLabel, days: initialDays, weeklyTargets }: WeekVi
             </div>
 
             {/* Workout rows */}
-            {day.workouts.map((w) => (
-              <div
-                key={w.id}
-                draggable={w.status !== "DONE"}
-                onDragStart={(e) => onDragStart(e, w.id, day.date)}
-                onDragEnd={onDragEnd}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg transition-all",
-                  w.status !== "DONE" && "cursor-grab active:cursor-grabbing",
-                  draggingId === w.id && "opacity-40"
-                )}
-              >
-                {/* Drag handle — only on non-done workouts */}
-                {w.status !== "DONE" ? (
-                  <GripVertical size={12} className="text-white/20 shrink-0 -ml-1" />
-                ) : (
-                  <div className="w-3 shrink-0" />
-                )}
+            {day.workouts.map((w) => {
+              const todayStr = new Intl.DateTimeFormat("en-CA").format(new Date());
+              const isPastOrToday = day.date <= todayStr;
+              const isDone = isPastOrToday && w.status === "DONE";
+              const isSkipped = isPastOrToday && w.status === "SKIPPED";
+              const isAiSuggested = w.source === "ai_suggested";
+              return (
+                <div
+                  key={w.id}
+                  draggable={!isDone}
+                  onDragStart={(e) => onDragStart(e, w.id, day.date)}
+                  onDragEnd={onDragEnd}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-lg transition-all",
+                    !isDone && "cursor-grab active:cursor-grabbing",
+                    draggingId === w.id && "opacity-40"
+                  )}
+                >
+                  {!isDone ? (
+                    <GripVertical size={12} className="text-white/20 shrink-0 -ml-1" />
+                  ) : (
+                    <div className="w-3 shrink-0" />
+                  )}
 
-                <div className={cn(
-                  "w-6 h-6 rounded-lg border flex items-center justify-center shrink-0",
-                  w.status === "DONE" ? "border-white/30 bg-white/10" : "border-white/[0.07]"
-                )}>
-                  {w.status === "DONE"
-                    ? <CheckCircle2 size={12} className="text-white/50" />
-                    : <Dumbbell size={10} className="text-white/25" />
-                  }
+                  <div className={cn(
+                    "w-6 h-6 rounded-lg border flex items-center justify-center shrink-0",
+                    isDone ? "border-white/30 bg-white/10" :
+                    isAiSuggested ? "border-white/20 bg-white/[0.04]" :
+                    "border-white/[0.07]"
+                  )}>
+                    {isDone
+                      ? <CheckCircle2 size={12} className="text-white/50" />
+                      : <Dumbbell size={10} className={isAiSuggested ? "text-white/40" : "text-white/25"} />
+                    }
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      "text-sm",
+                      isDone ? "text-white/40 line-through" :
+                      isSkipped ? "text-white/25 line-through" :
+                      w.status === "MOVED" ? "text-white/40 italic" :
+                      isAiSuggested ? "text-white/60" :
+                      "text-white/70"
+                    )}>
+                      {w.name}
+                    </p>
+                    {isAiSuggested && !isDone && !isSkipped && (
+                      <p className="text-[9px] text-white/25 mt-0.5">Vita suggestion</p>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-white/25 shrink-0">{w.duration} min</span>
                 </div>
-
-                <p className={cn(
-                  "text-sm flex-1",
-                  w.status === "DONE" ? "text-white/40 line-through" :
-                  w.status === "MOVED" ? "text-white/40 italic" :
-                  w.status === "SKIPPED" ? "text-white/25 line-through" :
-                  "text-white/70"
-                )}>
-                  {w.name}
-                </p>
-                <span className="text-[10px] text-white/25 shrink-0">{w.duration} min</span>
-              </div>
-            ))}
+              );
+            })}
 
             {/* Habit progress */}
             {day.habitPct > 0 && (
