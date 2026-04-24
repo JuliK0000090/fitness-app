@@ -102,7 +102,21 @@ async function handle(
   }
 }
 
-// Accept every HTTP method — HAE varies method by version/feature
+// OPTIONS preflight — Next.js returns 405 for OPTIONS unless explicitly exported.
+// HAE sends OPTIONS before each upload; a 405 here aborts the entire upload.
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      Allow: "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+
+// Accept every other HTTP method
 export const GET = handle;
 export const POST = handle;
 export const PUT = handle;
