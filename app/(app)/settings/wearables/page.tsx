@@ -1,133 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Watch, CheckCircle, XCircle, Loader2, ChevronRight } from "lucide-react";
+import { Watch, CheckCircle, Loader2, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/ui/page-header";
 
 const INTEGRATIONS = [
   {
     id: "apple_health",
     label: "Apple Health",
-    desc: "Sync activity, workouts, and health data from Apple Health",
+    desc: "Steps, sleep, HRV, and workouts from your iPhone",
     href: "/settings/integrations/apple-health",
   },
-  {
-    id: "garmin",
-    label: "Garmin",
-    desc: "Connect your Garmin device for activity and GPS data",
-    href: null,
-  },
-  {
-    id: "whoop",
-    label: "WHOOP",
-    desc: "Sync recovery, strain, and sleep data from WHOOP",
-    href: null,
-  },
-  {
-    id: "oura",
-    label: "Oura Ring",
-    desc: "Sync readiness, sleep, and activity data from Oura",
-    href: null,
-  },
-  {
-    id: "fitbit",
-    label: "Fitbit",
-    desc: "Connect your Fitbit device for activity and health data",
-    href: null,
-  },
-  {
-    id: "google_fit",
-    label: "Google Fit",
-    desc: "Sync activity and health data from Google Fit",
-    href: null,
-  },
+  { id: "garmin",     label: "Garmin",       desc: "Connect your Garmin device for activity and GPS data", href: null },
+  { id: "whoop",      label: "WHOOP",        desc: "Sync recovery, strain, and sleep from WHOOP", href: null },
+  { id: "oura",       label: "Oura Ring",    desc: "Readiness, sleep, and activity from Oura", href: null },
+  { id: "fitbit",     label: "Fitbit",       desc: "Activity and health data from Fitbit", href: null },
+  { id: "google_fit", label: "Google Fit",   desc: "Activity and health from Google Fit", href: null },
 ] as const;
 
 type IntegrationId = (typeof INTEGRATIONS)[number]["id"];
-
-interface IntegrationStatus {
-  connected: boolean;
-  lastSync?: string;
-}
-
-type StatusMap = Partial<Record<IntegrationId, IntegrationStatus>>;
-
-function IntegrationCard({
-  id,
-  label,
-  desc,
-  href,
-  status,
-  loading,
-}: {
-  id: IntegrationId;
-  label: string;
-  desc: string;
-  href: string | null;
-  status: IntegrationStatus | undefined;
-  loading: boolean;
-}) {
-  const connected = status?.connected ?? false;
-
-  const inner = (
-    <>
-      <div
-        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: connected ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.04)" }}
-      >
-        <Watch size={16} style={{ color: connected ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.3)" }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium">{label}</p>
-          {loading ? (
-            <Loader2 size={12} className="text-muted-foreground animate-spin" />
-          ) : connected ? (
-            <CheckCircle size={12} className="text-emerald-400" />
-          ) : (
-            <XCircle size={12} className="text-muted-foreground" />
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">{desc}</p>
-        {connected && status?.lastSync && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Last sync: {new Date(status.lastSync).toLocaleDateString()}
-          </p>
-        )}
-      </div>
-      <span
-        className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-          connected
-            ? "bg-emerald-500/10 text-emerald-400"
-            : "bg-white/5 text-muted-foreground"
-        }`}
-      >
-        {loading ? "..." : connected ? "Connected" : "Disconnected"}
-      </span>
-      <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-    </>
-  );
-
-  const className = "glass rounded-2xl p-4 flex items-center gap-3 hover:bg-white/5 transition-colors";
-
-  if (href) {
-    return (
-      <Link href={href} className={className}>
-        {inner}
-      </Link>
-    );
-  }
-
-  return (
-    <button
-      onClick={() => toast.info(`${label} integration coming soon.`)}
-      className={`w-full text-left ${className}`}
-    >
-      {inner}
-    </button>
-  );
-}
+type StatusMap = Partial<Record<IntegrationId, { connected: boolean; lastSync?: string }>>;
 
 export default function WearablesPage() {
   const [statusMap, setStatusMap] = useState<StatusMap>({});
@@ -142,25 +36,68 @@ export default function WearablesPage() {
   }, []);
 
   return (
-    <div className="max-w-lg mx-auto py-6 px-4 space-y-2">
-      <div className="mb-6">
-        <h1 className="text-lg font-bold">Wearables</h1>
-        <p className="text-xs text-muted-foreground">
-          Connect fitness devices to sync your health data with Vita
-        </p>
-      </div>
+    <div className="max-w-lg mx-auto px-5 py-10 space-y-8">
+      <PageHeader
+        eyebrow="Settings"
+        title="Wearables"
+        subtitle="Connect fitness devices to sync your health data with Vita."
+        rule={true}
+      />
 
-      {INTEGRATIONS.map(({ id, label, desc, href }) => (
-        <IntegrationCard
-          key={id}
-          id={id}
-          label={label}
-          desc={desc}
-          href={href}
-          status={statusMap[id]}
-          loading={loading}
-        />
-      ))}
+      <div className="divide-y divide-border-subtle border border-border-subtle rounded-md overflow-hidden">
+        {INTEGRATIONS.map(({ id, label, desc, href }) => {
+          const status = statusMap[id];
+          const connected = status?.connected ?? false;
+
+          const inner = (
+            <>
+              <div className="w-8 h-8 rounded border border-border-default bg-bg-base flex items-center justify-center shrink-0">
+                <Watch size={14} strokeWidth={1.5} className="text-text-muted" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-body-sm font-medium text-text-primary">{label}</p>
+                  {loading ? (
+                    <Loader2 size={11} strokeWidth={1.5} className="text-text-disabled animate-spin" />
+                  ) : connected ? (
+                    <CheckCircle size={11} strokeWidth={1.5} className="text-sage" />
+                  ) : null}
+                </div>
+                <p className="text-caption text-text-muted">{desc}</p>
+                {connected && status?.lastSync && (
+                  <p className="text-caption text-text-disabled mt-0.5">
+                    Last sync: {new Date(status.lastSync).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+              <span className={`text-caption px-2 py-0.5 rounded border shrink-0 ${
+                connected
+                  ? "border-sage/30 text-sage"
+                  : "border-border-subtle text-text-disabled"
+              }`}>
+                {loading ? "…" : connected ? "Connected" : href ? "Connect" : "Soon"}
+              </span>
+              <ChevronRight size={13} strokeWidth={1.5} className="text-text-disabled shrink-0" />
+            </>
+          );
+
+          const cls = "flex items-center gap-3 px-4 py-3.5 bg-bg-surface hover:bg-bg-elevated transition-colors";
+
+          if (href) {
+            return <Link key={id} href={href} className={cls}>{inner}</Link>;
+          }
+
+          return (
+            <button
+              key={id}
+              onClick={() => toast.info(`${label} integration coming soon.`)}
+              className={`w-full text-left ${cls}`}
+            >
+              {inner}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

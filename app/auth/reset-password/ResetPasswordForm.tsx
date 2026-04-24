@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -16,10 +15,10 @@ export default function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="glass p-8 text-center fu">
-        <p className="text-destructive">Invalid reset link.</p>
+      <div className="border border-border-subtle bg-bg-surface rounded-md p-8 text-center space-y-4">
+        <p className="text-body-sm text-terracotta">Invalid reset link.</p>
         <Link href="/auth/forgot-password">
-          <Button variant="outline" className="mt-4 w-full">Request a new one</Button>
+          <Button variant="secondary" className="w-full">Request a new one</Button>
         </Link>
       </div>
     );
@@ -52,19 +51,21 @@ export default function ResetPasswordForm() {
   }
 
   return (
-    <div className="glass p-8 fu">
-      <h1 className="text-xl font-semibold mb-1">Choose a new password</h1>
-      <p className="text-sm text-muted-foreground mb-6">Make it strong — at least 8 chars, 1 uppercase, 1 number.</p>
+    <div className="border border-border-subtle bg-bg-surface rounded-md p-8 space-y-6">
+      <div>
+        <h1 className="font-serif text-heading-lg font-light text-text-primary">Choose a new password</h1>
+        <p className="text-caption text-text-muted mt-1">At least 8 characters, 1 uppercase, 1 number.</p>
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1">
-          <Label htmlFor="password">New password</Label>
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="text-caption text-text-muted">New password</label>
           <Input id="password" name="password" type="password" required autoComplete="new-password" />
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="confirmPassword">Confirm new password</Label>
+        <div className="space-y-1.5">
+          <label htmlFor="confirmPassword" className="text-caption text-text-muted">Confirm new password</label>
           <Input id="confirmPassword" name="confirmPassword" type="password" required autoComplete="new-password" />
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" variant="primary" className="w-full" disabled={loading}>
           {loading ? "Updating…" : "Update password"}
         </Button>
       </form>

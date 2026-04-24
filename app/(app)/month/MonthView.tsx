@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Target, TrendingDown, TrendingUp, GripVertical, X, CheckCircle2, Dumbbell } from "lucide-react";
+import { ChevronLeft, ChevronRight, Target, TrendingDown, TrendingUp, GripVertical, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ interface WorkoutItem {
   name: string;
   status: string;
   duration: number;
-  source: string; // "manual" | "ai_suggested" | "imported"
+  source: string;
 }
 
 interface CalendarDay {
@@ -48,30 +48,6 @@ interface MonthViewProps {
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-const SHADE_CLASS: Record<DayShade, string> = {
-  done: "bg-white/[0.08]",
-  partial: "bg-white/[0.04]",
-  rest: "bg-transparent",
-  none: "bg-transparent",
-};
-
-function HabitRing({ pct, size = 14 }: { pct: number; size?: number }) {
-  const r = (size - 2.5) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - Math.min(1, pct / 100));
-  return (
-    <svg width={size} height={size} className="-rotate-90" style={{ minWidth: size }} aria-hidden>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={1.5} />
-      <circle
-        cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke="rgba(255,255,255,0.45)" strokeWidth={1.5}
-        strokeDasharray={circ} strokeDashoffset={offset}
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 export function MonthView({
   monthLabel, prevMonth, nextMonth, todayStr,
   monthStartDay, daysInMonth: initialDays, goals, heatmap,
@@ -84,12 +60,9 @@ export function MonthView({
   const offset = (monthStartDay + 6) % 7;
   const selectedDay = days.find((d) => d.dateStr === selectedDate) ?? null;
 
-  // ── Reschedule ────────────────────────────────────────────────────────────────
-
   const reschedule = useCallback(async (workoutId: string, fromDate: string, toDate: string) => {
     if (fromDate === toDate) return;
 
-    // Optimistic: move workout across days
     setDays((prev) => {
       let moving: WorkoutItem | undefined;
       return prev.map((d) => {
@@ -104,7 +77,6 @@ export function MonthView({
       });
     });
 
-    // If selected day was the source, switch selection to destination
     if (selectedDate === fromDate) setSelectedDate(toDate);
 
     const res = await fetch(`/api/scheduled-workouts/${workoutId}/reschedule`, {
@@ -120,8 +92,6 @@ export function MonthView({
       toast.success(`Moved to ${format(new Date(toDate + "T12:00:00Z"), "MMM d")}`);
     }
   }, [initialDays, selectedDate]);
-
-  // ── Drag handlers ─────────────────────────────────────────────────────────────
 
   function onWorkoutDragStart(e: React.DragEvent, workoutId: string, fromDate: string) {
     e.dataTransfer.setData("workoutId", workoutId);
@@ -151,33 +121,35 @@ export function MonthView({
   }
 
   function onCellClick(day: CalendarDay) {
-    // Don't interfere with drag operations
     if (dragWorkout) return;
     setSelectedDate((prev) => prev === day.dateStr ? null : day.dateStr);
   }
 
   return (
-    <div className="w-full max-w-lg mx-auto py-4 px-3 space-y-4 pb-6">
+    <div className="w-full max-w-lg mx-auto py-10 px-5 space-y-8 pb-10">
 
       {/* Month nav */}
       <div className="flex items-center justify-between">
-        <Link href={`/month?m=${prevMonth}`} className="p-2 rounded-xl hover:bg-white/[0.06] transition-colors">
-          <ChevronLeft size={16} className="text-white/40" />
+        <Link href={`/month?m=${prevMonth}`} className="p-1.5 rounded text-text-disabled hover:text-text-muted transition-colors">
+          <ChevronLeft size={15} strokeWidth={1.5} />
         </Link>
-        <h1 className="text-base font-semibold text-white/75">{monthLabel}</h1>
-        <Link href={`/month?m=${nextMonth}`} className="p-2 rounded-xl hover:bg-white/[0.06] transition-colors">
-          <ChevronRight size={16} className="text-white/40" />
+        <div className="text-center">
+          <p className="text-label tracking-widest uppercase text-champagne font-sans font-medium mb-0.5">Plan</p>
+          <h1 className="font-serif text-display-sm font-light text-text-primary">{monthLabel}</h1>
+        </div>
+        <Link href={`/month?m=${nextMonth}`} className="p-1.5 rounded text-text-disabled hover:text-text-muted transition-colors">
+          <ChevronRight size={15} strokeWidth={1.5} />
         </Link>
       </div>
 
       {/* DOW headers */}
       <div className="grid grid-cols-7">
         {DOW.map((d) => (
-          <p key={d} className="text-center text-[9px] text-white/20 uppercase tracking-wider py-1">{d}</p>
+          <p key={d} className="text-center text-[9px] tracking-widest uppercase text-text-disabled py-1">{d}</p>
         ))}
       </div>
 
-      {/* Calendar grid — cells are both clickable and drop targets */}
+      {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-px">
         {Array.from({ length: offset }).map((_, i) => <div key={`blank-${i}`} />)}
 
@@ -195,18 +167,19 @@ export function MonthView({
               onDrop={(e) => onCellDrop(e, day.dateStr)}
               onDragLeave={() => setDropTarget(null)}
               className={cn(
-                "rounded-lg p-1 flex flex-col items-center gap-0.5 aspect-square justify-center transition-all",
-                SHADE_CLASS[day.shade],
-                isToday && "ring-1 ring-white/30",
-                isSelected && "bg-white/[0.10] ring-1 ring-white/25",
-                isDropTarget && "bg-white/[0.12] ring-1 ring-white/40 scale-[1.04]",
+                "rounded p-1 flex flex-col items-center gap-0.5 aspect-square justify-center transition-all",
+                isToday && "ring-1 ring-champagne/40",
+                isSelected && "bg-bg-elevated ring-1 ring-border-default",
+                isDropTarget && "bg-bg-elevated ring-1 ring-champagne/50 scale-[1.04]",
                 isDragSource && "opacity-50",
-                !isSelected && !isDropTarget && "hover:bg-white/[0.06] active:bg-white/[0.08]"
+                !isSelected && !isDropTarget && "hover:bg-bg-surface"
               )}
             >
               <p className={cn(
                 "text-[11px] font-medium leading-none",
-                isToday ? "text-white/90" : isSelected ? "text-white/80" : "text-white/45"
+                isToday ? "text-text-primary" :
+                isSelected ? "text-text-secondary" :
+                "text-text-disabled"
               )}>
                 {day.dayNum}
               </p>
@@ -218,30 +191,30 @@ export function MonthView({
                     return (
                       <div key={i} className={cn(
                         "w-1 h-1 rounded-full",
-                        isPast && w.status === "DONE" ? "bg-white/60" :
-                        isPast && w.status === "SKIPPED" ? "bg-white/10" :
-                        w.source === "ai_suggested" ? "bg-white/20 ring-[0.5px] ring-white/30" :
-                        "bg-white/35"
+                        isPast && w.status === "DONE" ? "bg-champagne" :
+                        isPast && w.status === "SKIPPED" ? "bg-border-subtle" :
+                        w.source === "ai_suggested" ? "bg-border-default ring-[0.5px] ring-champagne/30" :
+                        "bg-border-strong"
                       )} />
                     );
                   })}
                 </div>
               )}
-              {day.habitPct > 0 && <HabitRing pct={day.habitPct} size={12} />}
+              {day.habitPct > 0 && <HabitArc pct={day.habitPct} />}
             </button>
           );
         })}
       </div>
 
       {/* Legend */}
-      <div className="flex gap-3 text-[9px] text-white/25 px-1 flex-wrap">
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/55 shrink-0" /> Done</span>
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/35 shrink-0" /> Your plan</span>
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/20 ring-[0.5px] ring-white/30 shrink-0" /> Vita suggests</span>
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white/10 shrink-0" /> Skipped</span>
+      <div className="flex gap-4 text-caption text-text-disabled flex-wrap">
+        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-champagne shrink-0" /> Done</span>
+        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-border-strong shrink-0" /> Planned</span>
+        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-border-default ring-[0.5px] ring-champagne/30 shrink-0" /> Vita suggests</span>
+        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-border-subtle shrink-0" /> Skipped</span>
       </div>
 
-      {/* ── Inline day detail — appears here, BELOW the calendar, ABOVE goals ── */}
+      {/* Inline day detail */}
       {selectedDay && (
         <DayDetail
           day={selectedDay}
@@ -252,17 +225,16 @@ export function MonthView({
         />
       )}
 
-      {/* Drag hint — only while something is being dragged */}
       {dragWorkout && (
-        <p className="text-[10px] text-white/30 text-center animate-pulse">
+        <p className="text-caption text-text-disabled text-center">
           Drop onto any day to reschedule
         </p>
       )}
 
       {/* Active goals */}
       {goals.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[9px] tracking-[0.25em] uppercase text-white/20 px-1">Active goals</p>
+        <div className="space-y-3">
+          <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">Active goals</p>
           {goals.map((g) => {
             const pct = g.targetValue != null && g.targetValue !== 0 && g.currentValue != null
               ? Math.max(0, Math.min(100, (g.currentValue / g.targetValue) * 100))
@@ -271,16 +243,16 @@ export function MonthView({
               ? new Date(g.predictedHitDate) <= new Date(g.deadline)
               : null;
             return (
-              <div key={g.id} className="glass rounded-xl px-4 py-3 flex items-center gap-3">
-                <Target size={12} className="text-white/30 shrink-0" />
-                <p className="text-sm text-white/60 flex-1 truncate">{g.title}</p>
+              <div key={g.id} className="border border-border-subtle bg-bg-surface rounded-md px-4 py-3 flex items-center gap-3">
+                <Target size={12} strokeWidth={1.5} className="text-text-disabled shrink-0" />
+                <p className="text-body-sm text-text-secondary flex-1 truncate">{g.title}</p>
                 {pct !== null && (
-                  <p className="text-xs text-white/50 tabular-nums shrink-0">{Math.round(pct)}%</p>
+                  <p className="text-caption text-text-muted tabular-nums shrink-0">{Math.round(pct)}%</p>
                 )}
                 {onTrack !== null && (
                   onTrack
-                    ? <TrendingUp size={11} className="text-white/40 shrink-0" />
-                    : <TrendingDown size={11} className="text-white/30 shrink-0" />
+                    ? <TrendingUp size={11} strokeWidth={1.5} className="text-sage shrink-0" />
+                    : <TrendingDown size={11} strokeWidth={1.5} className="text-terracotta shrink-0" />
                 )}
               </div>
             );
@@ -293,8 +265,6 @@ export function MonthView({
     </div>
   );
 }
-
-// ── Inline day detail panel ────────────────────────────────────────────────────
 
 function DayDetail({
   day,
@@ -311,22 +281,20 @@ function DayDetail({
 }) {
   const dateLabel = format(new Date(day.dateStr + "T12:00:00Z"), "EEEE, MMMM d");
   const todayStr = new Intl.DateTimeFormat("en-CA").format(new Date());
-  // Only apply done-styling if the date is today or in the past
   const isPastOrToday = day.dateStr <= todayStr;
 
   return (
-    <div className="glass rounded-2xl overflow-hidden border border-white/[0.08]">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-        <p className="text-sm font-semibold text-white/70">{dateLabel}</p>
-        <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/[0.07] transition-colors">
-          <X size={13} className="text-white/35" />
+    <div className="border border-border-subtle bg-bg-surface rounded-md overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
+        <p className="text-body-sm font-medium text-text-primary">{dateLabel}</p>
+        <button onClick={onClose} className="p-1 rounded hover:bg-bg-elevated transition-colors">
+          <X size={13} strokeWidth={1.5} className="text-text-muted" />
         </button>
       </div>
 
       <div className="p-4 space-y-1">
         {day.workouts.length === 0 ? (
-          <p className="text-xs text-white/30 py-2">Rest day — no workouts scheduled.</p>
+          <p className="text-caption text-text-disabled py-2">Rest day — no workouts scheduled.</p>
         ) : (
           day.workouts.map((w) => (
             <div
@@ -335,59 +303,60 @@ function DayDetail({
               onDragStart={(e) => onDragStart(e, w.id, day.dateStr)}
               onDragEnd={onDragEnd}
               className={cn(
-                "flex items-center gap-2.5 py-2.5 px-2 rounded-xl transition-all",
-                !(isPastOrToday && w.status === "DONE") && "cursor-grab active:cursor-grabbing hover:bg-white/[0.04]",
+                "flex items-center gap-2.5 py-2.5 px-2 rounded transition-all",
+                !(isPastOrToday && w.status === "DONE") && "cursor-grab active:cursor-grabbing hover:bg-bg-elevated",
                 draggingId === w.id && "opacity-40"
               )}
             >
               {!(isPastOrToday && w.status === "DONE") ? (
-                <GripVertical size={12} className="text-white/20 shrink-0" />
+                <GripVertical size={12} strokeWidth={1.5} className="text-text-disabled shrink-0" />
               ) : (
                 <div className="w-3 shrink-0" />
               )}
 
               <div className={cn(
-                "w-6 h-6 rounded-lg border flex items-center justify-center shrink-0",
-                isPastOrToday && w.status === "DONE" ? "border-white/25 bg-white/[0.08]" :
-                w.source === "ai_suggested" ? "border-white/15 bg-white/[0.03]" :
-                "border-white/[0.07]"
+                "w-5 h-5 rounded border flex items-center justify-center shrink-0",
+                isPastOrToday && w.status === "DONE" ? "border-champagne/40 bg-champagne/10" :
+                w.source === "ai_suggested" ? "border-border-default" :
+                "border-border-subtle"
               )}>
-                {isPastOrToday && w.status === "DONE"
-                  ? <CheckCircle2 size={11} className="text-white/45" />
-                  : <Dumbbell size={10} className={w.source === "ai_suggested" ? "text-white/40" : "text-white/25"} />
-                }
+                {isPastOrToday && w.status === "DONE" && (
+                  <Check size={10} strokeWidth={2} className="text-champagne" />
+                )}
               </div>
 
               <div className="flex-1 min-w-0">
                 <p className={cn(
-                  "text-sm",
-                  isPastOrToday && w.status === "DONE" ? "text-white/40 line-through" :
-                  isPastOrToday && w.status === "SKIPPED" ? "text-white/25 line-through" :
-                  w.status === "MOVED" ? "text-white/40 italic" :
-                  w.source === "ai_suggested" ? "text-white/60" :
-                  "text-white/70"
+                  "text-body-sm",
+                  isPastOrToday && w.status === "DONE" ? "text-text-disabled line-through" :
+                  isPastOrToday && w.status === "SKIPPED" ? "text-text-disabled line-through" :
+                  w.status === "MOVED" ? "text-text-muted italic" :
+                  w.source === "ai_suggested" ? "text-text-secondary" :
+                  "text-text-primary"
                 )}>
                   {w.name}
                 </p>
                 {w.source === "ai_suggested" && !(isPastOrToday && (w.status === "DONE" || w.status === "SKIPPED")) && (
-                  <p className="text-[9px] text-white/25 mt-0.5">Vita suggestion</p>
+                  <p className="text-caption text-text-disabled mt-0.5">Vita suggestion</p>
                 )}
               </div>
-              <span className="text-[10px] text-white/25 shrink-0">{w.duration} min</span>
+              <span className="text-caption text-text-disabled shrink-0 tabular-nums">{w.duration} min</span>
             </div>
           ))
         )}
 
         {day.workouts.filter((w) => !(isPastOrToday && w.status === "DONE")).length > 0 && (
-          <p className="text-[10px] text-white/20 pt-1 px-2">
-            Drag a workout to another day on the calendar to reschedule it
+          <p className="text-caption text-text-disabled pt-1 px-2">
+            Drag a workout to another day to reschedule
           </p>
         )}
 
         {day.habitPct > 0 && (
-          <div className="flex items-center gap-2 pt-2 border-t border-white/[0.05] px-2">
-            <HabitRing pct={day.habitPct} />
-            <p className="text-[11px] text-white/35">{day.habitPct}% habits completed</p>
+          <div className="flex items-center gap-2 pt-2 border-t border-border-subtle px-2">
+            <div className="w-16 h-px bg-border-subtle relative overflow-hidden rounded-full">
+              <div className="absolute inset-y-0 left-0 bg-champagne" style={{ width: `${day.habitPct}%` }} />
+            </div>
+            <p className="text-caption text-text-disabled">{day.habitPct}% habits</p>
           </div>
         )}
       </div>
@@ -395,7 +364,23 @@ function DayDetail({
   );
 }
 
-// ── Past-year heatmap ──────────────────────────────────────────────────────────
+function HabitArc({ pct }: { pct: number }) {
+  const size = 12;
+  const r = (size - 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.min(1, pct / 100));
+  return (
+    <svg width={size} height={size} className="-rotate-90" aria-hidden>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(212,196,168,0.12)" strokeWidth={1.5} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none"
+        stroke="rgba(212,196,168,0.45)" strokeWidth={1.5}
+        strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 function Heatmap({ heatmap }: { heatmap: Record<string, number> }) {
   const today = new Date();
@@ -416,8 +401,8 @@ function Heatmap({ heatmap }: { heatmap: Record<string, number> }) {
   const maxVal = Math.max(...days.map((d) => d.value), 1);
 
   return (
-    <div className="space-y-2">
-      <p className="text-[9px] tracking-[0.25em] uppercase text-white/20 px-1">Past year</p>
+    <div className="space-y-3">
+      <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">Past year</p>
       <div className="overflow-x-auto">
         <div
           className="grid gap-[2px]"
@@ -433,8 +418,8 @@ function Heatmap({ heatmap }: { heatmap: Record<string, number> }) {
               className="rounded-[2px]"
               style={{
                 backgroundColor: d && d.value > 0
-                  ? `rgba(255,255,255,${0.08 + (d.value / maxVal) * 0.45})`
-                  : "rgba(255,255,255,0.04)",
+                  ? `rgba(212,196,168,${0.08 + (d.value / maxVal) * 0.55})`
+                  : "rgba(31,37,48,1)",
                 gridColumn: Math.floor(i / 7) + 1,
                 gridRow: (i % 7) + 1,
               }}

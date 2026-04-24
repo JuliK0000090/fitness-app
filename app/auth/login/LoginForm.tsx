@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { GuestButton } from "@/components/auth/GuestButton";
@@ -55,12 +54,14 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="glass p-8 fu">
-      <h1 className="text-xl font-semibold mb-1">Welcome back</h1>
-      <p className="text-sm text-muted-foreground mb-6">Sign in to your Vita account</p>
+    <div className="border border-border-subtle bg-bg-surface rounded-md p-8 space-y-6">
+      <div>
+        <h1 className="font-serif text-heading-lg font-light text-text-primary">Welcome back</h1>
+        <p className="text-caption text-text-muted mt-1">Sign in to your Vita account</p>
+      </div>
 
       {params.get("error") === "invalid_token" && (
-        <p className="text-sm text-destructive mb-4 glass p-3 rounded-lg">
+        <p className="text-caption text-terracotta border border-terracotta/20 bg-terracotta-soft/40 rounded px-3 py-2">
           This link is invalid or has expired. Please try again.
         </p>
       )}
@@ -68,43 +69,50 @@ export default function LoginForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {!mfaRequired ? (
           <>
-            <div className="space-y-1">
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-caption text-text-muted">Email</label>
               <Input id="email" name="email" type="email" placeholder="you@example.com" required autoComplete="email" defaultValue={pendingData?.email} />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link href="/auth/forgot-password" className="text-xs text-muted-foreground hover:text-primary">Forgot password?</Link>
+                <label htmlFor="password" className="text-caption text-text-muted">Password</label>
+                <Link href="/auth/forgot-password" className="text-caption text-text-disabled hover:text-text-muted transition-colors">Forgot password?</Link>
               </div>
               <Input id="password" name="password" type="password" placeholder="Your password" required autoComplete="current-password" defaultValue={pendingData?.password} />
             </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="rememberMe" name="rememberMe" className="rounded border-border" />
-              <Label htmlFor="rememberMe" className="text-sm font-normal cursor-pointer">Remember me for 30 days</Label>
-            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="rememberMe" name="rememberMe" className="rounded border-border-default accent-champagne" />
+              <span className="text-caption text-text-muted">Remember me for 30 days</span>
+            </label>
           </>
         ) : (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Enter the 6-digit code from your authenticator app.</p>
-            <Label htmlFor="totpCode">Authenticator code</Label>
-            <Input id="totpCode" name="totpCode" type="text" inputMode="numeric" pattern="\d{6}" maxLength={6} placeholder="000000" required autoFocus />
-            <button type="button" onClick={() => setMfaRequired(false)} className="text-xs text-muted-foreground hover:text-primary">Back</button>
+          <div className="space-y-3">
+            <p className="text-caption text-text-muted">Enter the 6-digit code from your authenticator app.</p>
+            <div className="space-y-1.5">
+              <label htmlFor="totpCode" className="text-caption text-text-muted">Authenticator code</label>
+              <Input id="totpCode" name="totpCode" type="text" inputMode="numeric" pattern="\d{6}" maxLength={6} placeholder="000000" required autoFocus />
+            </div>
+            <button type="button" onClick={() => setMfaRequired(false)} className="text-caption text-text-disabled hover:text-text-muted transition-colors">Back</button>
           </div>
         )}
 
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" variant="primary" className="w-full" disabled={loading}>
           {loading ? "Signing in…" : mfaRequired ? "Verify code" : "Sign in"}
         </Button>
       </form>
 
-      <p className="text-sm text-center text-muted-foreground mt-4">
-        New to Vita? <Link href="/auth/register" className="text-primary underline">Create account</Link>
+      <p className="text-caption text-center text-text-muted">
+        New to Vita?{" "}
+        <Link href="/auth/register" className="text-champagne hover:text-champagne-soft transition-colors">
+          Create account
+        </Link>
       </p>
 
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-        <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">or</span></div>
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border-subtle" /></div>
+        <div className="relative flex justify-center">
+          <span className="bg-bg-surface px-3 text-caption text-text-disabled">or</span>
+        </div>
       </div>
 
       <GuestButton />

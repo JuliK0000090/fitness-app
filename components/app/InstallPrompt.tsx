@@ -14,7 +14,6 @@ export function InstallPrompt() {
       setDeferredPrompt(e);
       setShow(true);
     };
-
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
@@ -30,19 +29,26 @@ export function InstallPrompt() {
   if (!show) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-40 glass rounded-2xl p-4 flex items-center gap-3 border border-white/[0.07] shadow-xl fu">
-      <div className="w-8 h-8 rounded-xl bg-white/[0.04] flex items-center justify-center shrink-0">
-        <Download size={14} className="text-white/50" />
+    <div className="fixed bottom-20 left-4 right-4 z-40 border border-border-default bg-bg-elevated rounded-md p-4 flex items-center gap-3 shadow-lifted">
+      <div className="w-8 h-8 rounded border border-border-subtle flex items-center justify-center shrink-0">
+        <Download size={13} strokeWidth={1.5} className="text-text-muted" />
       </div>
       <div className="flex-1">
-        <p className="text-sm font-semibold">Add Vita to Home Screen</p>
-        <p className="text-xs text-muted-foreground">Get the full app experience</p>
+        <p className="text-body-sm font-medium text-text-primary">Add Vita to Home Screen</p>
+        <p className="text-caption text-text-muted">Get the full app experience</p>
       </div>
-      <button onClick={install} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:bg-white/[0.06] transition-colors">
+      <button
+        onClick={install}
+        className="text-caption px-3 py-1.5 rounded border border-border-default text-text-muted hover:border-border-strong hover:text-text-secondary transition-colors"
+      >
         Install
       </button>
-      <button onClick={() => setShow(false)} className="p-1 text-muted-foreground hover:text-foreground">
-        <X size={14} />
+      <button
+        onClick={() => setShow(false)}
+        className="p-1 text-text-disabled hover:text-text-muted transition-colors"
+        aria-label="Dismiss"
+      >
+        <X size={13} strokeWidth={1.5} />
       </button>
     </div>
   );

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -31,36 +30,41 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="glass p-8 text-center fu">
-        <div className="text-3xl mb-3">📬</div>
-        <h1 className="text-xl font-semibold mb-2">Check your inbox</h1>
-        <p className="text-sm text-muted-foreground mb-6">
-          If that email is registered, we sent a reset link. It expires in 1 hour.
-        </p>
+      <div className="border border-border-subtle bg-bg-surface rounded-md p-8 text-center space-y-5">
+        <div className="space-y-2">
+          <h1 className="font-serif text-heading-lg font-light text-text-primary">Check your inbox</h1>
+          <p className="text-caption text-text-muted">
+            If that email is registered, we sent a reset link. It expires in 1 hour.
+          </p>
+        </div>
         <Link href="/auth/login">
-          <Button variant="outline" className="w-full">Back to sign in</Button>
+          <Button variant="secondary" className="w-full">Back to sign in</Button>
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="glass p-8 fu">
-      <h1 className="text-xl font-semibold mb-1">Reset your password</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        Enter your email and we'll send a reset link.
-      </p>
+    <div className="border border-border-subtle bg-bg-surface rounded-md p-8 space-y-6">
+      <div>
+        <h1 className="font-serif text-heading-lg font-light text-text-primary">Reset password</h1>
+        <p className="text-caption text-text-muted mt-1">
+          Enter your email and we'll send a reset link.
+        </p>
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1">
-          <Label htmlFor="email">Email</Label>
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="text-caption text-text-muted">Email</label>
           <Input id="email" name="email" type="email" placeholder="you@example.com" required />
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" variant="primary" className="w-full" disabled={loading}>
           {loading ? "Sending…" : "Send reset link"}
         </Button>
       </form>
-      <p className="text-sm text-center text-muted-foreground mt-4">
-        <Link href="/auth/login" className="hover:text-primary">Back to sign in</Link>
+      <p className="text-caption text-center text-text-muted">
+        <Link href="/auth/login" className="text-champagne hover:text-champagne-soft transition-colors">
+          Back to sign in
+        </Link>
       </p>
     </div>
   );

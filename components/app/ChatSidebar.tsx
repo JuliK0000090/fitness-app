@@ -69,33 +69,51 @@ export function ChatSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const recent = conversations.filter((c) => !c.pinned);
 
   return (
-    <div className="flex flex-col h-full py-2">
-      <div className="px-3 mb-2">
+    <div className="flex flex-col h-full py-3">
+      <div className="px-3 mb-3">
         <button
           onClick={newChat}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm glass glass-hover text-muted-foreground hover:text-foreground"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded border border-border-subtle bg-bg-surface text-caption text-text-muted hover:border-border-default hover:text-text-secondary transition-colors"
         >
-          <Plus size={14} />
+          <Plus size={12} strokeWidth={1.5} />
           New chat
-          <kbd className="ml-auto text-[10px] opacity-50">N</kbd>
+          <kbd className="ml-auto text-[9px] text-text-disabled">N</kbd>
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
         {pinned.length > 0 && (
           <>
-            <p className="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">Pinned</p>
-            {pinned.map((conv) => <ConvItem key={conv.id} conv={conv} active={activeId === conv.id} onNavigate={onNavigate} editingId={editingId} editTitle={editTitle} setEditingId={setEditingId} setEditTitle={setEditTitle} rename={rename} togglePin={togglePin} deleteConv={deleteConv} />)}
+            <p className="px-2 py-1 text-caption text-text-disabled uppercase tracking-widest">Pinned</p>
+            {pinned.map((conv) => (
+              <ConvItem
+                key={conv.id} conv={conv} active={activeId === conv.id}
+                onNavigate={onNavigate} editingId={editingId} editTitle={editTitle}
+                setEditingId={setEditingId} setEditTitle={setEditTitle}
+                rename={rename} togglePin={togglePin} deleteConv={deleteConv}
+              />
+            ))}
           </>
         )}
         {recent.length > 0 && (
           <>
-            {pinned.length > 0 && <p className="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">Recent</p>}
-            {recent.map((conv) => <ConvItem key={conv.id} conv={conv} active={activeId === conv.id} onNavigate={onNavigate} editingId={editingId} editTitle={editTitle} setEditingId={setEditingId} setEditTitle={setEditTitle} rename={rename} togglePin={togglePin} deleteConv={deleteConv} />)}
+            {pinned.length > 0 && (
+              <p className="px-2 py-1 text-caption text-text-disabled uppercase tracking-widest">Recent</p>
+            )}
+            {recent.map((conv) => (
+              <ConvItem
+                key={conv.id} conv={conv} active={activeId === conv.id}
+                onNavigate={onNavigate} editingId={editingId} editTitle={editTitle}
+                setEditingId={setEditingId} setEditTitle={setEditTitle}
+                rename={rename} togglePin={togglePin} deleteConv={deleteConv}
+              />
+            ))}
           </>
         )}
         {conversations.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-8">No conversations yet.<br />Start chatting with your coach.</p>
+          <p className="text-caption text-text-disabled text-center py-8">
+            No conversations yet.
+          </p>
         )}
       </div>
     </div>
@@ -118,8 +136,10 @@ function ConvItem({ conv, active, onNavigate, editingId, editTitle, setEditingId
 
   return (
     <div className={cn(
-      "group relative flex items-start gap-2 px-2 py-2 rounded-lg text-sm cursor-pointer",
-      active ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+      "group relative flex items-start gap-2 px-2 py-2 rounded transition-colors cursor-pointer",
+      active
+        ? "bg-bg-elevated text-text-primary"
+        : "text-text-muted hover:bg-bg-surface hover:text-text-secondary"
     )}>
       {isEditing ? (
         <div className="flex-1 flex items-center gap-1">
@@ -128,15 +148,19 @@ function ConvItem({ conv, active, onNavigate, editingId, editTitle, setEditingId
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") rename(conv.id); if (e.key === "Escape") setEditingId(null); }}
-            className="flex-1 bg-transparent border-b border-primary text-xs outline-none py-0.5"
+            className="flex-1 bg-transparent border-b border-champagne/50 text-caption text-text-primary outline-none py-0.5"
           />
-          <button onClick={() => rename(conv.id)}><Check size={12} className="text-primary" /></button>
-          <button onClick={() => setEditingId(null)}><X size={12} /></button>
+          <button onClick={() => rename(conv.id)} className="text-champagne hover:text-champagne-soft">
+            <Check size={11} strokeWidth={1.5} />
+          </button>
+          <button onClick={() => setEditingId(null)} className="text-text-disabled hover:text-text-muted">
+            <X size={11} strokeWidth={1.5} />
+          </button>
         </div>
       ) : (
         <Link href={`/chat/${conv.id}`} onClick={onNavigate} className="flex-1 min-w-0">
-          <p className="truncate text-xs font-medium">{conv.title ?? "New conversation"}</p>
-          <p className="text-[10px] opacity-50 mt-0.5">
+          <p className="truncate text-caption font-medium">{conv.title ?? "New conversation"}</p>
+          <p className="text-[9px] text-text-disabled mt-0.5">
             {formatDistanceToNow(new Date(conv.updatedAt), { addSuffix: true })}
           </p>
         </Link>
@@ -144,14 +168,24 @@ function ConvItem({ conv, active, onNavigate, editingId, editTitle, setEditingId
 
       {!isEditing && (
         <div className="hidden group-hover:flex items-center gap-1 shrink-0">
-          <button onClick={() => togglePin(conv.id, conv.pinned)} className="p-0.5 rounded hover:text-primary" title={conv.pinned ? "Unpin" : "Pin"}>
-            <Pin size={11} className={conv.pinned ? "text-primary" : ""} />
+          <button
+            onClick={() => togglePin(conv.id, conv.pinned)}
+            className={cn("p-0.5 rounded transition-colors", conv.pinned ? "text-champagne" : "text-text-disabled hover:text-text-muted")}
+            title={conv.pinned ? "Unpin" : "Pin"}
+          >
+            <Pin size={10} strokeWidth={1.5} />
           </button>
-          <button onClick={() => { setEditingId(conv.id); setEditTitle(conv.title ?? ""); }} className="p-0.5 rounded hover:text-primary">
-            <Pencil size={11} />
+          <button
+            onClick={() => { setEditingId(conv.id); setEditTitle(conv.title ?? ""); }}
+            className="p-0.5 rounded text-text-disabled hover:text-text-muted transition-colors"
+          >
+            <Pencil size={10} strokeWidth={1.5} />
           </button>
-          <button onClick={() => deleteConv(conv.id)} className="p-0.5 rounded hover:text-destructive">
-            <Trash2 size={11} />
+          <button
+            onClick={() => deleteConv(conv.id)}
+            className="p-0.5 rounded text-text-disabled hover:text-terracotta transition-colors"
+          >
+            <Trash2 size={10} strokeWidth={1.5} />
           </button>
         </div>
       )}

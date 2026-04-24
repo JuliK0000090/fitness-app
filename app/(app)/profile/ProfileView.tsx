@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { User, Settings, LogOut, Download, Trash2, ChevronRight, Edit3, Check } from "lucide-react";
+import { Settings, LogOut, Download, Trash2, ChevronRight, Edit3, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { format } from "date-fns";
+import { EditorialRule } from "@/components/ui/editorial-rule";
 
 interface UserData {
   id: string;
@@ -62,44 +63,56 @@ export function ProfileView({ user }: ProfileViewProps) {
     window.location.href = "/";
   }
 
+  const initial = (user.name?.[0] ?? user.email[0]).toUpperCase();
+
   return (
-    <div className="max-w-lg mx-auto py-4 px-4 space-y-4">
-      {/* Avatar + name */}
-      <div className="flex items-center gap-4 fu">
-        <div className="w-16 h-16 rounded-2xl bg-white/[0.06] flex items-center justify-center text-2xl font-black text-background">
-          {user.name?.[0]?.toUpperCase() ?? <User size={24} />}
+    <div className="max-w-lg mx-auto px-5 py-10 space-y-8">
+
+      {/* Identity */}
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-full border border-border-default bg-bg-surface flex items-center justify-center text-display-sm font-serif font-light text-text-primary select-none">
+          {initial}
         </div>
-        <div>
-          <h1 className="text-lg font-bold">{user.name ?? "User"}</h1>
-          <p className="text-xs text-muted-foreground">{user.email}</p>
-          <p className="text-[10px] text-muted-foreground">Member since {format(new Date(user.createdAt), "MMMM yyyy")}</p>
+        <div className="flex-1 min-w-0">
+          <h1 className="font-serif text-display-sm font-light text-text-primary">{user.name ?? "User"}</h1>
+          <p className="text-caption text-text-muted">{user.email}</p>
+          <p className="text-caption text-text-disabled">Member since {format(new Date(user.createdAt), "MMMM yyyy")}</p>
         </div>
-        <button onClick={() => setEditing((e) => !e)} className="ml-auto p-2 rounded-xl hover:bg-secondary">
-          <Edit3 size={14} className="text-muted-foreground" />
+        <button
+          onClick={() => setEditing((e) => !e)}
+          className="p-2 rounded border border-border-subtle text-text-disabled hover:text-text-muted hover:border-border-default transition-colors"
+          aria-label={editing ? "Cancel edit" : "Edit profile"}
+        >
+          {editing ? <X size={13} strokeWidth={1.5} /> : <Edit3 size={13} strokeWidth={1.5} />}
         </button>
       </div>
 
+      <EditorialRule />
+
       {/* Edit form */}
       {editing && (
-        <div className="glass rounded-2xl p-4 space-y-3 fu">
-          <p className="text-xs font-semibold">Edit profile</p>
+        <div className="border border-border-default bg-bg-surface rounded-md p-4 space-y-3">
+          <p className="text-body-sm font-medium text-text-primary">Edit profile</p>
+
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Display name"
-            className="w-full bg-secondary rounded-xl px-3 py-2 text-sm outline-none"
+            className="w-full bg-bg-inset border border-border-default rounded px-3 py-2 text-body-sm text-text-primary placeholder:text-text-disabled outline-none focus:border-champagne transition-colors"
           />
+
           <textarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            placeholder="Custom instructions for Vita (e.g. 'I prefer HIIT workouts, I'm vegetarian')"
+            placeholder="Custom instructions (e.g. I prefer HIIT, I'm vegetarian)"
             rows={3}
-            className="w-full bg-secondary rounded-xl px-3 py-2 text-sm outline-none resize-none"
+            className="w-full bg-bg-inset border border-border-default rounded px-3 py-2 text-body-sm text-text-primary placeholder:text-text-disabled outline-none focus:border-champagne transition-colors resize-none"
           />
+
           <select
             value={responseStyle}
             onChange={(e) => setResponseStyle(e.target.value)}
-            className="w-full bg-secondary rounded-xl px-3 py-2 text-sm outline-none"
+            className="w-full bg-bg-inset border border-border-default rounded px-3 py-2 text-body-sm text-text-primary outline-none focus:border-champagne transition-colors"
           >
             <option value="">Response style (default)</option>
             <option value="concise">Concise — short, to the point</option>
@@ -107,69 +120,89 @@ export function ProfileView({ user }: ProfileViewProps) {
             <option value="motivational">Motivational — high energy</option>
             <option value="clinical">Clinical — data-focused</option>
           </select>
+
           <label className="flex items-center justify-between gap-3 cursor-pointer py-1">
             <div>
-              <p className="text-sm text-white/70">GLP-1 medication</p>
-              <p className="text-[11px] text-white/35">On Ozempic, Wegovy, Zepbound, or similar. Vita adjusts protein targets and strength focus to protect muscle.</p>
+              <p className="text-body-sm text-text-secondary">GLP-1 medication</p>
+              <p className="text-caption text-text-disabled">On Ozempic, Wegovy, Zepbound, or similar. Vita adjusts protein targets and strength focus to protect muscle.</p>
             </div>
             <button
               type="button"
               role="switch"
               aria-checked={onGlp1}
               onClick={() => setOnGlp1((v) => !v)}
-              className={`relative shrink-0 w-10 h-5.5 rounded-full transition-colors ${onGlp1 ? "bg-white/40" : "bg-white/[0.1]"}`}
+              className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${onGlp1 ? "bg-champagne/50" : "bg-border-default"}`}
             >
-              <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform ${onGlp1 ? "translate-x-[18px]" : "translate-x-0"}`} />
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-bg-elevated border border-border-strong transition-transform ${onGlp1 ? "translate-x-4" : "translate-x-0"}`} />
             </button>
           </label>
-          <div className="flex gap-2">
-            <button onClick={save} disabled={saving} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/[0.04] text-white/60 text-xs font-medium hover:bg-white/[0.07] disabled:opacity-50 transition-colors">
-              <Check size={12} />{saving ? "Saving…" : "Save"}
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded border border-border-default text-body-sm text-text-secondary hover:border-border-strong hover:text-text-primary disabled:opacity-50 transition-colors"
+            >
+              <Check size={13} strokeWidth={1.5} />
+              {saving ? "Saving…" : "Save"}
             </button>
-            <button onClick={() => setEditing(false)} className="px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground text-xs">Cancel</button>
+            <button
+              onClick={() => setEditing(false)}
+              className="px-4 py-2 rounded border border-border-subtle text-body-sm text-text-disabled hover:text-text-muted transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="glass rounded-2xl p-4 space-y-2 fu2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Body stats</p>
-        {[
-          user.heightCm && { label: "Height", value: `${user.heightCm} cm` },
-          user.sex && { label: "Sex", value: user.sex },
-          user.activityLevel && { label: "Activity", value: user.activityLevel },
-          user.goalWeightKg && { label: "Goal weight", value: `${user.goalWeightKg} kg` },
-        ].filter(Boolean).map((item) => item && (
-          <div key={item.label} className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{item.label}</span>
-            <span className="font-medium capitalize">{item.value}</span>
+      {/* Body stats */}
+      {[user.heightCm, user.sex, user.activityLevel, user.goalWeightKg].some(Boolean) && (
+        <div className="space-y-3">
+          <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">Body stats</p>
+          <div className="border border-border-subtle bg-bg-surface rounded-md divide-y divide-border-subtle">
+            {[
+              user.heightCm && { label: "Height", value: `${user.heightCm} cm` },
+              user.sex && { label: "Sex", value: user.sex },
+              user.activityLevel && { label: "Activity", value: user.activityLevel },
+              user.goalWeightKg && { label: "Goal weight", value: `${user.goalWeightKg} kg` },
+            ].filter(Boolean).map((item) => item && (
+              <div key={item.label} className="flex justify-between px-4 py-3 text-body-sm">
+                <span className="text-text-muted">{item.label}</span>
+                <span className="font-medium text-text-primary capitalize">{item.value}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* Menu items */}
-      <div className="space-y-1 fu3">
-        <Link href="/settings" className="glass rounded-2xl p-3 flex items-center gap-3 hover:bg-white/5 transition-colors group">
-          <Settings size={15} className="text-muted-foreground" />
-          <span className="flex-1 text-sm">Settings</span>
-          <ChevronRight size={13} className="text-muted-foreground" />
-        </Link>
+      {/* Menu */}
+      <div className="space-y-1">
+        <div className="border border-border-subtle bg-bg-surface rounded-md divide-y divide-border-subtle overflow-hidden">
+          <Link href="/settings" className="flex items-center gap-3 px-4 py-3.5 hover:bg-bg-elevated transition-colors group">
+            <Settings size={14} strokeWidth={1.5} className="text-text-muted" />
+            <span className="flex-1 text-body-sm text-text-secondary">Settings</span>
+            <ChevronRight size={13} strokeWidth={1.5} className="text-text-disabled group-hover:text-text-muted transition-colors" />
+          </Link>
 
-        <button onClick={exportData} className="w-full glass rounded-2xl p-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
-          <Download size={15} className="text-muted-foreground" />
-          <span className="flex-1 text-sm">Export my data</span>
-        </button>
+          <button onClick={exportData} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-bg-elevated transition-colors text-left">
+            <Download size={14} strokeWidth={1.5} className="text-text-muted" />
+            <span className="flex-1 text-body-sm text-text-secondary">Export my data</span>
+          </button>
 
-        <Link href="/settings" className="glass rounded-2xl p-3 flex items-center gap-3 hover:bg-white/5 transition-colors group">
-          <Trash2 size={15} className="text-white/50" />
-          <span className="flex-1 text-sm text-white/60">Delete account</span>
-          <ChevronRight size={13} className="text-muted-foreground" />
-        </Link>
+          <button onClick={signOut} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-bg-elevated transition-colors text-left">
+            <LogOut size={14} strokeWidth={1.5} className="text-text-muted" />
+            <span className="flex-1 text-body-sm text-text-secondary">Sign out</span>
+          </button>
+        </div>
 
-        <button onClick={signOut} className="w-full glass rounded-2xl p-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
-          <LogOut size={15} className="text-muted-foreground" />
-          <span className="flex-1 text-sm">Sign out</span>
-        </button>
+        <div className="border border-border-subtle bg-bg-surface rounded-md overflow-hidden">
+          <Link href="/settings" className="flex items-center gap-3 px-4 py-3.5 hover:bg-bg-elevated transition-colors group">
+            <Trash2 size={14} strokeWidth={1.5} className="text-terracotta/60" />
+            <span className="flex-1 text-body-sm text-terracotta/60">Delete account</span>
+            <ChevronRight size={13} strokeWidth={1.5} className="text-text-disabled group-hover:text-terracotta/60 transition-colors" />
+          </Link>
+        </div>
       </div>
     </div>
   );

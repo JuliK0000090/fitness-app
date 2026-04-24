@@ -20,7 +20,7 @@ const C = {
   white18: "rgba(255,255,255,0.18)",
   white10: "rgba(255,255,255,0.10)",
   white07: "rgba(255,255,255,0.07)",
-  serif:   "var(--font-serif-face)",
+  serif:   "var(--font-fraunces-face)",
   sans:    "var(--font-geist-sans)",
 } as const;
 

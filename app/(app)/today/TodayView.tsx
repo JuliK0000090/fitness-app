@@ -2,20 +2,25 @@
 
 import { useState, useTransition, useOptimistic } from "react";
 import Link from "next/link";
-import { Bell, X, MessageSquarePlus, Flame, CheckCircle2, Circle, Clock, Dumbbell, Activity, Footprints, Droplets, Wind, Zap, Sun, Moon, Beef, Heart, Camera, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
+import {
+  Bell, X, MessageSquarePlus, CheckCircle2, Circle, Clock,
+  Dumbbell, Activity, Footprints, Droplets, Wind, Zap, Sun,
+  Moon, Beef, Heart, Camera, ChevronDown, ChevronUp, CalendarDays,
+  Check, ArrowRight, Flame,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { completeHabit, uncompleteHabit, completeWorkout, skipWorkout, deleteHabit } from "@/app/actions/habits";
 import { TodaySignals } from "@/components/health/TodaySignals";
+import { EditorialRule } from "@/components/ui/editorial-rule";
 
-// Map lucide icon name string → component
 const ICON_MAP: Record<string, React.ElementType> = {
   CheckCircle: CheckCircle2, CheckCircle2, Circle, Footprints, Droplets, Wind, Zap, Sun, Moon,
   Beef, Heart, Camera, Dumbbell, Activity, Flame, Clock,
 };
-function Icon({ name, size = 14, className }: { name: string; size?: number; className?: string }) {
+function HabitIcon({ name, size = 14, className }: { name: string; size?: number; className?: string }) {
   const Comp = ICON_MAP[name] ?? CheckCircle2;
-  return <Comp size={size} className={className} />;
+  return <Comp size={size} strokeWidth={1.5} className={className} />;
 }
 
 interface Habit {
@@ -63,7 +68,7 @@ interface TodayViewProps {
 
 const HABITS_VISIBLE_DEFAULT = 5;
 const HEALTH_BANNER_KEY = "vita.banner.apple-health.dismissedAt";
-const HEALTH_BANNER_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const HEALTH_BANNER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function parseStepTarget(title: string | null): number | null {
   if (!title) return null;
@@ -74,10 +79,10 @@ function parseStepTarget(title: string | null): number | null {
   return isK ? raw * 1000 : raw;
 }
 
-function readinessLabel(score: number): { dot: string; text: string } {
-  if (score <= 40) return { dot: "bg-white/30", text: "readiness low — take it easy" };
-  if (score <= 70) return { dot: "bg-white/55", text: "readiness steady — good day to move" };
-  return { dot: "bg-emerald-400", text: "readiness high — push if you want" };
+function readinessSentence(score: number): string {
+  if (score <= 40) return "Readiness is low. Prioritise rest or gentle movement today.";
+  if (score <= 70) return "Readiness is steady. A good day to stay consistent.";
+  return "Readiness is high. Push if you want to.";
 }
 
 export function TodayView({
@@ -97,17 +102,11 @@ export function TodayView({
       const dismissed = localStorage.getItem(HEALTH_BANNER_KEY);
       if (!dismissed) return true;
       return Date.now() - Number(dismissed) > HEALTH_BANNER_TTL_MS;
-    } catch {
-      return true;
-    }
+    } catch { return true; }
   });
 
   function dismissBanner() {
-    try {
-      localStorage.setItem(HEALTH_BANNER_KEY, String(Date.now()));
-    } catch {
-      // ignore
-    }
+    try { localStorage.setItem(HEALTH_BANNER_KEY, String(Date.now())); } catch { /* ignore */ }
     setBannerVisible(false);
   }
 
@@ -118,7 +117,6 @@ export function TodayView({
     return "Good evening";
   })();
 
-  // Optimistic habit state
   const [optimisticHabits, updateOptimisticHabits] = useOptimistic(
     initHabits,
     (state: Habit[], { id, done }: { id: string; done: boolean }) =>
@@ -132,7 +130,7 @@ export function TodayView({
         await uncompleteHabit(habit.id);
       } else {
         await completeHabit(habit.id);
-        toast.success(`+${habit.pointsOnComplete} XP`);
+        toast.success(`Habit logged`);
       }
     });
   }
@@ -150,258 +148,263 @@ export function TodayView({
   const hiddenCount = totalCount - HABITS_VISIBLE_DEFAULT;
 
   return (
-    <div className="max-w-lg mx-auto py-6 px-5 space-y-5">
+    <div className="max-w-xl mx-auto px-5 pt-14 pb-24 space-y-10">
 
-      {/* Apple Health banner */}
+      {/* ── Page header ─────────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <p className="text-label tracking-widest uppercase text-champagne font-sans font-medium">
+          {dateLabel}
+        </p>
+        <h1 className="font-serif text-display-lg font-light text-text-primary leading-tight">
+          {greeting}, {userName}
+        </h1>
+        {readinessScore !== null && (
+          <p className="text-body text-text-muted mt-1">{readinessSentence(readinessScore)}</p>
+        )}
+        <EditorialRule />
+      </div>
+
+      {/* ── Apple Health banner ──────────────────────────────────────────── */}
       {bannerVisible && (
-        <div className="glass rounded-2xl p-4 flex items-start gap-3 relative">
-          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
-            <Heart size={14} className="text-white/50" />
-          </div>
+        <div className="flex items-start gap-4 p-4 rounded-md border border-champagne/15 bg-champagne/5">
+          <Heart size={14} strokeWidth={1.5} className="text-champagne shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white/85">Connect Apple Health</p>
-            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-              See your steps, sleep, and workouts here automatically. Takes 90 seconds to set up.
+            <p className="text-body-sm text-text-primary font-medium">Connect Apple Health</p>
+            <p className="text-caption text-text-muted mt-0.5">
+              See your steps, sleep, and workouts here automatically.
             </p>
-            <Link href="/settings/integrations/apple-health" className="inline-block mt-2 text-xs font-medium text-white/70 hover:text-white transition-colors underline underline-offset-2">
-              Connect now
+            <Link href="/settings/integrations/apple-health"
+              className="inline-flex items-center gap-1 mt-2 text-caption text-champagne hover:text-champagne-soft transition-colors">
+              Set up <ArrowRight size={10} strokeWidth={1.5} />
             </Link>
           </div>
-          <button
-            onClick={dismissBanner}
-            className="text-white/25 hover:text-white/60 transition-colors shrink-0 mt-0.5"
-            aria-label="Dismiss"
-          >
-            <X size={14} />
+          <button onClick={dismissBanner} className="text-text-disabled hover:text-text-muted transition-colors shrink-0" aria-label="Dismiss">
+            <X size={13} strokeWidth={1.5} />
           </button>
         </div>
       )}
 
-      {/* Header */}
-      <div>
-        <p className="text-[10px] tracking-[0.25em] uppercase text-white/30 mb-1">{dateLabel}</p>
-        <p className="text-sm text-white/45">{greeting},</p>
-        <h1 className="font-serif text-4xl font-light text-white/90 mt-0.5">{userName}</h1>
-      </div>
-
-      {/* XP bar */}
-      <div className="glass rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-baseline gap-2">
-            <span className="font-serif text-2xl font-light text-white/85">Level {level}</span>
-            {currentStreak > 0 && (
-              <span className="flex items-center gap-1 text-[10px] text-white/35">
-                <Flame size={10} className="text-white/30" />
-                {currentStreak} day streak
+      {/* ── Level + XP ──────────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <div className="flex items-baseline justify-between">
+          <div className="space-y-0.5">
+            <p className="text-label tracking-widest uppercase text-champagne font-sans font-medium">Progress</p>
+            <div className="flex items-baseline gap-3">
+              <span className="font-serif text-display-sm font-light text-text-primary">
+                Level {level}
               </span>
-            )}
+              {currentStreak > 0 && (
+                <span className="text-caption text-text-muted">
+                  {currentStreak} day streak
+                </span>
+              )}
+            </div>
           </div>
-          <span className="text-[10px] tracking-wide text-white/30">{totalXp} XP · {xpToNext} to next</span>
+          <span className="text-caption text-text-disabled tabular-nums">{totalXp.toLocaleString()} XP</span>
         </div>
-        <div className="h-px w-full bg-white/[0.08] overflow-hidden rounded-full">
-          <div className="h-full bg-white/50 transition-all duration-700" style={{ width: `${xpPct}%` }} />
+        {/* Progress bar — 2px, restrained */}
+        <div className="h-px w-full bg-border-subtle overflow-hidden rounded-full">
+          <div className="h-full bg-champagne transition-all duration-500" style={{ width: `${xpPct}%` }} />
         </div>
+        <p className="text-caption text-text-disabled">{xpToNext.toLocaleString()} XP to Level {level + 1}</p>
       </div>
 
-      {/* Readiness badge */}
-      {readinessScore !== null && (() => {
-        const { dot, text } = readinessLabel(readinessScore);
-        return (
-          <div className="flex items-center gap-2 px-1">
-            <Activity size={12} className="text-white/30 shrink-0" />
-            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dot)} />
-            <span className="text-xs text-white/45">{text}</span>
-            <span className="text-[10px] text-white/20 ml-auto tabular-nums">{readinessScore}/100</span>
-          </div>
-        );
-      })()}
-
-      {/* Health signals */}
+      {/* ── Health signals ───────────────────────────────────────────────── */}
       <TodaySignals />
 
-      {/* Notifications */}
+      {/* ── Notifications ───────────────────────────────────────────────── */}
       {notifications.map((n) => (
-        <div key={n.id} className="glass rounded-2xl p-4 flex gap-3 border border-white/[0.07]">
-          <Bell size={13} className="text-white/40 shrink-0 mt-0.5" />
+        <div key={n.id} className="flex gap-3 p-4 rounded-md border border-border-subtle bg-bg-surface">
+          <Bell size={13} strokeWidth={1.5} className="text-text-disabled shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-white/70">{n.title}</p>
-            <p className="text-xs text-white/35 line-clamp-2 mt-0.5">{n.body}</p>
+            <p className="text-body-sm font-medium text-text-primary">{n.title}</p>
+            <p className="text-caption text-text-muted line-clamp-2 mt-0.5">{n.body}</p>
           </div>
-          <button onClick={() => dismissNotification(n.id)} className="p-1 rounded hover:bg-secondary shrink-0">
-            <X size={11} className="text-white/30" />
+          <button onClick={() => dismissNotification(n.id)}
+            className="p-1 rounded text-text-disabled hover:text-text-muted transition-colors shrink-0">
+            <X size={11} strokeWidth={1.5} />
           </button>
         </div>
       ))}
 
-      {/* Today's workouts */}
-      {initWorkouts.map((sw) => (
-        <TodayWorkoutCard key={sw.id} workout={sw} />
-      ))}
+      {/* ── Today's workouts ─────────────────────────────────────────────── */}
+      {initWorkouts.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-label tracking-widest uppercase text-text-muted font-sans font-medium">Today</p>
+          {initWorkouts.map((sw) => (
+            <TodayWorkoutCard key={sw.id} workout={sw} />
+          ))}
+        </div>
+      )}
 
-      {/* Habit checklist */}
+      {/* ── Habit checklist ──────────────────────────────────────────────── */}
       {totalCount > 0 ? (
-        <div className="glass rounded-2xl overflow-hidden">
-          {/* Section header */}
-          <div className="flex items-center justify-between px-4 pt-4 pb-2">
-            <div className="flex items-baseline gap-2">
-              <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Daily habits</p>
-              <span className="text-[10px] text-white/30">{doneCount} / {totalCount}</span>
-            </div>
-            <button
-              onClick={() => setEditMode((v) => !v)}
-              className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
-            >
-              {editMode ? "Done" : "Edit"}
-            </button>
-          </div>
-
-          {/* Progress bar */}
-          <div className="px-4 pb-2">
-            <div className="h-px bg-white/[0.08] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white/30 transition-all duration-500"
-                style={{ width: `${totalCount > 0 ? (doneCount / totalCount) * 100 : 0}%` }}
-              />
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-label tracking-widest uppercase text-text-muted font-sans font-medium">
+              Daily habits
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="text-caption text-text-disabled tabular-nums">{doneCount}/{totalCount}</span>
+              <button
+                onClick={() => setEditMode((v) => !v)}
+                className="text-caption text-text-muted hover:text-text-secondary transition-colors"
+              >
+                {editMode ? "Done" : "Edit"}
+              </button>
             </div>
           </div>
 
-          {/* Habit rows */}
-          <div className="divide-y divide-white/[0.05]">
-            {visibleHabits.map((habit) => (
-              <div key={habit.id} className="flex items-center">
-                {editMode && (
-                  <button
-                    onClick={() => startTransition(async () => { await deleteHabit(habit.id); })}
-                    className="pl-4 pr-2 py-3 text-red-400/60 hover:text-red-400 transition-colors shrink-0"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-                <button
-                  onClick={() => !editMode && toggleHabit(habit)}
-                  className={cn(
-                    "flex-1 flex items-center gap-3 px-4 py-3 text-left transition-colors",
-                    !editMode && "hover:bg-white/[0.03] active:bg-white/[0.05]",
-                  )}
-                >
-                  <div className={cn(
-                    "w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors",
-                    habit.done ? "border-white/40 bg-white/10" : "border-white/20"
-                  )}>
-                    {habit.done && <CheckCircle2 size={12} className="text-white/60" />}
-                  </div>
-                  <Icon name={habit.icon} size={13} className="text-white/35 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className={cn(
-                      "text-sm",
-                      habit.done ? "line-through text-white/30" : "text-white/75"
-                    )}>{habit.title ?? "Habit"}</p>
-                    {(() => {
-                      const stepTarget = parseStepTarget(habit.title);
-                      if (stepTarget && todaySteps !== null && !habit.done) {
-                        const pct = Math.min(100, (todaySteps / stepTarget) * 100);
-                        return (
-                          <div className="mt-1 space-y-0.5">
-                            <p className="text-[10px] text-white/35 tabular-nums">
-                              {todaySteps.toLocaleString()} / {stepTarget.toLocaleString()}
-                            </p>
-                            <div className="h-px w-full bg-white/[0.08] rounded-full overflow-hidden">
-                              <div className="h-full bg-white/30 transition-all duration-500" style={{ width: `${pct}%` }} />
-                            </div>
+          {/* Timeline-style habit list */}
+          <div className="relative">
+            {/* Vertical line */}
+            <div className="absolute left-[5px] top-2 bottom-2 w-px bg-border-subtle" />
+
+            <div className="space-y-0">
+              {visibleHabits.map((habit) => {
+                const stepTarget = parseStepTarget(habit.title);
+                const stepProgress = stepTarget && todaySteps !== null ? Math.min(100, (todaySteps / stepTarget) * 100) : null;
+
+                return (
+                  <div key={habit.id} className="flex items-start group">
+                    {/* Check circle dot */}
+                    {editMode ? (
+                      <button
+                        onClick={() => startTransition(async () => { await deleteHabit(habit.id); })}
+                        className="relative z-10 w-3 h-3 mt-3 mr-5 shrink-0 flex items-center justify-center rounded-full border border-terracotta/40 hover:border-terracotta hover:bg-terracotta-soft transition-colors"
+                        aria-label="Delete habit"
+                      >
+                        <X size={7} strokeWidth={2} className="text-terracotta" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => toggleHabit(habit)}
+                        className="relative z-10 w-3 h-3 mt-3 mr-5 shrink-0"
+                        aria-label={habit.done ? "Mark incomplete" : "Mark complete"}
+                      >
+                        {habit.done ? (
+                          <span className="flex w-3 h-3 items-center justify-center rounded-full bg-champagne">
+                            <Check size={7} strokeWidth={2.5} className="text-champagne-fg" />
+                          </span>
+                        ) : (
+                          <span className="flex w-3 h-3 items-center justify-center rounded-full border border-border-strong group-hover:border-champagne/50 transition-colors" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* Content */}
+                    <div className={cn(
+                      "flex-1 py-2.5 border-b border-border-subtle last:border-0 min-w-0",
+                      "transition-opacity duration-200",
+                      habit.done && "opacity-50"
+                    )}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={cn(
+                          "text-body text-text-primary",
+                          habit.done && "line-through text-text-muted"
+                        )}>
+                          {habit.title ?? "Habit"}
+                        </p>
+                        <HabitIcon name={habit.icon} size={13} className="text-text-disabled shrink-0" />
+                      </div>
+
+                      {/* Steps progress */}
+                      {stepTarget && todaySteps !== null && !habit.done && (
+                        <div className="mt-1.5 space-y-1">
+                          <p className="text-caption text-text-muted tabular-nums">
+                            {todaySteps.toLocaleString()} / {stepTarget.toLocaleString()}
+                          </p>
+                          <div className="h-px w-full bg-border-subtle rounded-full overflow-hidden">
+                            <div className="h-full bg-champagne transition-all duration-500"
+                              style={{ width: `${stepProgress}%` }} />
                           </div>
-                        );
-                      }
-                      if (habit.duration && !habit.done) {
-                        return <p className="text-[10px] text-white/25 mt-0.5">{habit.duration} min</p>;
-                      }
-                      return null;
-                    })()}
+                        </div>
+                      )}
+
+                      {/* Duration — only if no steps */}
+                      {!stepTarget && habit.duration && !habit.done && (
+                        <p className="text-caption text-text-muted mt-0.5">{habit.duration} min</p>
+                      )}
+                    </div>
                   </div>
-                  {!editMode && (
-                    <span className="text-[10px] text-white/20 shrink-0">+{habit.pointsOnComplete}</span>
-                  )}
-                </button>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
 
-          {/* Show more / less toggle */}
+          {/* Expand/collapse */}
           {totalCount > HABITS_VISIBLE_DEFAULT && (
             <button
               onClick={() => setHabitsExpanded((v) => !v)}
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-[11px] text-white/30 hover:text-white/55 transition-colors border-t border-white/[0.05]"
+              className="flex items-center gap-1.5 text-caption text-text-muted hover:text-text-secondary transition-colors"
             >
-              {habitsExpanded ? (
-                <><ChevronUp size={11} /> Show less</>
-              ) : (
-                <><ChevronDown size={11} /> {hiddenCount} more habit{hiddenCount !== 1 ? "s" : ""}</>
-              )}
+              {habitsExpanded ? <><ChevronUp size={11} strokeWidth={1.5} /> Show less</> : <><ChevronDown size={11} strokeWidth={1.5} /> {hiddenCount} more</>}
             </button>
           )}
         </div>
       ) : (
-        <div className="glass rounded-2xl p-6 text-center">
-          <p className="text-sm text-white/30 mb-3">No habits set up yet.</p>
-          <Link
-            href="/chat"
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:bg-white/[0.07] transition-colors"
-          >
-            <MessageSquarePlus size={12} />
+        <div className="py-10 text-center border border-border-subtle rounded-lg">
+          <p className="text-body text-text-muted mb-4">No habits set up yet.</p>
+          <Link href="/chat"
+            className="inline-flex items-center gap-2 text-body-sm text-champagne hover:text-champagne-soft transition-colors">
+            <MessageSquarePlus size={14} strokeWidth={1.5} />
             Tell Vita your goal
           </Link>
         </div>
       )}
 
-      {/* Weekly targets */}
+      {/* ── Weekly targets ───────────────────────────────────────────────── */}
       {weeklyTargets.length > 0 && (
-        <div>
-          <p className="text-[9px] tracking-[0.25em] uppercase text-white/25 px-1 mb-2">This week</p>
-          <div className="glass rounded-2xl overflow-hidden divide-y divide-white/[0.05]">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-label tracking-widest uppercase text-text-muted font-sans font-medium">This week</p>
+            <Link href="/week" className="text-caption text-text-muted hover:text-text-secondary transition-colors">
+              View week
+            </Link>
+          </div>
+          <div className="space-y-3">
             {weeklyTargets.map((wt) => (
-              <div key={wt.id} className="flex items-center gap-3 px-4 py-3">
-                <span className="text-sm text-white/60 flex-1">{wt.label}</span>
+              <div key={wt.id} className="flex items-center gap-4">
+                <p className="text-body-sm text-text-secondary flex-1">{wt.label}</p>
                 <div className="flex items-center gap-1.5">
                   {Array.from({ length: Math.min(wt.target, 7) }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={cn("w-2 h-2 rounded-full", i < wt.done ? "bg-white/55" : "bg-white/15")}
-                    />
+                    <div key={i} className={cn(
+                      "w-1.5 h-1.5 rounded-full transition-colors",
+                      i < wt.done ? "bg-champagne" : "bg-border-default"
+                    )} />
                   ))}
-                  <span className="text-[10px] text-white/30 ml-1 tabular-nums">{wt.done}/{wt.target}</span>
+                  <span className="text-caption text-text-disabled ml-1 tabular-nums">{wt.done}/{wt.target}</span>
                 </div>
               </div>
             ))}
           </div>
-          <Link href="/week" className="block text-[10px] text-white/20 hover:text-white/40 transition-colors text-right mt-1.5 pr-1">
-            View full week →
-          </Link>
         </div>
       )}
 
-      {/* Set goal prompt */}
+      {/* ── Set goal prompt ──────────────────────────────────────────────── */}
       {!hasGoals && (
-        <div className="glass rounded-2xl p-5 text-center border border-white/[0.06]">
-          <p className="text-sm text-white/40 mb-3">Tell Vita what you want to achieve — she will build your full plan.</p>
-          <Link
-            href="/chat"
-            className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl bg-white/[0.05] text-white/60 hover:bg-white/[0.09] transition-colors"
-          >
-            <MessageSquarePlus size={14} />
-            Set my goal
+        <div className="py-10 text-center border border-border-subtle rounded-lg">
+          <p className="text-body text-text-muted mb-4 max-w-xs mx-auto">
+            Tell Vita what you want to achieve. She will build a plan around it.
+          </p>
+          <Link href="/chat"
+            className="inline-flex items-center gap-2 text-body-sm text-champagne hover:text-champagne-soft transition-colors">
+            <MessageSquarePlus size={14} strokeWidth={1.5} />
+            Set a goal
           </Link>
         </div>
       )}
 
-      {/* Talk to Vita CTA */}
-      <div className="pb-6">
-        <Link
-          href="/chat"
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-white/[0.09] text-sm text-white/40 hover:border-white/20 hover:text-white/65 transition-all"
-        >
-          <MessageSquarePlus size={15} />
-          Talk to Vita
-        </Link>
-      </div>
+      {/* ── Talk to Vita ─────────────────────────────────────────────────── */}
+      <Link
+        href="/chat"
+        className="w-full flex items-center justify-between px-4 py-3.5 rounded-md border border-border-subtle bg-bg-surface hover:border-border-default transition-colors group"
+      >
+        <span className="text-body text-text-muted group-hover:text-text-secondary transition-colors">
+          Say anything to Vita...
+        </span>
+        <ArrowRight size={14} strokeWidth={1.5} className="text-text-disabled group-hover:text-champagne transition-colors" />
+      </Link>
 
     </div>
   );
@@ -419,7 +422,7 @@ function TodayWorkoutCard({ workout }: { workout: ScheduledWorkout }) {
     startTransition(async () => {
       await completeWorkout(workout.id);
       setStatus("DONE");
-      toast.success("Workout logged. +50 XP");
+      toast.success("Workout logged");
     });
   }
 
@@ -445,75 +448,62 @@ function TodayWorkoutCard({ workout }: { workout: ScheduledWorkout }) {
     }
   }
 
-  // Default move date to tomorrow
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().split("T")[0];
-
-  // Min date for past moves = 7 days ago
   const pastLimit = new Date();
   pastLimit.setDate(pastLimit.getDate() - 7);
   const minDate = pastLimit.toISOString().split("T")[0];
 
   return (
-    <div className="glass rounded-2xl p-4 border border-white/[0.07]">
-      <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-xl border border-white/[0.07] flex items-center justify-center shrink-0">
-          <Dumbbell size={15} className="text-white/40" />
+    <div className="rounded-md border border-border-subtle bg-bg-surface">
+      <div className="flex items-start gap-4 p-4">
+        <div className="w-8 h-8 rounded border border-border-default flex items-center justify-center shrink-0">
+          <Dumbbell size={14} strokeWidth={1.5} className="text-text-muted" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[9px] tracking-widest uppercase text-white/25 mb-0.5">Today&apos;s workout</p>
-          <p className="text-sm font-medium text-white/80">{workout.name}</p>
-          <p className="text-xs text-white/35 mt-0.5">
-            {workout.scheduledTime && `${workout.scheduledTime} · `}{workout.duration} min · +50 XP on complete
+          <p className="text-label tracking-widest uppercase text-text-muted mb-0.5">Today&apos;s workout</p>
+          <p className="text-body font-medium text-text-primary">{workout.name}</p>
+          <p className="text-caption text-text-muted mt-0.5">
+            {workout.scheduledTime && `${workout.scheduledTime} · `}{workout.duration} min
           </p>
         </div>
       </div>
 
-      <div className="flex gap-2 mt-3">
-        <button
-          onClick={handleComplete}
-          className="flex-1 py-2 rounded-xl bg-white/[0.07] text-xs text-white/65 hover:bg-white/[0.11] transition-colors font-medium"
-        >
-          Done
+      <div className="flex gap-px border-t border-border-subtle">
+        <button onClick={handleComplete}
+          className="flex-1 py-2.5 text-caption text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors font-medium">
+          Mark done
         </button>
-        <button
-          onClick={handleSkip}
-          className="px-4 py-2 rounded-xl bg-white/[0.03] text-xs text-white/30 hover:bg-white/[0.06] transition-colors"
-        >
+        <div className="w-px bg-border-subtle" />
+        <button onClick={handleSkip}
+          className="px-4 py-2.5 text-caption text-text-disabled hover:text-text-muted hover:bg-bg-elevated transition-colors">
           Skip
         </button>
-        <button
-          onClick={() => setShowDatePicker((v) => !v)}
-          className="px-3 py-2 rounded-xl bg-white/[0.03] text-xs text-white/30 hover:bg-white/[0.06] transition-colors flex items-center gap-1"
-        >
-          <CalendarDays size={11} />
+        <div className="w-px bg-border-subtle" />
+        <button onClick={() => setShowDatePicker((v) => !v)}
+          className="px-3 py-2.5 text-caption text-text-disabled hover:text-text-muted hover:bg-bg-elevated transition-colors flex items-center gap-1">
+          <CalendarDays size={11} strokeWidth={1.5} />
           Move
         </button>
       </div>
 
-      {/* Date picker to move workout */}
       {showDatePicker && (
-        <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-2">
+        <div className="p-3 border-t border-border-subtle flex items-center gap-2">
           <input
             type="date"
             defaultValue={tomorrowStr}
             min={minDate}
             onChange={(e) => setMoveDate(e.target.value)}
-            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-xs text-white/60 [color-scheme:dark]"
+            className="flex-1 bg-bg-inset border border-border-default rounded px-3 py-1.5 text-caption text-text-secondary [color-scheme:dark]"
           />
-          <button
-            onClick={handleMove}
-            disabled={!moveDate}
-            className="px-4 py-1.5 rounded-lg bg-white/[0.07] text-xs text-white/65 hover:bg-white/[0.11] transition-colors disabled:opacity-40"
-          >
+          <button onClick={handleMove} disabled={!moveDate}
+            className="px-3 py-1.5 rounded border border-border-default text-caption text-text-secondary hover:border-champagne/40 hover:text-champagne transition-colors disabled:opacity-40">
             Confirm
           </button>
-          <button
-            onClick={() => setShowDatePicker(false)}
-            className="p-1.5 rounded-lg text-white/25 hover:text-white/50 transition-colors"
-          >
-            <X size={12} />
+          <button onClick={() => setShowDatePicker(false)}
+            className="p-1.5 text-text-disabled hover:text-text-muted transition-colors">
+            <X size={11} strokeWidth={1.5} />
           </button>
         </div>
       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, Camera, Video } from "lucide-react";
+import { Camera } from "lucide-react";
 import { MeasurementCard } from "@/components/cards/MeasurementCard";
 import { BodyMapCard } from "@/components/cards/BodyMapCard";
 import { PhotoMeasure } from "@/components/vision/PhotoMeasure";
@@ -9,6 +9,8 @@ import { FormCheck } from "@/components/vision/FormCheck";
 import { format } from "date-fns";
 import { AvatarPanel } from "./AvatarPanel";
 import type { AvatarDefinition } from "@/lib/avatar/types";
+import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface Measurement {
   id: string;
@@ -71,21 +73,25 @@ export function BodyView({ measurements, photos, avatarProps }: BodyViewProps) {
   const [formCheckOpen, setFormCheckOpen] = useState(false);
 
   return (
-    <div className="max-w-lg mx-auto py-4 px-4 space-y-4">
-      <div className="flex items-center gap-3 fu">
-        <div className="w-9 h-9 rounded-2xl bg-white/[0.04] flex items-center justify-center">
-          <Activity size={18} className="text-white/50" />
-        </div>
-        <h1 className="text-lg font-bold">Body</h1>
-      </div>
+    <div className="max-w-lg mx-auto px-5 py-10 space-y-8">
+      <PageHeader
+        eyebrow="Progress"
+        title="Body"
+        rule={true}
+      />
 
-      {/* Tabs */}
-      <div className="flex gap-1 glass rounded-xl p-1">
+      {/* Tab bar */}
+      <div className="flex border-b border-border-subtle">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 text-xs py-1.5 rounded-lg transition-colors ${tab === t ? "bg-white/10 text-foreground font-medium" : "text-muted-foreground"}`}
+            className={cn(
+              "flex-1 pb-2.5 text-caption font-sans font-medium transition-colors border-b-[1.5px] -mb-px",
+              tab === t
+                ? "text-text-primary border-champagne"
+                : "text-text-disabled border-transparent hover:text-text-muted"
+            )}
           >
             {t}
           </button>
@@ -93,15 +99,15 @@ export function BodyView({ measurements, photos, avatarProps }: BodyViewProps) {
       </div>
 
       {tab === "Vita You" && (
-        <div className="fu">
-          <AvatarPanel {...avatarProps} />
-        </div>
+        <AvatarPanel {...avatarProps} />
       )}
 
       {tab === "Stats" && (
-        <div className="space-y-2 fu">
+        <div className="space-y-2">
           {measurements.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No measurements yet. Ask Vita to log one.</p>
+            <p className="text-body-sm text-text-muted text-center py-12">
+              No measurements yet. Ask Vita to log one.
+            </p>
           ) : (
             measurements.map((m) => (
               <MeasurementCard
@@ -118,21 +124,21 @@ export function BodyView({ measurements, photos, avatarProps }: BodyViewProps) {
       )}
 
       {tab === "Photos" && (
-        <div className="fu">
+        <div>
           {photos.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Camera size={32} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No progress photos yet.</p>
-              <p className="text-xs mt-1">Send a photo to Vita to start tracking.</p>
+            <div className="text-center py-16">
+              <Camera size={24} strokeWidth={1.5} className="mx-auto mb-4 text-text-disabled" />
+              <p className="text-body-sm text-text-muted">No progress photos yet.</p>
+              <p className="text-caption text-text-disabled mt-1">Send a photo to Vita to start tracking.</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-1.5">
               {photos.map((p) => (
-                <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden bg-secondary">
+                <div key={p.id} className="relative aspect-square rounded overflow-hidden bg-bg-surface border border-border-subtle">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={p.url} alt={p.pose} className="w-full h-full object-cover" />
-                  <div className="absolute bottom-0 left-0 right-0 p-1 bg-black/50">
-                    <p className="text-[9px] text-white text-center">{format(new Date(p.capturedAt), "MMM d")}</p>
+                  <div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-bg-base/80">
+                    <p className="text-[9px] text-text-muted text-center">{format(new Date(p.capturedAt), "MMM d")}</p>
                   </div>
                 </div>
               ))}
@@ -142,15 +148,14 @@ export function BodyView({ measurements, photos, avatarProps }: BodyViewProps) {
       )}
 
       {tab === "Body Map" && (
-        <div className="fu">
+        <div className="space-y-4">
           <BodyMapCard worked={[]} sore={[]} />
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Muscle map will highlight worked and sore areas based on your logged workouts.
+          <p className="text-caption text-text-disabled text-center">
+            Highlights worked and sore muscle groups based on your logged workouts.
           </p>
         </div>
       )}
 
-      {/* Form check overlay (accessible from Vision, kept here for compatibility) */}
       {formCheckOpen && <FormCheck onClose={() => setFormCheckOpen(false)} />}
     </div>
   );

@@ -267,84 +267,74 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center py-16 fu">
-            <div className="text-4xl mb-3">🌿</div>
-            <h2 className="text-lg font-semibold mb-1">Hey, I'm Vita</h2>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-              Your AI fitness coach. Tell me your goal, ask me anything, or say what you did today.
+          <div className="py-20 fu">
+            <h2 className="font-serif text-display-sm font-light text-text-primary mb-1">Vita</h2>
+            <p className="text-body text-text-muted max-w-sm">
+              Your private coach. Tell me your goal, ask me anything, or say what you did today.
             </p>
-            <div className="mt-6 flex flex-wrap gap-2 justify-center">
+            <div className="mt-8 flex flex-wrap gap-2">
               {SUGGESTIONS.map((s) => (
                 <button key={s} onClick={() => setInput(s)}
-                  className="text-xs px-3 py-1.5 rounded-full glass glass-hover text-muted-foreground">
+                  className="text-caption px-3 py-1.5 rounded border border-border-subtle bg-bg-surface text-text-muted hover:border-border-default hover:text-text-secondary transition-colors">
                   {s}
                 </button>
               ))}
             </div>
-            <p className="mt-6 text-xs text-muted-foreground">
-              Drag & drop images, docs, or voice messages — or paste from clipboard.
-            </p>
           </div>
         )}
 
         {messages.map((message: Message) => (
-          <div key={message.id} className={cn("group flex gap-3", message.role === "user" ? "justify-end" : "justify-start")}>
-            {message.role === "assistant" && (
-              <div className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-xs font-bold text-background shrink-0 mt-0.5">
-                V
-              </div>
-            )}
-
-            <div className={cn("max-w-[80%] space-y-1", message.role === "user" ? "items-end" : "items-start")}>
-              <div className={cn(
-                "rounded-2xl px-4 py-2.5 text-sm",
-                message.role === "user"
-                  ? "bg-white/[0.06] text-white rounded-br-sm"
-                  : "glass rounded-bl-sm"
-              )}>
-                {message.role === "assistant" ? (
-                  <div className="prose prose-invert prose-sm max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
-                  </div>
-                ) : (
+          <div key={message.id} className={cn(
+            "group",
+            message.role === "user" ? "flex justify-end" : "block"
+          )}>
+            {message.role === "user" ? (
+              /* User: right-aligned bubble, bg-elevated */
+              <div className="max-w-[75%] space-y-1">
+                <div className="bg-bg-elevated border border-border-subtle rounded-lg rounded-br px-4 py-2.5 text-body text-text-primary">
                   <UserMessageContent content={message.content} />
+                </div>
+              </div>
+            ) : (
+              /* Vita: no bubble — typeset directly on page */
+              <div className="space-y-2">
+                <div className="prose prose-sm max-w-none text-body text-text-primary [&>p]:mb-3 [&>p:last-child]:mb-0 [&>ul]:space-y-1 [&>ol]:space-y-1 [&>h1,h2,h3]:font-serif [&>h1,h2,h3]:font-light [&>h1,h2,h3]:text-text-primary [&>strong]:font-medium [&>strong]:text-text-primary [&>a]:text-champagne [&>a]:underline [&>a]:underline-offset-2 [&>code]:bg-bg-elevated [&>code]:px-1 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-caption [&>code]:font-mono">
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                </div>
+
+                {/* Tool cards */}
+                {message.toolInvocations && message.toolInvocations.map((inv) =>
+                  inv.state === "result" ? (
+                    <ToolResultRenderer key={inv.toolCallId} toolName={inv.toolName} result={inv.result} />
+                  ) : null
                 )}
 
-              {/* Generative UI cards from tool invocations */}
-              {message.role === "assistant" && message.toolInvocations && message.toolInvocations.map((inv) =>
-                inv.state === "result" ? (
-                  <ToolResultRenderer key={inv.toolCallId} toolName={inv.toolName} result={inv.result} />
-                ) : null
-              )}
-              </div>
-
-              {message.role === "assistant" && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => copyMessage(message.content, message.id)} className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground">
-                    {copiedId === message.id ? <Check size={12} className="text-primary" /> : <Copy size={12} />}
+                {/* Message actions */}
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                  <button onClick={() => copyMessage(message.content, message.id)}
+                    className="p-1 rounded text-text-disabled hover:text-text-muted transition-colors" aria-label="Copy">
+                    {copiedId === message.id ? <Check size={11} strokeWidth={1.5} /> : <Copy size={11} strokeWidth={1.5} />}
                   </button>
-                  <button onClick={() => sendFeedback(message.id, 1)} className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-primary">
-                    <ThumbsUp size={12} />
+                  <button onClick={() => sendFeedback(message.id, 1)}
+                    className="p-1 rounded text-text-disabled hover:text-sage transition-colors" aria-label="Helpful">
+                    <ThumbsUp size={11} strokeWidth={1.5} />
                   </button>
-                  <button onClick={() => sendFeedback(message.id, -1)} className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-destructive">
-                    <ThumbsDown size={12} />
+                  <button onClick={() => sendFeedback(message.id, -1)}
+                    className="p-1 rounded text-text-disabled hover:text-terracotta transition-colors" aria-label="Not helpful">
+                    <ThumbsDown size={11} strokeWidth={1.5} />
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         ))}
 
         {isLoading && (
-          <div className="flex gap-3 justify-start">
-            <div className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-xs font-bold text-background shrink-0">V</div>
-            <div className="glass rounded-2xl rounded-bl-sm px-4 py-3">
-              <div className="flex gap-1 items-center h-4">
-                {[0, 150, 300].map((delay) => (
-                  <span key={delay} className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: `${delay}ms` }} />
-                ))}
-              </div>
-            </div>
+          <div className="flex gap-2 items-center">
+            {[0, 120, 240].map((delay) => (
+              <span key={delay} className="w-1 h-1 rounded-full bg-text-muted animate-pulse"
+                style={{ animationDelay: `${delay}ms`, animationDuration: "1.2s" }} />
+            ))}
           </div>
         )}
 
@@ -361,26 +351,17 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
       </div>
 
       {/* Input bar */}
-      <div className="px-4 pb-2">
-        <div className="glass rounded-2xl overflow-hidden">
+      <div className="px-4 pb-3 pt-2 border-t border-border-subtle">
+        <div className="rounded-md border border-border-default bg-bg-inset overflow-hidden focus-within:border-champagne/40 transition-colors">
           <AttachmentPreview
             attachments={pendingAttachments}
             onRemove={(id) => setPendingAttachments((prev) => prev.filter((a) => a.id !== id))}
           />
           <form onSubmit={submitWithAttachments} className="flex items-end gap-2 px-3 py-2">
-            {/* Attach file — use label so iOS WebKit handles the tap natively */}
-            <label
-              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary shrink-0 cursor-pointer"
-              title="Attach file"
-            >
-              <Paperclip size={14} />
-              <input
-                type="file"
-                multiple
-                accept="image/*,.pdf,.txt"
-                className="sr-only"
-                onChange={(e) => e.target.files && handleFiles(e.target.files)}
-              />
+            <label className="p-1.5 rounded text-text-disabled hover:text-text-muted transition-colors shrink-0 cursor-pointer" title="Attach file">
+              <Paperclip size={14} strokeWidth={1.5} />
+              <input type="file" multiple accept="image/*,.pdf,.txt" className="sr-only"
+                onChange={(e) => e.target.files && handleFiles(e.target.files)} />
             </label>
 
             <textarea
@@ -389,9 +370,9 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={onPaste}
-              placeholder="Message Vita… (Enter to send, Shift+Enter for newline)"
+              placeholder="Say anything..."
               rows={1}
-              className="flex-1 bg-transparent resize-none outline-none text-sm placeholder:text-muted-foreground max-h-40 overflow-y-auto py-1.5"
+              className="flex-1 bg-transparent resize-none outline-none text-body text-text-primary placeholder:text-text-disabled max-h-40 overflow-y-auto py-1.5 font-sans"
               style={{ minHeight: "36px" }}
               onInput={(e) => {
                 const t = e.currentTarget;
@@ -400,36 +381,29 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
               }}
             />
 
-            {/* Voice recorder (push-to-record) */}
             <VoiceRecorder onRecorded={(file) => uploadFile(file)} />
 
-            {/* Voice mode */}
-            <button
-              type="button"
-              onClick={() => setVoiceMode(true)}
-              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary shrink-0"
-              title="Voice mode"
-            >
-              <Mic2 size={14} />
+            <button type="button" onClick={() => setVoiceMode(true)}
+              className="p-1.5 rounded text-text-disabled hover:text-text-muted transition-colors shrink-0" title="Voice mode">
+              <Mic2 size={14} strokeWidth={1.5} />
             </button>
 
             {isLoading ? (
-              <button type="button" onClick={stop} className="p-2 rounded-xl bg-destructive text-white shrink-0">
-                <Square size={14} />
+              <button type="button" onClick={stop}
+                className="p-1.5 rounded border border-terracotta/40 text-terracotta shrink-0 hover:bg-terracotta-soft transition-colors">
+                <Square size={14} strokeWidth={1.5} />
               </button>
             ) : (
-              <button
-                type="submit"
+              <button type="submit"
                 disabled={!input.trim() && pendingAttachments.length === 0}
-                className="p-2 rounded-xl bg-primary text-primary-foreground shrink-0 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-              >
-                <Send size={14} />
+                className="p-1.5 rounded bg-champagne text-champagne-fg shrink-0 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-champagne-soft transition-colors">
+                <Send size={14} strokeWidth={1.5} />
               </button>
             )}
           </form>
         </div>
-        <p className="text-[10px] text-muted-foreground text-center mt-1">
-          Not medical advice — consult a healthcare professional before starting new programmes.
+        <p className="text-[10px] text-text-disabled text-center mt-2">
+          Not medical advice. Consult a healthcare professional before starting new programmes.
         </p>
       </div>
 

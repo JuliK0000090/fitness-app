@@ -1,39 +1,66 @@
 import Link from "next/link";
-import { Brain, Shield, Bell, Palette, ChevronRight, Watch, Heart } from "lucide-react";
+import { Brain, Shield, Bell, Watch, Heart, ChevronRight } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 
 const SETTINGS = [
-  { href: "/settings/integrations/apple-health", icon: Heart, color: "rgba(255,255,255,0.5)", label: "Apple Health", desc: "Connect your iPhone steps, sleep, and workouts" },
-  { href: "/settings/memory", icon: Brain, color: "rgba(255,255,255,0.5)", label: "Memory", desc: "Manage what Vita remembers about you" },
-  { href: "/settings/notifications", icon: Bell, color: "rgba(255,255,255,0.5)", label: "Notifications", desc: "Morning briefings, nudges, and alerts" },
-  { href: "/settings/appearance", icon: Palette, color: "rgba(255,255,255,0.5)", label: "Appearance", desc: "Theme, font size, reduced motion" },
-  { href: "/settings/privacy", icon: Shield, color: "rgba(255,255,255,0.5)", label: "Privacy & Data", desc: "Export, delete, and data settings" },
-  { href: "/settings/wearables", icon: Watch, color: "rgba(255,255,255,0.5)", label: "Wearables", desc: "Connect fitness devices and wearables" },
+  {
+    group: "Integrations",
+    items: [
+      { href: "/settings/integrations/apple-health", icon: Heart, label: "Apple Health", desc: "Steps, sleep, HRV, and workouts from your iPhone" },
+      { href: "/settings/wearables", icon: Watch, label: "Wearables", desc: "Connect fitness devices and other wearables" },
+    ],
+  },
+  {
+    group: "Privacy & Memory",
+    items: [
+      { href: "/settings/memory", icon: Brain, label: "Memory", desc: "Manage what Vita remembers about you" },
+      { href: "/settings/privacy", icon: Shield, label: "Privacy & Data", desc: "Export, delete, and retention settings" },
+    ],
+  },
+  {
+    group: "Notifications",
+    items: [
+      { href: "/settings/notifications", icon: Bell, label: "Notifications", desc: "Morning briefings, nudges, and re-entry reminders" },
+    ],
+  },
 ];
 
 export default function SettingsPage() {
   return (
-    <div className="max-w-lg mx-auto py-6 px-4 space-y-2">
-      <div className="mb-6">
-        <h1 className="text-lg font-bold">Settings</h1>
-        <p className="text-xs text-muted-foreground">Customize your Vita experience</p>
-      </div>
+    <div className="max-w-lg mx-auto px-5 py-10 space-y-10">
+      <PageHeader
+        eyebrow="Account"
+        title="Settings"
+        rule={true}
+      />
 
-      {SETTINGS.map(({ href, icon: Icon, color, label, desc }) => (
-        <Link
-          key={href}
-          href={href}
-          className="glass rounded-2xl p-4 flex items-center gap-3 hover:bg-white/5 transition-colors group"
-        >
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.05)" }}>
-            <Icon size={16} style={{ color }} />
+      <div className="space-y-8">
+        {SETTINGS.map(({ group, items }) => (
+          <div key={group} className="space-y-1">
+            <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium mb-3">
+              {group}
+            </p>
+            <div className="divide-y divide-border-subtle border border-border-subtle rounded-md overflow-hidden">
+              {items.map(({ href, icon: Icon, label, desc }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-center gap-4 px-4 py-3.5 bg-bg-surface hover:bg-bg-elevated transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded border border-border-default bg-bg-base flex items-center justify-center shrink-0">
+                    <Icon size={14} strokeWidth={1.5} className="text-text-muted" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-sm text-text-primary font-medium">{label}</p>
+                    <p className="text-caption text-text-muted truncate">{desc}</p>
+                  </div>
+                  <ChevronRight size={13} strokeWidth={1.5} className="text-text-disabled group-hover:text-text-muted transition-colors shrink-0" />
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium">{label}</p>
-            <p className="text-xs text-muted-foreground">{desc}</p>
-          </div>
-          <ChevronRight size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
-        </Link>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
