@@ -80,13 +80,13 @@ export function IntegrationsView({ devices }: { devices: Device[] }) {
         Wearable integrations are coming soon. You'll be able to connect Oura, Whoop, Garmin, Fitbit, and more.
       </div>
 
-      <div className="divide-y divide-border-subtle border border-border-subtle rounded-md overflow-hidden opacity-50 pointer-events-none select-none">
+      <div className="divide-y divide-border-subtle border border-border-subtle rounded-md overflow-hidden">
         {PROVIDERS.map(({ id, label, note }) => {
           const device = deviceMap[id];
           const connected = device?.connected === true && device?.status !== "DISCONNECTED";
 
           return (
-            <div key={id} className="flex items-center justify-between gap-3 px-4 py-3 bg-bg-surface">
+            <div key={id} className={cn("flex items-center justify-between gap-3 px-4 py-3 bg-bg-surface", !connected && "opacity-50 pointer-events-none select-none")}>
               <div className="flex items-center gap-3">
                 {connected
                   ? <CheckCircle2 size={14} strokeWidth={1.5} className="text-sage shrink-0" />

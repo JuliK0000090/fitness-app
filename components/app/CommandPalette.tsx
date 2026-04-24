@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Home, MessageSquare, Activity, Trophy, User, Settings, LogOut } from "lucide-react";
@@ -24,18 +23,6 @@ const PAGES = [
 
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const router = useRouter();
-
-  // Open on ⌘K
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        onClose(); // toggle
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
 
   function navigate(href: string) {
     router.push(href);

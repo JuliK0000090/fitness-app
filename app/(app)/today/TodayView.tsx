@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useOptimistic } from "react";
+import { useState, useTransition, useOptimistic, useEffect } from "react";
 import Link from "next/link";
 import {
   Bell, X, MessageSquarePlus, CheckCircle2, Circle, Clock,
@@ -95,15 +95,16 @@ export function TodayView({
   const [editMode, setEditMode] = useState(false);
   const [habitsExpanded, setHabitsExpanded] = useState(false);
   const [, startTransition] = useTransition();
-  const [bannerVisible, setBannerVisible] = useState(() => {
-    if (!showHealthBanner) return false;
-    if (typeof window === "undefined") return true;
+  const [bannerVisible, setBannerVisible] = useState(showHealthBanner);
+  useEffect(() => {
+    if (!showHealthBanner) return;
     try {
       const dismissed = localStorage.getItem(HEALTH_BANNER_KEY);
-      if (!dismissed) return true;
-      return Date.now() - Number(dismissed) > HEALTH_BANNER_TTL_MS;
-    } catch { return true; }
-  });
+      if (dismissed && Date.now() - Number(dismissed) <= HEALTH_BANNER_TTL_MS) {
+        setBannerVisible(false);
+      }
+    } catch { /* ignore */ }
+  }, [showHealthBanner]);
 
   function dismissBanner() {
     try { localStorage.setItem(HEALTH_BANNER_KEY, String(Date.now())); } catch { /* ignore */ }

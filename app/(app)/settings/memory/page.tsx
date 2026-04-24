@@ -33,10 +33,15 @@ export default function MemoryPage() {
 
   const fetchMemories = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/memories");
-    const data = await res.json();
-    setMemories(data.memories ?? []);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/memories");
+      const data = await res.json();
+      setMemories(data.memories ?? []);
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchMemories(); }, [fetchMemories]);

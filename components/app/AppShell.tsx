@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChatSidebar } from "./ChatSidebar";
@@ -28,6 +28,17 @@ export function AppShell({ user, children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCmdOpen((prev) => !prev);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   const isChat = pathname.startsWith("/chat");
   const isGuest = user.email.startsWith("guest_") && user.email.endsWith("@guest.vita");
