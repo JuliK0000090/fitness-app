@@ -20,9 +20,11 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { evaluateInsights } from "@/lib/jobs/insights";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => a.replace("--", "").split("=") as [string, string])
@@ -54,8 +56,9 @@ async function main() {
 
   switch (insightNum) {
     case 1: // cross_domain_catch — rising resting HR + deadline keyword in recent message
+      // Index 0 = today (highest), index 6 = 6 days ago (lowest) = rising trend
       for (let i = 0; i < 7; i++) {
-        await upsertHealthDay(i, "heartRateResting", 62 + i); // rising trend
+        await upsertHealthDay(i, "heartRateResting", 68 - i); // today=68, 6 days ago=62 → rising
       }
       // Add a message mentioning deadline
       const conv = await prisma.conversation.findFirst({ where: { userId } }) ??
