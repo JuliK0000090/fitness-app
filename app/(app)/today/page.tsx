@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { TodayView } from "./TodayView";
+import { RitualView } from "./RitualView";
 import { userTodayStr, localMidnightUTC } from "@/lib/time/today";
 
 function computeLevel(totalXp: number) {
@@ -28,7 +29,7 @@ export default async function TodayPage() {
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { name: true, totalXp: true, currentStreak: true, timezone: true },
+    select: { name: true, totalXp: true, currentStreak: true, timezone: true, todayMode: true },
   });
 
   const timezone = user.timezone ?? "UTC";
@@ -139,11 +140,66 @@ export default async function TodayPage() {
   for (const w of weeklyDoneScheduled) addCount(w.workoutTypeName);
   for (const w of weeklyDoneLogs) addCount(w.workoutName);
 
+  // GLP-1 widget data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const glp1Profile = await (prisma as any).gLP1Profile.findUnique({
+    where: { userId },
+    select: { active: true, proteinTargetG: true, resistanceMinTarget: true },
+  }).catch(() => null);
+
   const { level, totalXp, xpToNext, xpInLevel } = computeLevel(user.totalXp);
   const xpPct = Math.min(100, (xpInLevel / Math.max(1, xpInLevel + xpToNext)) * 100);
 
   const completedIds = new Set(completions.map((c) => c.habitId));
   const dueHabits = habits.filter((h) => isHabitDueToday(h.cadence, h.specificDays, timezone));
+
+  const habitsForView = dueHabits.map((h) => ({
+    id: h.id,
+    title: h.title,
+    icon: h.icon ?? "CheckCircle",
+    duration: h.duration,
+    pointsOnComplete: h.pointsOnComplete,
+    done: completedIds.has(h.id),
+  }));
+
+  const workoutsForView = scheduledWorkouts.map((sw) => ({
+    id: sw.id,
+    name: sw.workoutTypeName ?? "Workout",
+    scheduledTime: sw.scheduledTime,
+    duration: sw.duration,
+    status: sw.status,
+  }));
+
+  const weeklyTargetsForView = weeklyTargets.map((wt) => ({
+    id: wt.id,
+    label: wt.workoutTypeName ?? wt.workoutType?.name ?? "Workout",
+    icon: wt.workoutType?.icon ?? "Dumbbell",
+    target: wt.targetCount,
+    done: doneCounts[wt.workoutTypeName ?? ""] ?? doneCounts[wt.workoutType?.name ?? ""] ?? 0,
+  }));
+
+  const notificationsForView = notifications.map((n) => ({ id: n.id, title: n.title, body: n.body }));
+
+  // Ritual mode: new users default to RITUAL; existing users default to DASHBOARD
+  const todayMode = (user as any).todayMode ?? "DASHBOARD";
+
+  if (todayMode === "RITUAL") {
+    return (
+      <RitualView
+        userName={user.name ?? "there"}
+        dateLabel={dateLabel}
+        currentStreak={user.currentStreak}
+        habits={habitsForView}
+        scheduledWorkouts={workoutsForView}
+        weeklyTargets={weeklyTargetsForView}
+        hasGoals={hasGoals}
+        readinessScore={readinessScore}
+        glp1Active={glp1Profile?.active ?? false}
+        glp1ProteinTargetG={glp1Profile?.proteinTargetG ?? null}
+        glp1ResistanceMinTarget={glp1Profile?.resistanceMinTarget ?? null}
+      />
+    );
+  }
 
   return (
     <TodayView
@@ -154,30 +210,10 @@ export default async function TodayPage() {
       xpToNext={xpToNext}
       xpPct={xpPct}
       currentStreak={user.currentStreak}
-      habits={dueHabits.map((h) => ({
-        id: h.id,
-        title: h.title,
-        icon: h.icon ?? "CheckCircle",
-        duration: h.duration,
-        pointsOnComplete: h.pointsOnComplete,
-        done: completedIds.has(h.id),
-      }))}
-      scheduledWorkouts={scheduledWorkouts.map((sw) => ({
-        id: sw.id,
-        name: sw.workoutTypeName ?? "Workout",
-        scheduledTime: sw.scheduledTime,
-        duration: sw.duration,
-        status: sw.status,
-      }))}
-      weeklyTargets={weeklyTargets.map((wt) => ({
-        id: wt.id,
-        label: wt.workoutTypeName ?? wt.workoutType?.name ?? "Workout",
-        icon: wt.workoutType?.icon ?? "Dumbbell",
-        target: wt.targetCount,
-        // Match by workoutTypeName first, then by workoutType.name
-        done: doneCounts[wt.workoutTypeName ?? ""] ?? doneCounts[wt.workoutType?.name ?? ""] ?? 0,
-      }))}
-      notifications={notifications.map((n) => ({ id: n.id, title: n.title, body: n.body }))}
+      habits={habitsForView}
+      scheduledWorkouts={workoutsForView}
+      weeklyTargets={weeklyTargetsForView}
+      notifications={notificationsForView}
       hasGoals={hasGoals}
       showHealthBanner={showHealthBanner}
       readinessScore={readinessScore}

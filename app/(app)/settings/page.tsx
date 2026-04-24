@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Brain, Shield, Bell, Watch, Heart, ChevronRight } from "lucide-react";
+import { Brain, Shield, Bell, Watch, Heart, ChevronRight, Pill } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 
 const SETTINGS = [
@@ -8,6 +8,12 @@ const SETTINGS = [
     items: [
       { href: "/settings/integrations/apple-health", icon: Heart, label: "Apple Health", desc: "Steps, sleep, HRV, and workouts from your iPhone" },
       { href: "/settings/wearables", icon: Watch, label: "Wearables", desc: "Connect fitness devices and other wearables" },
+    ],
+  },
+  {
+    group: "Health modes",
+    items: [
+      { href: "/settings/health/glp1", icon: Pill, label: "GLP-1 mode", desc: "Protect lean muscle while losing weight on medication" },
     ],
   },
   {
