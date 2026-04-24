@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
 
   // Log safety classification to AuditLog (best-effort)
   if (safety.category !== "safe") {
-    prisma.auditLog.create({
+    void prisma.auditLog.create({
       data: {
         userId,
         action: "safety_flag",

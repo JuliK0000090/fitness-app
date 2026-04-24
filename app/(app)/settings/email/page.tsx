@@ -25,7 +25,11 @@ export default function EmailSettingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/settings/email").then((r) => r.json()).then((d) => { setPrefs(d); setLoading(false); });
+    fetch("/api/settings/email")
+      .then((r) => r.json())
+      .then((d) => { setPrefs(d); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   async function update(key: string, value: boolean | string) {
