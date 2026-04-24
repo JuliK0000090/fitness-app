@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import { ChevronRight, Sparkles, EyeOff } from "lucide-react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { ChevronRight, Sparkles, EyeOff, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { AvatarDefinition, Archetype, SkinTone, HairStyle, HairColor, PoseId } from "@/lib/avatar/types";
@@ -132,41 +132,61 @@ export function AvatarPanel({
   events,
 }: AvatarPanelProps) {
   const [def, setDef] = useState(initDef);
+  const [savedDef, setSavedDef] = useState(initDef);
   const [visibility, setVisibility] = useState(initVisibility);
   const [activeMilestoneId, setActiveMilestoneId] = useState<string | null>(
     milestones[0]?.id ?? null
   );
   const [showSettings, setShowSettings] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const patchAvatar = useCallback(async (
-    updates: Partial<AvatarDefinition>,
-    settingsUpdates?: { visibility?: "ON" | "LIMITED" | "OFF" }
-  ) => {
-    setSaving(true);
+  const hasChanges = useMemo(
+    () => JSON.stringify(def) !== JSON.stringify(savedDef),
+    [def, savedDef]
+  );
+
+  // Auto-open settings when user first lands with default def
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    };
+  }, []);
+
+  async function saveAvatar() {
+    if (saveState === "saving") return;
+    setSaveState("saving");
     try {
       await fetch("/api/avatar", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ definition: updates, ...settingsUpdates }),
+        body: JSON.stringify({ definition: def }),
       });
+      setSavedDef(def);
+      setSaveState("saved");
+      savedTimerRef.current = setTimeout(() => setSaveState("idle"), 2000);
     } catch {
       toast.error("Could not save — try again");
-    } finally {
-      setSaving(false);
+      setSaveState("idle");
     }
-  }, []);
+  }
 
+  async function persistVisibility(v: "ON" | "LIMITED" | "OFF") {
+    setVisibility(v);
+    await fetch("/api/avatar", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: v }),
+    });
+  }
+
+  // Local-only update — changes preview instantly, requires Save to persist
   function updateDef(updates: Partial<AvatarDefinition>) {
-    const newDef = { ...def, ...updates };
-    setDef(newDef);
-    patchAvatar(updates);
+    setDef((prev) => ({ ...prev, ...updates }));
   }
 
   async function hideAvatar() {
-    setVisibility("OFF");
-    await patchAvatar({}, { visibility: "OFF" });
-    toast.success("Avatar hidden. You can restore it in settings.");
+    await persistVisibility("OFF");
   }
 
   if (visibility === "OFF") {
@@ -175,10 +195,7 @@ export function AvatarPanel({
         <EyeOff size={28} className="mx-auto text-white/20" />
         <p className="text-sm text-white/40">Your avatar is hidden.</p>
         <button
-          onClick={async () => {
-            setVisibility("ON");
-            await patchAvatar({}, { visibility: "ON" });
-          }}
+          onClick={() => persistVisibility("ON")}
           className="text-xs text-white/50 underline underline-offset-2"
         >
           Show again
@@ -438,7 +455,6 @@ export function AvatarPanel({
           <div className="border-t border-white/[0.05] pt-3">
             <button
               onClick={hideAvatar}
-              disabled={saving}
               className="text-[11px] text-white/25 hover:text-white/40 transition-colors"
             >
               Hide avatar entirely
@@ -448,8 +464,57 @@ export function AvatarPanel({
         </div>
       )}
 
-      {saving && (
-        <p className="text-[10px] text-white/20 text-center">saving…</p>
+      {/* ── Save button ──────────────────────────────────────────────────────── */}
+      {showSettings && (
+        <div className="pb-2">
+          <button
+            onClick={saveAvatar}
+            disabled={saveState === "saving" || (!hasChanges && saveState === "idle")}
+            className={cn(
+              "relative w-full rounded-2xl py-4 text-sm font-medium tracking-wide transition-all duration-300 overflow-hidden",
+              // Base glass layer
+              "border",
+              // State-based styles
+              saveState === "saved"
+                ? "border-white/20 bg-white/[0.04] text-white/60"
+                : hasChanges
+                  ? "border-white/25 text-white/90 bg-white/[0.06]"
+                  : "border-white/[0.06] text-white/20 bg-transparent cursor-default"
+            )}
+            style={hasChanges && saveState === "idle" ? {
+              boxShadow: "0 0 0 1px rgba(167,139,250,0.3), 0 0 24px rgba(167,139,250,0.12), inset 0 1px 0 rgba(255,255,255,0.06)",
+            } : undefined}
+          >
+            {/* Shimmer sweep on unsaved changes */}
+            {hasChanges && saveState === "idle" && (
+              <span
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%)",
+                  backgroundSize: "200% 100%",
+                  animation: "shimmer 2.4s ease-in-out infinite",
+                }}
+              />
+            )}
+
+            <span className="relative flex items-center justify-center gap-2">
+              {saveState === "saving" && (
+                <svg className="animate-spin" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle cx="7" cy="7" r="6" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2"/>
+                  <path d="M13 7A6 6 0 0 0 7 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              )}
+              {saveState === "saved" && <Check size={14} strokeWidth={2.5} />}
+              {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save your look"}
+            </span>
+          </button>
+
+          {hasChanges && saveState === "idle" && (
+            <p className="text-center text-[10px] text-white/20 mt-2 tracking-wide">
+              unsaved changes
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
