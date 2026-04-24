@@ -2,7 +2,7 @@
 
 # VITA — PRODUCT PRIORITIES (source of truth)
 
-We are building Vita — an AI private trainer with persistent memory, multi-source wearable integration, and restrained, outcome-driven design. Our target user is a woman aged 25–45 pursuing body-composition + lifestyle goals (Pilates, reformer, hot yoga, running, Victoria's Secret body, wedding prep, postpartum, splits & flexibility). Our moat is conversational depth + memory + wearable trust + personality.
+We are building Vita — an AI private trainer with persistent memory, multi-source wearable integration, and restrained, outcome-driven design. Our target user is a woman aged 25–45 pursuing body-composition + lifestyle goals (Pilates, reformer, hot yoga, running, lean and strong, wedding prep, postpartum, splits & flexibility). Our moat is conversational depth + memory + wearable trust + personality.
 
 ## When deciding what to build next, apply these rules in order:
 
