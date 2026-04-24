@@ -1107,6 +1107,101 @@ export function vitaTools(userId: string) {
         };
       },
     }),
+
+    // ── Memory integrity tools ─────────────────────────────────────────────────
+
+    remember_fact: makeTool({
+      description: "Save a durable fact about this user. Call this whenever the user states something that should persist across conversations: dates, preferences, constraints, relationships, health context. If a fact with the same key already exists, this will detect the contradiction and surface it for user confirmation rather than silently overwriting.",
+      parameters: z.object({
+        category: z.enum(["GOAL", "EVENT", "PREFERENCE", "CONSTRAINT", "RELATIONSHIP", "HEALTH_CONTEXT", "OTHER"]),
+        key: z.string().describe("Short, specific key like 'sister_wedding_date' or 'preferred_workout_time'"),
+        value: z.string().describe("The value to remember"),
+        confidence: z.number().min(0).max(1).describe("0-1, how certain you are. 1.0 for explicit statements, 0.6 for inferred"),
+        source: z.string().describe("Brief description of where this came from, e.g. 'user said in chat'"),
+      }),
+      execute: async ({ category, key, value, confidence, source }) => {
+        const db = prisma as any;
+        const existing = await db.userFact.findUnique({
+          where: { userId_category_key: { userId, category, key } },
+        });
+
+        if (existing && existing.value !== value && existing.active) {
+          // Contradiction detected — don't overwrite, surface for confirmation
+          await db.userFact.update({
+            where: { id: existing.id },
+            data: {
+              contradictedAt: new Date(),
+              contradictionNote: `${existing.value} → ${value}`,
+            },
+          });
+
+          await prisma.chatSuggestion.create({
+            data: {
+              userId,
+              type: "fact_confirmation",
+              title: "Just to confirm",
+              body: `I had "${key}" as "${existing.value}" — are you updating this to "${value}"?`,
+            },
+          });
+
+          return {
+            ok: false,
+            contradiction: true,
+            message: `I had "${key}" noted as "${existing.value}". I've flagged this for your confirmation rather than changing it automatically.`,
+            existingValue: existing.value,
+            newValue: value,
+          };
+        }
+
+        // No conflict — upsert
+        const fact = await db.userFact.upsert({
+          where: { userId_category_key: { userId, category, key } },
+          create: {
+            userId,
+            category,
+            key,
+            value,
+            confidence,
+            source,
+            firstStatedAt: new Date(),
+            lastConfirmedAt: new Date(),
+          },
+          update: {
+            value,
+            confidence,
+            source,
+            lastConfirmedAt: new Date(),
+            contradictedAt: null,
+            contradictionNote: null,
+          },
+        });
+
+        return { ok: true, factId: fact.id, key, value };
+      },
+    }),
+
+    confirm_fact_update: makeTool({
+      description: "Confirm a fact update after the user has verified a contradiction. Call this only after the user explicitly confirms they want to update the fact.",
+      parameters: z.object({
+        category: z.enum(["GOAL", "EVENT", "PREFERENCE", "CONSTRAINT", "RELATIONSHIP", "HEALTH_CONTEXT", "OTHER"]),
+        key: z.string(),
+        newValue: z.string(),
+      }),
+      execute: async ({ category, key, newValue }) => {
+        const db = prisma as any;
+        const updated = await db.userFact.update({
+          where: { userId_category_key: { userId, category, key } },
+          data: {
+            value: newValue,
+            lastConfirmedAt: new Date(),
+            contradictedAt: null,
+            contradictionNote: null,
+            confidence: 1.0,
+          },
+        });
+        return { ok: true, factId: updated.id, key, value: newValue };
+      },
+    }),
   };
 }
 

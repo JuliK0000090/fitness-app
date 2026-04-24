@@ -5,6 +5,7 @@ import { ledgerFunctions } from "@/lib/jobs/ledger";
 import { healthIngestFunctions } from "@/lib/jobs/health-ingest";
 import { runReactiveAdjustments } from "@/lib/jobs/reactive-adjust";
 import { runInsightMoments } from "@/lib/jobs/insights";
+import { decayMemoryConfidence } from "@/lib/jobs/memory-decay";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -14,5 +15,6 @@ export const { GET, POST, PUT } = serve({
     ...healthIngestFunctions,
     runReactiveAdjustments,
     runInsightMoments,
+    decayMemoryConfidence,
   ],
 });
