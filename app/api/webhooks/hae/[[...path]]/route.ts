@@ -1,13 +1,12 @@
 /**
- * HAE (Health Auto Export) webhook — flat catch-all.
+ * HAE (Health Auto Export) webhook — optional catch-all.
  *
- * Catches every URL under /api/webhooks/hae/:
+ * [[...path]] matches the base path AND any sub-paths:
+ *   /api/webhooks/hae                      → path = [] (base, no token)
  *   /api/webhooks/hae/{token}              → path = ["token"]
  *   /api/webhooks/hae/{token}/2026-04-18   → path = ["token", "2026-04-18"]
- *   /api/webhooks/hae/{token}/history/...  → path = ["token", "history", ...]
  *
- * The token is always path[0].
- * Accepts all HTTP methods — HAE version/export-history behaviour varies.
+ * The token is always path[0]. Accepts all HTTP methods.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
