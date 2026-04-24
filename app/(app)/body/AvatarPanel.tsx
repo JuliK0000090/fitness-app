@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { ChevronRight, Sparkles, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { AvatarDefinition, Archetype, SkinTone, HairStyle, HairColor, PoseId } from "@/lib/avatar/types";
 import { SKIN_TONES } from "@/lib/avatar/types";
+import { renderAvatarSvg } from "@/lib/avatar/render";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,19 +37,28 @@ interface AvatarPanelProps {
   style: "ABSTRACT" | "ILLUSTRATED";
   milestones: Milestone[];
   events: AvatarEvent[];
-  avatarSvg: string; // pre-rendered current avatar SVG
-  milestoneSvgs: Record<string, string>; // milestone id → SVG
-  eventSvgs: Record<string, string>;
+  // Server-rendered SVGs are ignored at runtime — all rendering happens client-side
+  // so changes are instant without a round-trip.
+  avatarSvg?: string;
+  milestoneSvgs?: Record<string, string>;
+  eventSvgs?: Record<string, string>;
 }
 
 // ── Avatar display ────────────────────────────────────────────────────────────
 
+function svgToDataUri(svg: string): string {
+  try {
+    return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+  } catch {
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  }
+}
+
 function AvatarImage({ svg, size = 160, className }: { svg: string; size?: number; className?: string }) {
-  const encoded = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={encoded}
+      src={svgToDataUri(svg)}
       alt="Your Vita avatar"
       width={size}
       height={Math.round(size * 1.75)}
@@ -119,9 +129,6 @@ export function AvatarPanel({
   definition: initDef,
   visibility: initVisibility,
   milestones,
-  avatarSvg: initSvg,
-  milestoneSvgs,
-  eventSvgs,
   events,
 }: AvatarPanelProps) {
   const [def, setDef] = useState(initDef);
@@ -181,7 +188,19 @@ export function AvatarPanel({
   }
 
   const activeMilestone = milestones.find((m) => m.id === activeMilestoneId) ?? milestones[0];
-  const activeSvg = activeMilestoneId ? (milestoneSvgs[activeMilestoneId] ?? initSvg) : initSvg;
+
+  // All SVG rendering is client-side so every def change is instant
+  const currentSvg = useMemo(() => renderAvatarSvg(def), [def]);
+
+  const activeSvg = useMemo(() => {
+    if (!activeMilestone) return currentSvg;
+    return renderAvatarSvg({
+      ...def,
+      evolution: Math.min(4, activeMilestone.evolution) as 0 | 1 | 2 | 3 | 4,
+      glow: Math.min(3, activeMilestone.glow) as 0 | 1 | 2 | 3,
+      pose: activeMilestone.pose as AvatarDefinition["pose"],
+    });
+  }, [def, activeMilestone, currentSvg]);
 
   return (
     <div className="space-y-5">
@@ -218,7 +237,12 @@ export function AvatarPanel({
               <MilestoneCard
                 key={m.id}
                 milestone={m}
-                svg={milestoneSvgs[m.id] ?? initSvg}
+                svg={renderAvatarSvg({
+                  ...def,
+                  evolution: Math.min(4, m.evolution) as 0 | 1 | 2 | 3 | 4,
+                  glow: Math.min(3, m.glow) as 0 | 1 | 2 | 3,
+                  pose: m.pose as AvatarDefinition["pose"],
+                })}
                 isActive={m.id === activeMilestoneId}
                 onClick={() => setActiveMilestoneId(m.id)}
               />
@@ -236,7 +260,7 @@ export function AvatarPanel({
           <p className="text-[9px] tracking-[0.2em] uppercase text-white/25">the rehearsal</p>
           {events.map((ev) => (
             <div key={ev.id} className="glass rounded-2xl p-4 flex items-center gap-3">
-              <AvatarImage svg={eventSvgs[ev.id] ?? initSvg} size={56} className="shrink-0" />
+              <AvatarImage svg={renderAvatarSvg({ ...def, evolution: 4, glow: 3, pose: ev.pose as AvatarDefinition["pose"], background: ev.background as AvatarDefinition["background"] })} size={56} className="shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white/75">{ev.title}</p>
                 <p className="text-[10px] text-white/35">
