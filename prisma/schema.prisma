@@ -108,6 +108,10 @@ model User {
   emailPreference   EmailPreference?
   unsubscribeTokens UnsubscribeToken[]
   chatSuggestions   ChatSuggestion[]
+  avatar            Avatar?
+  avatarMilestones  AvatarMilestone[]
+  avatarEvents      AvatarEvent[]
+  safetyFlags       SafetyFlag[]
 
   @@index([email])
 }
@@ -284,10 +288,11 @@ model Goal {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  habits         Habit[]
-  scheduledWkts  ScheduledWorkout[]
-  measurements   Measurement[]
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habits           Habit[]
+  scheduledWkts    ScheduledWorkout[]
+  measurements     Measurement[]
+  avatarMilestones AvatarMilestone[]
 
   @@index([userId, status])
 }
@@ -751,6 +756,81 @@ model UnsubscribeToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   category  String?
   createdAt DateTime @default(now())
+}
+
+// ─── Avatar System ────────────────────────────────────────────────────────────
+
+enum AvatarVisibility {
+  ON
+  LIMITED
+  OFF
+}
+
+enum AvatarStyle {
+  ABSTRACT
+  ILLUSTRATED
+}
+
+model Avatar {
+  id         String          @id @default(cuid())
+  userId     String          @unique
+  definition Json            // AvatarDefinition JSON
+  visibility AvatarVisibility @default(ON)
+  style      AvatarStyle     @default(ABSTRACT)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AvatarMilestone {
+  id         String   @id @default(cuid())
+  userId     String
+  goalId     String?
+  date       DateTime @db.Date
+  label      String   // "today" | "week 4" | "goal day"
+  evolution  Int      // 0-4
+  glow       Int      // 0-3
+  pose       String
+  outfit     String
+  background String
+  note       String?
+  predicted  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+}
+
+model AvatarEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  title      String
+  date       DateTime @db.Date
+  outfit     String
+  background String
+  pose       String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model SafetyFlag {
+  id     String   @id @default(cuid())
+  userId String
+  flag   String   // sensitive_body_image | disordered_eating_history | user_requested_abstract
+  setAt  DateTime @default(now())
+  setBy  String   // onboarding | chat_inference | user_manual
+  note   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ─── Health Pipeline ──────────────────────────────────────────────────────────

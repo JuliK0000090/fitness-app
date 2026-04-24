@@ -7,6 +7,8 @@ import { BodyMapCard } from "@/components/cards/BodyMapCard";
 import { PhotoMeasure } from "@/components/vision/PhotoMeasure";
 import { FormCheck } from "@/components/vision/FormCheck";
 import { format } from "date-fns";
+import { AvatarPanel } from "./AvatarPanel";
+import type { AvatarDefinition } from "@/lib/avatar/types";
 
 interface Measurement {
   id: string;
@@ -24,15 +26,48 @@ interface Photo {
   capturedAt: string;
 }
 
+interface Milestone {
+  id: string;
+  date: string;
+  label: string;
+  evolution: number;
+  glow: number;
+  pose: string;
+  note: string | null;
+  predicted: boolean;
+}
+
+interface AvatarEvent {
+  id: string;
+  title: string;
+  date: string;
+  outfit: string;
+  background: string;
+  pose: string;
+  note: string | null;
+}
+
+interface AvatarProps {
+  definition: AvatarDefinition;
+  visibility: "ON" | "LIMITED" | "OFF";
+  style: "ABSTRACT" | "ILLUSTRATED";
+  milestones: Milestone[];
+  events: AvatarEvent[];
+  avatarSvg: string;
+  milestoneSvgs: Record<string, string>;
+  eventSvgs: Record<string, string>;
+}
+
 interface BodyViewProps {
   measurements: Measurement[];
   photos: Photo[];
+  avatarProps: AvatarProps;
 }
 
-const TABS = ["Stats", "Photos", "Body Map", "Vision"] as const;
+const TABS = ["Vita You", "Stats", "Photos", "Body Map"] as const;
 
-export function BodyView({ measurements, photos }: BodyViewProps) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Stats");
+export function BodyView({ measurements, photos, avatarProps }: BodyViewProps) {
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Vita You");
   const [formCheckOpen, setFormCheckOpen] = useState(false);
 
   return (
@@ -56,6 +91,12 @@ export function BodyView({ measurements, photos }: BodyViewProps) {
           </button>
         ))}
       </div>
+
+      {tab === "Vita You" && (
+        <div className="fu">
+          <AvatarPanel {...avatarProps} />
+        </div>
+      )}
 
       {tab === "Stats" && (
         <div className="space-y-2 fu">
@@ -109,30 +150,7 @@ export function BodyView({ measurements, photos }: BodyViewProps) {
         </div>
       )}
 
-      {tab === "Vision" && (
-        <div className="space-y-4 fu">
-          {/* Form Check */}
-          <button
-            onClick={() => setFormCheckOpen(true)}
-            className="w-full glass rounded-2xl p-4 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-          >
-            <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center shrink-0">
-              <Video size={16} className="text-white/50" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Form Check</p>
-              <p className="text-xs text-muted-foreground">Live camera with rep counter and alignment grid</p>
-            </div>
-          </button>
-
-          {/* Photo Measurements */}
-          <div className="glass rounded-2xl p-4">
-            <PhotoMeasure />
-          </div>
-        </div>
-      )}
-
-      {/* Form check overlay */}
+      {/* Form check overlay (accessible from Vision, kept here for compatibility) */}
       {formCheckOpen && <FormCheck onClose={() => setFormCheckOpen(false)} />}
     </div>
   );

@@ -234,6 +234,13 @@ export function vitaTools(userId: string) {
           }
         }));
 
+        // Generate avatar milestones (fire-and-forget, non-blocking)
+        if (deadlineDate) {
+          import("@/lib/avatar/milestones").then(({ generateMilestonesForGoal }) => {
+            generateMilestonesForGoal(goal.id).catch(() => { /* non-critical */ });
+          });
+        }
+
         return {
           goalId: goal.id,
           title: goal.title ?? goal.description,
@@ -920,6 +927,102 @@ export function vitaTools(userId: string) {
           message: toDelete.length > 0
             ? `Removed ${toDelete.length} duplicate workout${toDelete.length > 1 ? "s" : ""}.`
             : "No duplicates found — your workout history is clean.",
+        };
+      },
+    }),
+
+    show_avatar_snapshot: makeTool({
+      description: "Show the user their current avatar or a specific milestone avatar. Call this when the user asks to see their avatar, 'Vita You', or wants to see how they're progressing visually.",
+      parameters: z.object({
+        milestoneLabel: z.string().optional().describe("Optional: 'today', 'week 4', 'goal day', etc."),
+      }),
+      execute: async ({ milestoneLabel }) => {
+        const avatar = await (prisma as any).avatar.findUnique({ where: { userId } });
+        if (!avatar || avatar.visibility === "OFF") {
+          return { hidden: true, message: "Your avatar is currently hidden. You can enable it in the Body page." };
+        }
+
+        let milestone = null;
+        if (milestoneLabel) {
+          milestone = await (prisma as any).avatarMilestone.findFirst({
+            where: { userId, label: { contains: milestoneLabel, mode: "insensitive" } },
+            orderBy: { date: "asc" },
+          });
+        }
+
+        return {
+          hasAvatar: true,
+          visibility: avatar.visibility,
+          style: avatar.style,
+          currentEvolution: (avatar.definition as any)?.evolution ?? 0,
+          milestone: milestone ? {
+            label: milestone.label,
+            date: milestone.date.toISOString().split("T")[0],
+            evolution: milestone.evolution,
+            note: milestone.note,
+          } : null,
+          message: milestone
+            ? `Here's your avatar at ${milestone.label} — ${milestone.note ?? "keep going."}`
+            : "Here's your current avatar — you, as of today.",
+          avatarUrl: "/body",
+        };
+      },
+    }),
+
+    create_avatar_event: makeTool({
+      description: "Create a 'dress rehearsal' event — a special occasion the user is working toward (wedding, vacation, reunion, photo shoot, etc.). The avatar will be shown in the event outfit on that day.",
+      parameters: z.object({
+        title: z.string().describe("Event name, e.g. 'Sister's wedding'"),
+        date: z.string().describe("YYYY-MM-DD"),
+        outfit: z.string().optional().describe("Outfit ID: activewear_set, little_black_dress, swimsuit, wrap_dress, blazer_pants"),
+        background: z.string().optional().describe("Background: studio, beach, city, gym, event"),
+        note: z.string().optional(),
+      }),
+      execute: async ({ title, date, outfit, background, note }) => {
+        const eventDate = new Date(date + "T00:00:00.000Z");
+        if (isNaN(eventDate.getTime())) throw new Error("Invalid date format — use YYYY-MM-DD");
+
+        const event = await (prisma as any).avatarEvent.create({
+          data: {
+            userId,
+            title,
+            date: eventDate,
+            outfit: outfit ?? "little_black_dress",
+            background: background ?? "event",
+            pose: "hands_on_hips",
+            note: note ?? null,
+          },
+        });
+
+        return {
+          eventId: event.id,
+          title: event.title,
+          date: date,
+          message: `Dress rehearsal set for ${title} on ${date}. Your avatar will show you in that moment. You can see it on your Body page.`,
+        };
+      },
+    }),
+
+    set_safety_flag: makeTool({
+      description: "Set a safety flag for sensitive body image topics. Call this immediately if the user expresses discomfort with their body, mentions disordered eating history, or says the avatar feels triggering. This automatically switches to the abstract style and limited visibility.",
+      parameters: z.object({
+        flag: z.enum(["sensitive_body_image", "disordered_eating_history", "user_requested_abstract"]),
+        note: z.string().optional().describe("Brief context for why the flag was set"),
+      }),
+      execute: async ({ flag, note }) => {
+        await (prisma as any).safetyFlag.create({
+          data: { userId, flag, setBy: "chat_inference", note: note ?? null },
+        });
+
+        await (prisma as any).avatar.upsert({
+          where: { userId },
+          create: { userId, definition: {}, visibility: "LIMITED", style: "ABSTRACT" },
+          update: { visibility: "LIMITED", style: "ABSTRACT" },
+        });
+
+        return {
+          ok: true,
+          message: "I've switched your avatar to the abstract style and moved it to your Body page only. Your comfort matters more than any feature.",
         };
       },
     }),
