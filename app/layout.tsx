@@ -1,16 +1,22 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
-import { Cormorant_Garamond } from "next/font/google";
+import { Fraunces, Geist } from "next/font/google";
 import "./globals.css";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { Toaster } from "@/components/ui/sonner";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
-const cormorant = Cormorant_Garamond({
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+  variable: "--font-fraunces-face",
+  display: "swap",
+  axes: ["opsz"],
+});
+
+const geist = Geist({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-cormorant-face",
+  variable: "--font-geist-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -21,12 +27,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#080C14",
+  themeColor: "#0A0D12",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} ${cormorant.variable} dark h-full antialiased`} style={{ fontFamily: "var(--font-geist-sans)" }}>
+    <html lang="en" className={`${fraunces.variable} ${geist.variable} dark h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <PostHogProvider>
           {children}

@@ -152,7 +152,6 @@ export default function OnboardingPage() {
           {/* Step 0 — Welcome */}
           {step === 0 && (
             <div className="text-center space-y-4">
-              <div className="text-4xl">🌿</div>
               <h1 className="text-xl font-semibold">Welcome to Vita</h1>
               <p className="text-sm text-muted-foreground">Let's set up your profile so your coach knows how to help you best. This takes under a minute.</p>
               <Button className="w-full" onClick={() => setStep(1)}>Get started</Button>
@@ -340,7 +339,6 @@ export default function OnboardingPage() {
           {/* Step 6 — Done */}
           {step === 6 && (
             <div className="text-center space-y-4">
-              <div className="text-4xl">🎉</div>
               <h2 className="font-semibold">You're all set</h2>
               <p className="text-sm text-muted-foreground">Vita is ready to coach you. Start by telling your coach your first goal or asking for today's plan.</p>
               <Button className="w-full" onClick={finish} disabled={loading}>

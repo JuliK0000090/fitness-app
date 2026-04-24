@@ -181,14 +181,14 @@ export function TodayView({
       <div>
         <p className="text-[10px] tracking-[0.25em] uppercase text-white/30 mb-1">{dateLabel}</p>
         <p className="text-sm text-white/45">{greeting},</p>
-        <h1 className="font-cormorant text-4xl font-light text-white/90 mt-0.5">{userName}</h1>
+        <h1 className="font-serif text-4xl font-light text-white/90 mt-0.5">{userName}</h1>
       </div>
 
       {/* XP bar */}
       <div className="glass rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-baseline gap-2">
-            <span className="font-cormorant text-2xl font-light text-white/85">Level {level}</span>
+            <span className="font-serif text-2xl font-light text-white/85">Level {level}</span>
             {currentStreak > 0 && (
               <span className="flex items-center gap-1 text-[10px] text-white/35">
                 <Flame size={10} className="text-white/30" />

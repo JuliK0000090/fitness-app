@@ -30,7 +30,7 @@ export function ChecklistCard({ items: initialItems }: { items: ChecklistItem[] 
           <p className="text-sm text-white/75">Today&apos;s checklist</p>
           <p className="text-[10px] text-white/30 mt-0.5">{completed} of {items.length} complete</p>
         </div>
-        <span className="font-cormorant text-2xl font-light text-white/50">{Math.round(pct)}%</span>
+        <span className="font-serif text-2xl font-light text-white/50">{Math.round(pct)}%</span>
       </div>
 
       {/* Progress bar */}

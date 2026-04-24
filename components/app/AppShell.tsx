@@ -48,7 +48,7 @@ export function AppShell({ user, children }: AppShellProps) {
               {sidebarOpen ? <X size={16} /> : <Menu size={16} />}
             </button>
           )}
-          <span className="font-cormorant text-lg font-light tracking-[0.18em] uppercase text-white/80">
+          <span className="font-serif text-lg font-light tracking-[0.18em] uppercase text-white/80">
             Vita
           </span>
         </div>
