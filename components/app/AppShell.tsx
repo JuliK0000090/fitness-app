@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChatSidebar } from "./ChatSidebar";
 import { CommandPalette } from "./CommandPalette";
-import { Home, User, Activity, Trophy, Menu, X, MessageSquare, CalendarDays, Target } from "lucide-react";
+import { Home, User, Activity, Menu, X, MessageSquare, CalendarDays, Target, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InstallPrompt } from "./InstallPrompt";
 
@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { href: "/chat", icon: MessageSquare, label: "Coach" },
   { href: "/month", icon: CalendarDays, label: "Calendar" },
   { href: "/goals", icon: Target, label: "Goals" },
-  { href: "/profile", icon: User, label: "Profile" },
+  { href: "/body", icon: Sparkles, label: "Body" },
 ];
 
 export function AppShell({ user, children }: AppShellProps) {
