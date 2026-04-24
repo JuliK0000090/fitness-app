@@ -1,11 +1,13 @@
 /**
- * Catch-all route for HAE "Export History" sub-paths.
+ * HAE (Health Auto Export) webhook — flat catch-all.
  *
- * HAE appends the date (or other segments) to the webhook URL when exporting history:
- *   POST /api/webhooks/hae/{token}/2026-04-18
+ * Catches every URL under /api/webhooks/hae/:
+ *   /api/webhooks/hae/{token}              → path = ["token"]
+ *   /api/webhooks/hae/{token}/2026-04-18   → path = ["token", "2026-04-18"]
+ *   /api/webhooks/hae/{token}/history/...  → path = ["token", "history", ...]
  *
- * This route captures anything under /{token}/* and delegates to the same
- * POST handler logic, extracting the token from params.
+ * The token is always path[0].
+ * Accepts all HTTP methods — HAE version/export-history behaviour varies.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -19,18 +21,39 @@ const db = prisma as any;
 
 async function handle(
   req: NextRequest,
-  { params }: { params: Promise<{ token: string; rest: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  try {
-    const { token } = await params;
+  const { path } = await params;
+  const token = path?.[0];
 
-    console.log(`[HAE catch-all] method=${req.method} token=${token} path=${req.nextUrl.pathname}`);
+  console.log(`[HAE] method=${req.method} path=/${path?.join("/")} token=${token}`);
+
+  try {
+    if (!token) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // Health-check: GET with only the token segment returns status info
+    if (req.method === "GET" && path.length === 1) {
+      const integration = await db.healthIntegration.findUnique({
+        where: { webhookToken: token },
+        select: { active: true, lastPayloadAt: true, totalPayloadCount: true },
+      });
+      if (!integration) return new NextResponse("Not found", { status: 404 });
+      return NextResponse.json({
+        status: "ok",
+        active: integration.active,
+        lastPayloadAt: integration.lastPayloadAt,
+        totalPayloadCount: integration.totalPayloadCount,
+      });
+    }
 
     const integration = await db.healthIntegration.findUnique({
       where: { webhookToken: token },
     });
 
     if (!integration || !integration.active) {
+      // Return 200 always — never let HAE retry-storm on token issues
       return NextResponse.json({ ok: true });
     }
 
@@ -75,13 +98,15 @@ async function handle(
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[HAE catch-all] error:", err instanceof Error ? err.message : String(err));
+    console.error("[HAE] error:", err instanceof Error ? err.message : String(err));
     return NextResponse.json({ ok: true });
   }
 }
 
+// Accept every HTTP method — HAE varies method by version/feature
 export const GET = handle;
 export const POST = handle;
 export const PUT = handle;
 export const PATCH = handle;
 export const DELETE = handle;
+export const HEAD = handle;
