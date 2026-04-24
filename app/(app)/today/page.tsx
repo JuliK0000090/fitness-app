@@ -56,9 +56,29 @@ export default async function TodayPage() {
   const mondayStart = new Date(monday.toISOString().split("T")[0] + "T00:00:00.000Z");
   const sundayEnd = new Date(sunday.toISOString().split("T")[0] + "T23:59:59.999Z");
 
+  // Filter by BOTH local date AND completedAt timestamp to prevent cross-midnight UTC bleed.
+  // Falls back to date-only query if completedAt column doesn't exist yet (pre-migration).
+  const completions: { habitId: string }[] = await (async () => {
+    try {
+      return await (prisma.habitCompletion as any).findMany({
+        where: {
+          userId,
+          date: todayDate,
+          status: "DONE",
+          completedAt: { gte: todayLocalMidnightUTC },
+        },
+        select: { habitId: true },
+      });
+    } catch {
+      return await prisma.habitCompletion.findMany({
+        where: { userId, date: todayDate },
+        select: { habitId: true },
+      });
+    }
+  })();
+
   const [
     habits,
-    completions,
     scheduledWorkouts,
     weeklyTargets,
     notifications,
@@ -67,18 +87,6 @@ export default async function TodayPage() {
     hasGoals,
   ] = await Promise.all([
     prisma.habit.findMany({ where: { userId, active: true }, orderBy: { createdAt: "asc" } }),
-
-    // Filter by BOTH local date AND completedAt timestamp to prevent cross-midnight UTC bleed.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (prisma.habitCompletion as any).findMany({
-      where: {
-        userId,
-        date: todayDate,
-        status: "DONE",
-        completedAt: { gte: todayLocalMidnightUTC },
-      },
-      select: { habitId: true },
-    }),
 
     prisma.scheduledWorkout.findMany({
       where: { userId, scheduledDate: todayDate, status: { in: ["PLANNED", "MOVED"] } },
@@ -119,7 +127,7 @@ export default async function TodayPage() {
   const { level, totalXp, xpToNext, xpInLevel } = computeLevel(user.totalXp);
   const xpPct = Math.min(100, (xpInLevel / Math.max(1, xpInLevel + xpToNext)) * 100);
 
-  const completedIds = new Set((completions as { habitId: string }[]).map((c) => c.habitId));
+  const completedIds = new Set(completions.map((c) => c.habitId));
   const dueHabits = habits.filter((h) => isHabitDueToday(h.cadence, h.specificDays, timezone));
 
   return (

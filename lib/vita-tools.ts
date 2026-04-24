@@ -322,9 +322,9 @@ export function vitaTools(userId: string) {
         let xpAwarded = 0;
         if (input.markDoneToday) {
           const dateObj = new Date(todayStr());
-          await prisma.habitCompletion.upsert({
+          await (prisma.habitCompletion as any).upsert({
             where: { habitId_date: { habitId: habit.id, date: dateObj } },
-            create: { habitId: habit.id, userId, date: dateObj, points: habit.pointsOnComplete },
+            create: { habitId: habit.id, userId, date: dateObj, points: habit.pointsOnComplete, status: "DONE", source: "MANUAL", completedAt: new Date() },
             update: {},
           });
           await prisma.user.update({ where: { id: userId }, data: { totalXp: { increment: habit.pointsOnComplete } } });
@@ -385,9 +385,9 @@ export function vitaTools(userId: string) {
         const dateObj = new Date(date ?? todayStr());
 
         const { completion, totalXp, bonus } = await prisma.$transaction(async (tx) => {
-          const completion = await tx.habitCompletion.upsert({
+          const completion = await (tx.habitCompletion as any).upsert({
             where: { habitId_date: { habitId, date: dateObj } },
-            create: { habitId, userId, date: dateObj, note: note ?? null, points: habit.pointsOnComplete },
+            create: { habitId, userId, date: dateObj, note: note ?? null, points: habit.pointsOnComplete, status: "DONE", source: "MANUAL", completedAt: new Date() },
             update: { note: note ?? undefined },
           });
 
