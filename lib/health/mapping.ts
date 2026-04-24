@@ -45,3 +45,11 @@ export function pickBySourcePriority(values: Partial<Record<SourcePriority, numb
   }
   return null;
 }
+
+/** Alias for SourcePriority — used in newer code */
+export type HealthSource = SourcePriority;
+
+/** Return whichever source has higher priority (lower index wins) */
+export function sourceWins(a: SourcePriority, b: SourcePriority): SourcePriority {
+  return SOURCE_PRIORITY.indexOf(a) <= SOURCE_PRIORITY.indexOf(b) ? a : b;
+}

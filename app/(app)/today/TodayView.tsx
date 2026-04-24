@@ -56,19 +56,42 @@ interface TodayViewProps {
   weeklyTargets: WeeklyTarget[];
   notifications: { id: string; title: string; body: string }[];
   hasGoals: boolean;
+  showHealthBanner: boolean;
 }
 
 const HABITS_VISIBLE_DEFAULT = 5;
+const HEALTH_BANNER_KEY = "vita_health_banner_dismissed";
+const HEALTH_BANNER_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export function TodayView({
   userName, dateLabel, level, totalXp, xpToNext, xpPct, currentStreak,
   habits: initHabits, scheduledWorkouts: initWorkouts, weeklyTargets,
-  notifications: initNotifications, hasGoals,
+  notifications: initNotifications, hasGoals, showHealthBanner,
 }: TodayViewProps) {
   const [notifications, setNotifications] = useState(initNotifications);
   const [editMode, setEditMode] = useState(false);
   const [habitsExpanded, setHabitsExpanded] = useState(false);
   const [, startTransition] = useTransition();
+  const [bannerVisible, setBannerVisible] = useState(() => {
+    if (!showHealthBanner) return false;
+    if (typeof window === "undefined") return true;
+    try {
+      const dismissed = localStorage.getItem(HEALTH_BANNER_KEY);
+      if (!dismissed) return true;
+      return Date.now() - Number(dismissed) > HEALTH_BANNER_TTL_MS;
+    } catch {
+      return true;
+    }
+  });
+
+  function dismissBanner() {
+    try {
+      localStorage.setItem(HEALTH_BANNER_KEY, String(Date.now()));
+    } catch {
+      // ignore
+    }
+    setBannerVisible(false);
+  }
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -110,6 +133,31 @@ export function TodayView({
 
   return (
     <div className="max-w-lg mx-auto py-6 px-5 space-y-5">
+
+      {/* Apple Health banner */}
+      {bannerVisible && (
+        <div className="glass rounded-2xl p-4 flex items-start gap-3 relative">
+          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
+            <Heart size={14} className="text-white/50" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white/85">Connect Apple Health</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              See your steps, sleep, and workouts here automatically. Takes 90 seconds to set up.
+            </p>
+            <Link href="/settings/integrations/apple-health" className="inline-block mt-2 text-xs font-medium text-white/70 hover:text-white transition-colors underline underline-offset-2">
+              Connect now
+            </Link>
+          </div>
+          <button
+            onClick={dismissBanner}
+            className="text-white/25 hover:text-white/60 transition-colors shrink-0 mt-0.5"
+            aria-label="Dismiss"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Header */}
       <div>

@@ -77,6 +77,13 @@ export default async function TodayPage() {
     }
   })();
 
+  // Check if user has Apple Health connected (for banner)
+  const healthIntegration = await (prisma as any).healthIntegration.findUnique({
+    where: { userId },
+    select: { active: true, lastPayloadAt: true },
+  }).catch(() => null);
+  const showHealthBanner = !healthIntegration || !healthIntegration.active;
+
   const [
     habits,
     scheduledWorkouts,
@@ -164,6 +171,7 @@ export default async function TodayPage() {
       }))}
       notifications={notifications.map((n) => ({ id: n.id, title: n.title, body: n.body }))}
       hasGoals={hasGoals}
+      showHealthBanner={showHealthBanner}
     />
   );
 }

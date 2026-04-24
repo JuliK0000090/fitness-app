@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Brain, Shield, Bell, Palette, ChevronRight, Watch } from "lucide-react";
+import { Brain, Shield, Bell, Palette, ChevronRight, Watch, Heart } from "lucide-react";
 
 const SETTINGS = [
+  { href: "/settings/integrations/apple-health", icon: Heart, color: "rgba(255,255,255,0.5)", label: "Apple Health", desc: "Connect your iPhone steps, sleep, and workouts" },
   { href: "/settings/memory", icon: Brain, color: "rgba(255,255,255,0.5)", label: "Memory", desc: "Manage what Vita remembers about you" },
   { href: "/settings/notifications", icon: Bell, color: "rgba(255,255,255,0.5)", label: "Notifications", desc: "Morning briefings, nudges, and alerts" },
   { href: "/settings/appearance", icon: Palette, color: "rgba(255,255,255,0.5)", label: "Appearance", desc: "Theme, font size, reduced motion" },
