@@ -20,7 +20,7 @@ const db = prisma as any;
 
 async function handle(
   req: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path?: string[] }> }
 ) {
   const { path } = await params;
   const token = path?.[0];
