@@ -112,6 +112,12 @@ model User {
   avatarMilestones  AvatarMilestone[]
   avatarEvents      AvatarEvent[]
   safetyFlags       SafetyFlag[]
+  healthIntegration HealthIntegration?
+  haeRaw            HaeRaw[]
+  haeMetrics        HaeMetric[]
+  haeDailies        HaeDaily[]
+  haeWorkouts       HaeWorkout[]
+  androidWaitlist   HealthAndroidWaitlist?
 
   @@index([email])
 }
@@ -877,4 +883,118 @@ model HealthOverride {
   createdAt DateTime @default(now())
 
   @@unique([userId, date, metric])
+}
+
+// ─── Apple Health / Health Auto Export Integration ───────────────────────────
+
+model HealthIntegration {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  provider          String    // "HEALTH_AUTO_EXPORT" | "TERRA"
+  webhookToken      String    @unique
+  connectedAt       DateTime  @default(now())
+  lastPayloadAt     DateTime?
+  lastPayloadSize   Int?
+  totalPayloadCount Int       @default(0)
+  active            Boolean   @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([webhookToken])
+}
+
+model HaeRaw {
+  // Raw payloads from Health Auto Export (separate from legacy HealthRaw)
+  id             String    @id @default(cuid())
+  userId         String
+  receivedAt     DateTime  @default(now())
+  payload        Json
+  metricCount    Int       @default(0)
+  workoutCount   Int       @default(0)
+  sourceProvider String    @default("HEALTH_AUTO_EXPORT")
+  processed      Boolean   @default(false)
+  processedAt    DateTime?
+  error          String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, receivedAt])
+  @@index([processed, receivedAt])
+}
+
+model HaeMetric {
+  // Individual metric data points from Health Auto Export
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime @db.Date
+  metricType  String
+  value       Float
+  source      String
+  recordedAt  DateTime
+  ingestedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, metricType, source, recordedAt])
+  @@index([userId, date])
+  @@index([userId, metricType, date])
+}
+
+model HaeDaily {
+  // Rolled-up daily health summary from Health Auto Export
+  userId           String
+  date             DateTime @db.Date
+  steps            Int?
+  stepsSource      String?
+  activeEnergyKj   Float?
+  restingEnergyKj  Float?
+  heartRateAvg     Int?
+  heartRateMin     Int?
+  heartRateMax     Int?
+  heartRateResting Int?
+  hrvMs            Float?
+  sleepHours       Float?
+  sleepStart       DateTime?
+  sleepEnd         DateTime?
+  workoutMinutes   Int?
+  workoutCount     Int      @default(0)
+  standHours       Int?
+  exerciseMinutes  Int?
+  distanceKm       Float?
+  flightsClimbed   Int?
+  readinessScore   Int?
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, date])
+  @@index([userId, date])
+}
+
+model HaeWorkout {
+  id                 String   @id @default(cuid())
+  userId             String
+  startedAt          DateTime
+  endedAt            DateTime
+  durationMin        Int
+  workoutType        String
+  energyKcal         Float?
+  avgHeartRate       Int?
+  maxHeartRate       Int?
+  distanceKm         Float?
+  source             String
+  externalHash       String   @unique
+  autoMatchedBlockId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+}
+
+model HealthAndroidWaitlist {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  requestedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
