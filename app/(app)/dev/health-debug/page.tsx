@@ -1,12 +1,15 @@
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { ReprocessButton, SimulateButton } from "./DebugActions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
+const ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "https://fitness-app-production-2ef2.up.railway.app";
+
 export default async function HealthDebugPage() {
-  // Only available in development
+  // Only available in development or with HEALTH_DEBUG=1
   if (process.env.NODE_ENV !== "development" && process.env.HEALTH_DEBUG !== "1") {
     return (
       <div className="max-w-lg mx-auto px-4 py-8">
@@ -35,6 +38,10 @@ export default async function HealthDebugPage() {
     }),
   ]);
 
+  const webhookUrl = integration
+    ? `${ORIGIN}/api/webhooks/hae/${integration.webhookToken}`
+    : null;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
       <div>
@@ -53,6 +60,11 @@ export default async function HealthDebugPage() {
               <p>lastPayloadAt: <span className="text-foreground">{integration.lastPayloadAt?.toISOString() ?? "—"}</span></p>
               <p>totalPayloadCount: <span className="text-foreground">{integration.totalPayloadCount}</span></p>
               <p className="break-all">webhookToken: <span className="text-foreground">{integration.webhookToken}</span></p>
+              {webhookUrl && (
+                <div className="pt-2">
+                  <SimulateButton webhookUrl={webhookUrl} />
+                </div>
+              )}
             </>
           ) : (
             <p>No integration found.</p>
@@ -92,7 +104,7 @@ export default async function HealthDebugPage() {
         ) : (
           <div className="space-y-2">
             {rawPayloads.map((row: any) => (
-              <div key={row.id} className="glass rounded-2xl p-3 font-mono text-xs text-muted-foreground flex gap-4 flex-wrap">
+              <div key={row.id} className="glass rounded-2xl p-3 font-mono text-xs text-muted-foreground flex gap-4 flex-wrap items-center">
                 <span className="text-foreground">{row.receivedAt.toISOString().replace("T", " ").slice(0, 19)}</span>
                 <span>metrics: {row.metricCount}</span>
                 <span>workouts: {row.workoutCount}</span>
@@ -100,6 +112,7 @@ export default async function HealthDebugPage() {
                   {row.processed ? "processed" : "pending"}
                 </span>
                 {row.error && <span className="text-red-400">{row.error}</span>}
+                <ReprocessButton rawId={row.id} />
               </div>
             ))}
           </div>

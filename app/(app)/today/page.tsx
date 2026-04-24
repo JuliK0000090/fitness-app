@@ -77,12 +77,20 @@ export default async function TodayPage() {
     }
   })();
 
-  // Check if user has Apple Health connected (for banner)
-  const healthIntegration = await (prisma as any).healthIntegration.findUnique({
-    where: { userId },
-    select: { active: true, lastPayloadAt: true },
-  }).catch(() => null);
+  // Check if user has Apple Health connected (for banner) + today's health signals
+  const [healthIntegration, healthToday] = await Promise.all([
+    (prisma as any).healthIntegration.findUnique({
+      where: { userId },
+      select: { active: true, lastPayloadAt: true },
+    }).catch(() => null),
+    (prisma as any).haeDaily.findFirst({
+      where: { userId, date: todayDate },
+      select: { steps: true, readinessScore: true },
+    }).catch(() => null),
+  ]);
   const showHealthBanner = !healthIntegration || !healthIntegration.active;
+  const todaySteps: number | null = healthToday?.steps ?? null;
+  const readinessScore: number | null = healthToday?.readinessScore ?? null;
 
   const [
     habits,
@@ -172,6 +180,8 @@ export default async function TodayPage() {
       notifications={notifications.map((n) => ({ id: n.id, title: n.title, body: n.body }))}
       hasGoals={hasGoals}
       showHealthBanner={showHealthBanner}
+      readinessScore={readinessScore}
+      todaySteps={todaySteps}
     />
   );
 }

@@ -931,6 +931,87 @@ export function vitaTools(userId: string) {
       },
     }),
 
+    query_health_metric: makeTool({
+      description: "Query the user's Apple Health data (steps, sleep, HRV, resting heart rate, distance, readiness score, or workouts) for a date range. Use this whenever the user asks about their health stats, activity levels, sleep quality, or recovery. To answer 'should I work out today', always check readiness_score.",
+      parameters: z.object({
+        metricType: z.enum([
+          "steps",
+          "sleep_hours",
+          "hrv_ms",
+          "heart_rate_resting",
+          "readiness_score",
+          "workout_count",
+          "workouts",
+        ]).describe("Metric to query. Use 'workouts' to get individual workout records; all others pull from daily health summaries."),
+        startDate: z.string().describe("ISO date YYYY-MM-DD"),
+        endDate: z.string().optional().describe("ISO date YYYY-MM-DD, defaults to today"),
+      }),
+      execute: async ({ metricType, startDate, endDate }) => {
+        const db = prisma as any;
+        const today = todayStr();
+        const end = endDate ?? today;
+        const startUTC = new Date(startDate + "T00:00:00.000Z");
+        const endUTC = new Date(end + "T23:59:59.999Z");
+
+        if (metricType === "workouts") {
+          const rows = await db.haeWorkout.findMany({
+            where: { userId, startedAt: { gte: startUTC, lte: endUTC } },
+            orderBy: { startedAt: "asc" },
+            select: { startedAt: true, name: true, durationMin: true, caloriesEst: true },
+          });
+          return {
+            metric: "workouts",
+            startDate,
+            endDate: end,
+            rows: rows.map((w: { startedAt: Date; name: string; durationMin: number | null; caloriesEst: number | null }) => ({
+              date: w.startedAt.toISOString().split("T")[0],
+              name: w.name,
+              durationMin: w.durationMin,
+              caloriesEst: w.caloriesEst,
+            })),
+            count: rows.length,
+          };
+        }
+
+        const fieldMap: Record<string, string> = {
+          steps: "steps",
+          sleep_hours: "sleepHours",
+          hrv_ms: "hrvMs",
+          heart_rate_resting: "heartRateResting",
+          readiness_score: "readinessScore",
+          workout_count: "workoutCount",
+        };
+        const field = fieldMap[metricType];
+
+        const rows = await db.haeDaily.findMany({
+          where: { userId, date: { gte: startUTC, lte: endUTC } },
+          orderBy: { date: "asc" },
+          select: { date: true, [field]: true },
+        });
+
+        const filtered = rows
+          .filter((r: Record<string, unknown>) => r[field] !== null && r[field] !== undefined)
+          .map((r: Record<string, unknown>) => ({
+            date: (r.date as Date).toISOString().split("T")[0],
+            value: r[field],
+            source: "apple_health",
+          }));
+
+        const values = filtered.map((r: { value: unknown }) => r.value as number);
+        const avg = values.length > 0 ? Math.round(values.reduce((a: number, b: number) => a + b, 0) / values.length) : null;
+        const latest = filtered.length > 0 ? filtered[filtered.length - 1] : null;
+
+        return {
+          metric: metricType,
+          startDate,
+          endDate: end,
+          rows: filtered,
+          latest,
+          avg,
+        };
+      },
+    }),
+
     show_avatar_snapshot: makeTool({
       description: "Show the user their current avatar or a specific milestone avatar. Call this when the user asks to see their avatar, 'Vita You', or wants to see how they're progressing visually.",
       parameters: z.object({

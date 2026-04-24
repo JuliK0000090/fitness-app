@@ -57,16 +57,34 @@ interface TodayViewProps {
   notifications: { id: string; title: string; body: string }[];
   hasGoals: boolean;
   showHealthBanner: boolean;
+  readinessScore: number | null;
+  todaySteps: number | null;
 }
 
 const HABITS_VISIBLE_DEFAULT = 5;
-const HEALTH_BANNER_KEY = "vita_health_banner_dismissed";
+const HEALTH_BANNER_KEY = "vita.banner.apple-health.dismissedAt";
 const HEALTH_BANNER_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+function parseStepTarget(title: string | null): number | null {
+  if (!title) return null;
+  const m = title.match(/(\d[\d,]*)k?\s*steps?/i);
+  if (!m) return null;
+  const raw = parseInt(m[1].replace(/,/g, ""), 10);
+  const isK = /\d+k\s*steps?/i.test(title);
+  return isK ? raw * 1000 : raw;
+}
+
+function readinessLabel(score: number): { dot: string; text: string } {
+  if (score <= 40) return { dot: "bg-white/30", text: "readiness low — take it easy" };
+  if (score <= 70) return { dot: "bg-white/55", text: "readiness steady — good day to move" };
+  return { dot: "bg-emerald-400", text: "readiness high — push if you want" };
+}
 
 export function TodayView({
   userName, dateLabel, level, totalXp, xpToNext, xpPct, currentStreak,
   habits: initHabits, scheduledWorkouts: initWorkouts, weeklyTargets,
   notifications: initNotifications, hasGoals, showHealthBanner,
+  readinessScore, todaySteps,
 }: TodayViewProps) {
   const [notifications, setNotifications] = useState(initNotifications);
   const [editMode, setEditMode] = useState(false);
@@ -185,6 +203,19 @@ export function TodayView({
         </div>
       </div>
 
+      {/* Readiness badge */}
+      {readinessScore !== null && (() => {
+        const { dot, text } = readinessLabel(readinessScore);
+        return (
+          <div className="flex items-center gap-2 px-1">
+            <Activity size={12} className="text-white/30 shrink-0" />
+            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dot)} />
+            <span className="text-xs text-white/45">{text}</span>
+            <span className="text-[10px] text-white/20 ml-auto tabular-nums">{readinessScore}/100</span>
+          </div>
+        );
+      })()}
+
       {/* Health signals */}
       <TodaySignals />
 
@@ -265,9 +296,26 @@ export function TodayView({
                       "text-sm",
                       habit.done ? "line-through text-white/30" : "text-white/75"
                     )}>{habit.title ?? "Habit"}</p>
-                    {habit.duration && !habit.done && (
-                      <p className="text-[10px] text-white/25 mt-0.5">{habit.duration} min</p>
-                    )}
+                    {(() => {
+                      const stepTarget = parseStepTarget(habit.title);
+                      if (stepTarget && todaySteps !== null && !habit.done) {
+                        const pct = Math.min(100, (todaySteps / stepTarget) * 100);
+                        return (
+                          <div className="mt-1 space-y-0.5">
+                            <p className="text-[10px] text-white/35 tabular-nums">
+                              {todaySteps.toLocaleString()} / {stepTarget.toLocaleString()}
+                            </p>
+                            <div className="h-px w-full bg-white/[0.08] rounded-full overflow-hidden">
+                              <div className="h-full bg-white/30 transition-all duration-500" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (habit.duration && !habit.done) {
+                        return <p className="text-[10px] text-white/25 mt-0.5">{habit.duration} min</p>;
+                      }
+                      return null;
+                    })()}
                   </div>
                   {!editMode && (
                     <span className="text-[10px] text-white/20 shrink-0">+{habit.pointsOnComplete}</span>
