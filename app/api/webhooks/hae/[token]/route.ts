@@ -74,6 +74,14 @@ export async function POST(
   }
 }
 
+// HAE "Export History" sends PUT (one request per day) — treat identically to POST
+export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ token: string }> }
+) {
+  return POST(req, context);
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
