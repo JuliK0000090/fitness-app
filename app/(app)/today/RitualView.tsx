@@ -36,11 +36,8 @@ type Props = {
   habits: Habit[];
   scheduledWorkouts: Workout[];
   weeklyTargets: WeeklyTarget[];
-  hasGoals: boolean;
   readinessScore: number | null;
   glp1Active: boolean;
-  glp1ProteinTargetG: number | null;
-  glp1ResistanceMinTarget: number | null;
 };
 
 function readinessLine(score: number | null): string {

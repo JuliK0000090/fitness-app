@@ -192,11 +192,8 @@ export default async function TodayPage() {
         habits={habitsForView}
         scheduledWorkouts={workoutsForView}
         weeklyTargets={weeklyTargetsForView}
-        hasGoals={hasGoals}
         readinessScore={readinessScore}
         glp1Active={glp1Profile?.active ?? false}
-        glp1ProteinTargetG={glp1Profile?.proteinTargetG ?? null}
-        glp1ResistanceMinTarget={glp1Profile?.resistanceMinTarget ?? null}
       />
     );
   }
