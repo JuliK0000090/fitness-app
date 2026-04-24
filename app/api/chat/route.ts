@@ -10,6 +10,62 @@ import { classifyMessage } from "@/lib/safety";
 import { rateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
+function buildGlp1Context(profile: {
+  medication: string | null;
+  proteinTargetG: number | null;
+  resistanceMinTarget: number | null;
+  notes: string | null;
+}): string {
+  const lines = [
+    "This user is on a GLP-1 medication. Your coaching priorities, in order:",
+    "1. Protect lean muscle mass during weight loss.",
+    `2. Adequate protein — their target is ${profile.proteinTargetG ?? "1.6 g/kg bodyweight"} g/day. When protein comes up, check against this.`,
+    `3. Resistance training — minimum ${profile.resistanceMinTarget ?? 150} min/week. Never suggest dropping strength sessions.`,
+    "4. Common side effects to be aware of: nausea, fatigue, low appetite, muscle cramps, dehydration.",
+    "5. If rapid weight loss is mentioned (>2 lb/week sustained), flag it gently and suggest checking with their prescriber.",
+    "",
+    "Never recommend: skipping meals when not hungry, increasing cardio at the expense of strength, dramatic calorie deficits.",
+    "When low energy or low appetite is mentioned, suggest: smaller protein-forward meals, hydration, electrolytes (sodium specifically). If a workout is scheduled, offer a lighter version rather than skipping entirely.",
+    "You are not their doctor. Defer all medical decisions to their prescriber.",
+  ];
+  if (profile.medication) lines.push(`Medication: ${profile.medication}.`);
+  if (profile.notes) lines.push(`User notes: ${profile.notes}`);
+  return lines.join("\n");
+}
+
+function buildUserFactsContext(facts: Array<{
+  category: string;
+  key: string;
+  value: string;
+  confidence: number;
+  lastConfirmedAt: Date | string;
+  contradictedAt: Date | string | null;
+}>): string | null {
+  if (!facts || facts.length === 0) return null;
+
+  const high = facts.filter((f) => f.confidence >= 0.8);
+  const medium = facts.filter((f) => f.confidence >= 0.5 && f.confidence < 0.8);
+  const low = facts.filter((f) => f.confidence < 0.5);
+
+  const lines: string[] = ["Known facts (verified via conversation):"];
+
+  if (high.length > 0) {
+    lines.push("\nHIGH confidence (>80%, recently confirmed — reference naturally):");
+    high.forEach((f) => lines.push(`  - ${f.key}: ${f.value}`));
+  }
+  if (medium.length > 0) {
+    lines.push("\nMEDIUM confidence (50–80% — reference with mild hedging like 'if I remember right'):");
+    medium.forEach((f) => lines.push(`  - ${f.key}: ${f.value}`));
+  }
+  if (low.length > 0) {
+    lines.push("\nLOW confidence / stale (<50% — do NOT assert; ask if still applies):");
+    low.forEach((f) => lines.push(`  - ${f.key}: ${f.value} [stale — verify before relying on this]`));
+  }
+
+  lines.push("\nRules: Reference HIGH facts naturally. MEDIUM with hedging. LOW/stale: ask, don't assert. If the user contradicts a fact, call remember_fact with the new value.");
+  return lines.join("\n");
+}
+
 const bodySchema = z.object({
   messages: z.array(z.any()),
   conversationId: z.string(),
@@ -77,7 +133,7 @@ export async function POST(req: NextRequest) {
     select: { name: true, customInstructions: true, customResponseStyle: true, heightCm: true, activityLevel: true, goalWeightKg: true, onGlp1: true },
   }) as { name: string | null; customInstructions: string | null; customResponseStyle: string | null; heightCm: number | null; activityLevel: string | null; goalWeightKg: number | null; onGlp1: boolean };
 
-  const [latestWeight, activeGoals, activeHabits] = await Promise.all([
+  const [latestWeight, activeGoals, activeHabits, glp1Profile, activeUserFacts] = await Promise.all([
     prisma.measurement.findFirst({ where: { userId, kind: "weight" }, orderBy: { capturedAt: "desc" } }),
     prisma.goal.findMany({
       where: { userId, status: { in: ["active", "paused"] } },
@@ -94,6 +150,14 @@ export async function POST(req: NextRequest) {
       select: { id: true, title: true, cadence: true, pointsOnComplete: true },
       take: 12,
     }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (prisma as any).gLP1Profile.findUnique({ where: { userId } }).catch(() => null),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (prisma as any).userFact.findMany({
+      where: { userId, active: true },
+      orderBy: { lastConfirmedAt: "desc" },
+      take: 20,
+    }).catch(() => []),
   ]);
 
   // Build goal context lines — injected into every Vita response
@@ -170,6 +234,14 @@ export async function POST(req: NextRequest) {
         .join("\n")
     : "";
 
+  // Build GLP-1 coaching context when active
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const glp1Ctx = glp1Profile && (glp1Profile as any).active ? buildGlp1Context(glp1Profile as any) : null;
+
+  // Build verified user facts context
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userFactsCtx = buildUserFactsContext(activeUserFacts as any[]);
+
   const systemPrompt = buildSystemPrompt({
     userName: user.name,
     customInstructions: user.customInstructions,
@@ -178,6 +250,8 @@ export async function POST(req: NextRequest) {
     memoryContext,
     healthContext,
     conversationContext,
+    glp1Context: glp1Ctx,
+    userFactsContext: userFactsCtx,
   });
   if (lastMessage?.role === "user") {
     try {

@@ -6,6 +6,8 @@ export function buildSystemPrompt(opts: {
   memoryContext?: string;
   healthContext?: string;
   conversationContext?: string;
+  glp1Context?: string | null;
+  userFactsContext?: string | null;
 }) {
   return `# Vita — AI Fitness Coach
 
@@ -81,6 +83,8 @@ Warm but direct. Cut to actionable advice. Celebrate wins without being sycophan
 - Crisis language: call \`show_crisis_resources\`
 - Medical conditions or injuries: always end with "This is not medical advice"
 
+${opts.glp1Context ? `## GLP-1 muscle defense mode\n${opts.glp1Context}` : ""}
+${opts.userFactsContext ? `## What Vita knows about this user (verified facts)\n${opts.userFactsContext}` : ""}
 ${opts.customInstructions ? `## What to know about this user\n${opts.customInstructions}` : ""}
 ${opts.customResponseStyle ? `## How to respond\n${opts.customResponseStyle}` : ""}
 ${opts.profileContext ? `## User profile\n${opts.profileContext}` : ""}

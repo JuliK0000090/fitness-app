@@ -65,6 +65,7 @@ model User {
   goalWeightKg         Float?
   medicalNotes         String?
   onGlp1               Boolean   @default(false)  // User is on GLP-1 medication (Ozempic/Wegovy/etc)
+  todayMode            String    @default("RITUAL") // "RITUAL" | "DASHBOARD"
   onboardingComplete   Boolean   @default(false)
   customInstructions   String?   @db.Text
   customResponseStyle  String?   @db.Text
@@ -112,12 +113,17 @@ model User {
   avatarMilestones  AvatarMilestone[]
   avatarEvents      AvatarEvent[]
   safetyFlags       SafetyFlag[]
-  healthIntegration HealthIntegration?
-  haeRaw            HaeRaw[]
-  haeMetrics        HaeMetric[]
-  haeDailies        HaeDaily[]
-  haeWorkouts       HaeWorkout[]
-  androidWaitlist   HealthAndroidWaitlist?
+  healthIntegration     HealthIntegration?
+  haeRaw                HaeRaw[]
+  haeMetrics            HaeMetric[]
+  haeDailies            HaeDaily[]
+  haeWorkouts           HaeWorkout[]
+  androidWaitlist       HealthAndroidWaitlist?
+  glp1Profile           GLP1Profile?
+  nutritionLogs         NutritionLog[]
+  reactiveAdjustments   ReactiveAdjustmentLog[]
+  insightFiredLogs      InsightFiredLog[]
+  userFacts             UserFact[]
 
   @@index([email])
 }
@@ -765,6 +771,98 @@ model UnsubscribeToken {
 }
 
 // ─── Avatar System ────────────────────────────────────────────────────────────
+
+// ─── GLP-1 Muscle Defense ─────────────────────────────────────────────────────
+
+model GLP1Profile {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  active                Boolean   @default(false)
+  medication            String?   // "semaglutide" | "tirzepatide" | "liraglutide" | "other"
+  startedOn             DateTime?
+  doseSchedule          String?   // "weekly" | "biweekly" | "daily"
+  proteinTargetG        Int?      // g/day, computed from body weight × 1.6
+  resistanceMinTarget   Int?      // minutes/week of resistance training, default 150
+  notes                 String?   @db.Text
+  weeklyReviewedAt      DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model NutritionLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  proteinG  Float?
+  source    String   @default("MANUAL")
+  loggedAt  DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// ─── Reactive Coaching Engine ─────────────────────────────────────────────────
+
+model ReactiveAdjustmentLog {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ruleName   String
+  trigger    String
+  payload    Json
+  appliedAt  DateTime  @default(now())
+  reverted   Boolean   @default(false)
+  revertedAt DateTime?
+
+  @@index([userId, appliedAt])
+}
+
+// ─── Insight Moments Engine ───────────────────────────────────────────────────
+
+model InsightFiredLog {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  insightId       String
+  firedAt         DateTime @default(now())
+  contextSnapshot Json
+  userResponse    String?  // "engaged" | "dismissed" | null
+
+  @@index([userId, insightId, firedAt])
+}
+
+// ─── Memory Integrity ─────────────────────────────────────────────────────────
+
+enum FactCategory {
+  GOAL
+  EVENT
+  PREFERENCE
+  CONSTRAINT
+  RELATIONSHIP
+  HEALTH_CONTEXT
+  OTHER
+}
+
+model UserFact {
+  id                 String       @id @default(cuid())
+  userId             String
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category           FactCategory
+  key                String
+  value              String       @db.Text
+  confidence         Float        @default(1.0)
+  source             String
+  firstStatedAt      DateTime     @default(now())
+  lastConfirmedAt    DateTime     @default(now())
+  contradictedAt     DateTime?
+  contradictionNote  String?      @db.Text
+  active             Boolean      @default(true)
+
+  @@unique([userId, category, key])
+  @@index([userId, active])
+}
 
 enum AvatarVisibility {
   ON
