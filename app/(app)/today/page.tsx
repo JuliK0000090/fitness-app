@@ -140,12 +140,8 @@ export default async function TodayPage() {
   for (const w of weeklyDoneScheduled) addCount(w.workoutTypeName);
   for (const w of weeklyDoneLogs) addCount(w.workoutName);
 
-  // GLP-1 widget data
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const glp1Profile = await (prisma as any).gLP1Profile.findUnique({
-    where: { userId },
-    select: { active: true, proteinTargetG: true, resistanceMinTarget: true },
-  }).catch(() => null);
+  // GLP-1 widget suppressed — feature hidden pending re-enable
+  const glp1Profile = null;
 
   const { level, totalXp, xpToNext, xpInLevel } = computeLevel(user.totalXp);
   const xpPct = Math.min(100, (xpInLevel / Math.max(1, xpInLevel + xpToNext)) * 100);
@@ -193,7 +189,7 @@ export default async function TodayPage() {
         scheduledWorkouts={workoutsForView}
         weeklyTargets={weeklyTargetsForView}
         readinessScore={readinessScore}
-        glp1Active={glp1Profile?.active ?? false}
+        glp1Active={false}
       />
     );
   }

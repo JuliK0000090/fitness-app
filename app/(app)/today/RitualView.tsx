@@ -263,13 +263,13 @@ export function RitualView({
           </div>
         )}
 
-        {/* GLP-1 quiet note when active */}
-        {glp1Active && (
+        {/* GLP-1 quiet note — hidden pending re-enable */}
+        {/* glp1Active && (
           <div className="mt-8 border border-border-subtle rounded px-4 py-3">
             <p className="text-caption text-text-disabled uppercase tracking-widest mb-1">GLP-1 mode</p>
             <p className="text-body-sm text-text-muted">Muscle defense active. Strength sessions and protein goals are tracked.</p>
           </div>
-        )}
+        ) */}
 
         {/* Talk to Vita — ghosted */}
         <div className="mt-16 border-t border-border-subtle pt-6">

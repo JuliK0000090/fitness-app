@@ -10,7 +10,8 @@ import { VitaWordmark } from "@/components/ui/VitaWordmark";
 import type { Archetype, SkinTone, HairStyle } from "@/lib/avatar/types";
 import { SKIN_TONES } from "@/lib/avatar/types";
 
-const STEPS = ["Welcome", "Your body", "Your goal", "Activity", "GLP-1", "Vita You", "Your look", "Done"] as const;
+// GLP-1 step hidden — blended out pending re-enable
+const STEPS = ["Welcome", "Your body", "Your goal", "Activity", "Vita You", "Your look", "Done"] as const;
 
 const ARCHETYPES: { value: Archetype; label: string; desc: string }[] = [
   { value: "hourglass",         label: "Hourglass",         desc: "Balanced shoulders & hips, defined waist" },
@@ -97,21 +98,7 @@ export default function OnboardingPage() {
         });
       }
 
-      // Write GLP-1 profile if user answered yes or no (not prefer_not)
-      if (data.glp1Answer === "yes" || data.glp1Answer === "no") {
-        const weightKg = data.currentWeightKg ? parseFloat(data.currentWeightKg) : null;
-        await fetch("/api/settings/glp1", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            active: data.glp1Answer === "yes",
-            medication: data.glp1Answer === "yes" && data.glp1Medication !== "decline" ? data.glp1Medication || null : null,
-            doseSchedule: "weekly",
-            proteinTargetG: weightKg ? Math.round(weightKg * 1.6) : null,
-            resistanceMinTarget: 150,
-          }),
-        });
-      }
+      // GLP-1 profile write suppressed — feature hidden pending re-enable
 
       if (data.avatarVisibility !== "OFF") {
         const visibility = data.sensitive ? "LIMITED" : data.avatarVisibility;
@@ -317,112 +304,8 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 4 — GLP-1 */}
+          {/* Step 4 — Avatar opt-in (GLP-1 step hidden) */}
           {step === 4 && (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <p className="text-caption text-text-disabled uppercase tracking-widest">One last question</p>
-                <h2 className="font-serif text-heading-lg font-light text-text-primary">Are you on a GLP-1 medication?</h2>
-                <p className="text-caption text-text-muted leading-relaxed">
-                  Vita can adjust your plan to protect lean muscle while you lose weight.
-                </p>
-              </div>
-
-              {!data.glp1Answer && (
-                <div className="space-y-2">
-                  {[
-                    { value: "yes",          label: "Yes" },
-                    { value: "no",           label: "No" },
-                    { value: "prefer_not",   label: "Prefer not to say" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => set("glp1Answer", opt.value as "yes" | "no" | "prefer_not")}
-                      className={cn(
-                        "w-full text-left text-body-sm px-4 py-3 rounded border transition-colors",
-                        "border-border-subtle text-text-muted hover:border-border-default hover:text-text-secondary"
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {data.glp1Answer === "yes" && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-caption text-text-muted">Which medication?</label>
-                    {GLP1_MEDICATIONS.map((med) => (
-                      <button
-                        key={med.value}
-                        onClick={() => set("glp1Medication", med.value)}
-                        className={cn(
-                          "w-full text-left text-body-sm px-4 py-3 rounded border transition-colors",
-                          data.glp1Medication === med.value
-                            ? "border-champagne/50 bg-champagne/10 text-text-primary"
-                            : "border-border-subtle text-text-muted hover:border-border-default"
-                        )}
-                      >
-                        {med.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-caption text-text-muted">When did you start?</label>
-                    <div className="flex flex-wrap gap-2">
-                      {GLP1_DURATIONS.map((d) => (
-                        <button
-                          key={d.value}
-                          onClick={() => set("glp1Duration", d.value)}
-                          className={cn(
-                            "text-caption px-3 py-1.5 rounded border transition-colors",
-                            data.glp1Duration === d.value
-                              ? "border-champagne/50 bg-champagne/10 text-champagne"
-                              : "border-border-subtle text-text-disabled hover:border-border-default hover:text-text-muted"
-                          )}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {data.glp1Answer === "no" && (
-                <div className="border border-border-subtle rounded p-4">
-                  <p className="text-caption text-text-muted">
-                    Your plan will follow standard progressive training.
-                    You can enable GLP-1 mode later in settings if anything changes.
-                  </p>
-                </div>
-              )}
-
-              {data.glp1Answer === "prefer_not" && (
-                <div className="border border-border-subtle rounded p-4">
-                  <p className="text-caption text-text-muted">
-                    Noted. You can configure this anytime in settings.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => { set("glp1Answer", ""); setStep(3); }} className="flex-1">Back</Button>
-                <Button
-                  variant="primary"
-                  onClick={() => setStep(5)}
-                  className="flex-1"
-                  disabled={!data.glp1Answer}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 5 — Avatar opt-in */}
-          {step === 5 && (
             <div className="space-y-6">
               <div className="space-y-2">
                 <h2 className="font-serif text-heading-lg font-light text-text-primary">Vita You</h2>
@@ -472,14 +355,14 @@ export default function OnboardingPage() {
               )}
 
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setStep(4)} className="flex-1">Back</Button>
-                <Button variant="primary" onClick={() => setStep(data.avatarVisibility === "OFF" ? 7 : 6)} className="flex-1">Next</Button>
+                <Button variant="secondary" onClick={() => setStep(3)} className="flex-1">Back</Button>
+                <Button variant="primary" onClick={() => setStep(data.avatarVisibility === "OFF" ? 6 : 5)} className="flex-1">Next</Button>
               </div>
             </div>
           )}
 
-          {/* Step 6 — Look */}
-          {step === 6 && (
+          {/* Step 5 — Look */}
+          {step === 5 && (
             <div className="space-y-6">
               <div className="space-y-2">
                 <h2 className="font-serif text-heading-lg font-light text-text-primary">Your look</h2>
@@ -550,14 +433,14 @@ export default function OnboardingPage() {
               </div>
 
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setStep(5)} className="flex-1">Back</Button>
-                <Button variant="primary" onClick={() => setStep(7)} className="flex-1">Next</Button>
+                <Button variant="secondary" onClick={() => setStep(4)} className="flex-1">Back</Button>
+                <Button variant="primary" onClick={() => setStep(6)} className="flex-1">Next</Button>
               </div>
             </div>
           )}
 
-          {/* Step 7 — Done */}
-          {step === 7 && (
+          {/* Step 6 — Done */}
+          {step === 6 && (
             <div className="space-y-6">
               <div className="space-y-2">
                 <h2 className="font-serif text-heading-lg font-light text-text-primary">You're all set</h2>

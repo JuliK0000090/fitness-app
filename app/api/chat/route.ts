@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
     latestWeight ? `Current weight: ${latestWeight.value}${latestWeight.unit}` : null,
     user.goalWeightKg ? `Goal weight: ${user.goalWeightKg}kg` : null,
     user.activityLevel ? `Activity level: ${user.activityLevel}` : null,
-    user.onGlp1 ? `On GLP-1 medication: yes — prioritise strength training and high protein to preserve muscle; avoid recommending large calorie deficits on top of the medication's natural appetite suppression.` : null,
+    // GLP-1 context suppressed — feature hidden pending re-enable
     goalLines.length > 0 ? `\nUser's goals:\n${goalLines.map((l) => `  - ${l}`).join("\n")}` : "No goals set yet — ask the user what they want to achieve and by when, then call propose_goal_decomposition.",
     habitLines.length > 0 ? `\nActive habits:\n${habitLines.map((l) => `  - ${l}`).join("\n")}` : null,
   ].filter(Boolean).join("\n");
@@ -234,9 +234,8 @@ export async function POST(req: NextRequest) {
         .join("\n")
     : "";
 
-  // Build GLP-1 coaching context when active
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const glp1Ctx = glp1Profile && (glp1Profile as any).active ? buildGlp1Context(glp1Profile as any) : null;
+  // GLP-1 coaching context suppressed — feature hidden pending re-enable
+  const glp1Ctx = null;
 
   // Build verified user facts context
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

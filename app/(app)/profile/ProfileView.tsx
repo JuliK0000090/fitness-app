@@ -121,21 +121,7 @@ export function ProfileView({ user }: ProfileViewProps) {
             <option value="clinical">Clinical — data-focused</option>
           </select>
 
-          <label className="flex items-center justify-between gap-3 cursor-pointer py-1">
-            <div>
-              <p className="text-body-sm text-text-secondary">GLP-1 medication</p>
-              <p className="text-caption text-text-disabled">On Ozempic, Wegovy, Zepbound, or similar. Vita adjusts protein targets and strength focus to protect muscle.</p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={onGlp1}
-              onClick={() => setOnGlp1((v) => !v)}
-              className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${onGlp1 ? "bg-champagne/50" : "bg-border-default"}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-bg-elevated border border-border-strong transition-transform ${onGlp1 ? "translate-x-4" : "translate-x-0"}`} />
-            </button>
-          </label>
+          {/* GLP-1 toggle hidden — feature blended out pending re-enable */}
 
           <div className="flex gap-2 pt-1">
             <button
