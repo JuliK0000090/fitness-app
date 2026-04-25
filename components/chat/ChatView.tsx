@@ -82,12 +82,11 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Pre-fill input from ?q= URL param (e.g. when navigating from a goal card)
+  // Auto-send from ?q= URL param when the conversation is empty (e.g. from goal cards)
   useEffect(() => {
     const q = searchParams.get("q");
     if (q && initialMessages.length === 0) {
-      setInput(q);
-      inputRef.current?.focus();
+      append({ role: "user", content: q });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

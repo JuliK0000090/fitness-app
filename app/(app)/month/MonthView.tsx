@@ -237,7 +237,7 @@ export function MonthView({
 
         {goals.length === 0 ? (
           <Link
-            href="/chat?q=I%20don%27t%20have%20any%20goals%20set%20yet%2C%20can%20you%20help%20me%20define%20one%3F"
+            href={`/chat?q=${encodeURIComponent("I want to set my first goal. Ask me what you need to know — what I want to achieve, by when, and any details that matter.")}`}
             className="flex items-center gap-3 border border-dashed border-border-subtle bg-bg-surface rounded-md px-4 py-4 hover:border-border-default hover:bg-bg-elevated transition-colors group"
           >
             <Target size={12} strokeWidth={1.5} className="text-text-disabled shrink-0" />
@@ -248,7 +248,7 @@ export function MonthView({
           </Link>
         ) : (
           goals.map((g) => {
-            const isUndefined = g.title === "Goal" || !g.title;
+            const isUndefined = !g.title || g.title.trim() === "";
             const pct = g.targetValue != null && g.targetValue !== 0 && g.currentValue != null
               ? Math.max(0, Math.min(100, (g.currentValue / g.targetValue) * 100))
               : null;
@@ -257,8 +257,8 @@ export function MonthView({
               : null;
 
             const chatUrl = isUndefined
-              ? `/chat?q=I%20have%20an%20undefined%20goal%2C%20let%27s%20define%20it%20together`
-              : `/chat?q=Let%27s%20talk%20about%20my%20goal%3A%20${encodeURIComponent(g.title ?? "")}`;
+              ? `/chat?q=${encodeURIComponent("I have a goal I haven't defined yet. Ask me everything you need — what I want to achieve, by when, and any context that matters. Help me make it specific and real.")}`
+              : `/chat?q=${encodeURIComponent(`I want to talk about my goal: "${g.title}". What's the best way to make progress on it?`)}`;
 
             return (
               <Link
