@@ -75,6 +75,7 @@ model User {
   deleteRequestedAt    DateTime?
   gdprConsentAt        DateTime?
   analyticsConsent     Boolean   @default(false)
+  notificationPrefs    Json      @default("{}")
   timezone             String    @default("UTC")
   lastRolloverDate     DateTime?
   totalXp              Int       @default(0)
