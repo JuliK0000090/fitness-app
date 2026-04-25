@@ -11,20 +11,28 @@ export default async function ChatPage({
 }) {
   const session = await requireSession();
   const { q } = await searchParams;
-  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+  // When ?q= is present (e.g. from a goal card), always open a fresh conversation
+  // so the prefill message fires on an empty chat and Vita responds immediately.
+  if (q) {
+    const conv = await prisma.conversation.create({
+      data: { userId: session.userId },
+    });
+    redirect(`/chat/${conv.id}?q=${encodeURIComponent(q)}`);
+  }
 
+  // Normal navigation: go to most recent conversation
   const recent = await prisma.conversation.findFirst({
     where: { userId: session.userId, deletedAt: null },
     orderBy: { updatedAt: "desc" },
   });
 
   if (recent) {
-    redirect(`/chat/${recent.id}${qs}`);
+    redirect(`/chat/${recent.id}`);
   }
 
   // First ever conversation
   const conv = await prisma.conversation.create({
     data: { userId: session.userId },
   });
-  redirect(`/chat/${conv.id}${qs}`);
+  redirect(`/chat/${conv.id}`);
 }
