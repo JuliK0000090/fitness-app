@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, DragEvent } from "react";
-import { useSearchParams } from "next/navigation";
 import { useChat, Message } from "ai/react";
 import { Send, Square, RotateCcw, ThumbsUp, ThumbsDown, Copy, Check, Paperclip, Mic, Mic2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,6 +41,7 @@ function UserMessageContent({ content }: { content: string }) {
 interface ChatViewProps {
   conversationId: string;
   initialMessages: { id: string; role: "user" | "assistant"; content: string }[];
+  prefillMessage?: string;
 }
 
 const SUGGESTIONS = [
@@ -51,10 +51,9 @@ const SUGGESTIONS = [
   "Check my progress",
 ];
 
-export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
+export function ChatView({ conversationId, initialMessages, prefillMessage }: ChatViewProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const searchParams = useSearchParams();
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -82,11 +81,10 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-send from ?q= URL param when the conversation is empty (e.g. from goal cards)
+  // Auto-send prefill message when the conversation is empty (e.g. from goal cards)
   useEffect(() => {
-    const q = searchParams.get("q");
-    if (q && initialMessages.length === 0) {
-      append({ role: "user", content: q });
+    if (prefillMessage) {
+      append({ role: "user", content: prefillMessage });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

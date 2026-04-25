@@ -3,7 +3,13 @@ import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ChatView } from "@/components/chat/ChatView";
 
-export default async function ChatConversationPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ChatConversationPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string }>;
+}) {
   let session;
   try {
     session = await requireSession();
@@ -11,6 +17,7 @@ export default async function ChatConversationPage({ params }: { params: Promise
     redirect("/auth/login");
   }
   const { id } = await params;
+  const { q } = await searchParams;
 
   let conversation;
   try {
@@ -30,5 +37,8 @@ export default async function ChatConversationPage({ params }: { params: Promise
     content: m.content,
   }));
 
-  return <ChatView conversationId={id} initialMessages={initialMessages} />;
+  // Pass ?q= as a prefill only for empty conversations
+  const prefillMessage = initialMessages.length === 0 && q ? q : undefined;
+
+  return <ChatView conversationId={id} initialMessages={initialMessages} prefillMessage={prefillMessage} />;
 }
