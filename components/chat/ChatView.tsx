@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, DragEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { useChat, Message } from "ai/react";
 import { Send, Square, RotateCcw, ThumbsUp, ThumbsDown, Copy, Check, Paperclip, Mic, Mic2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ const SUGGESTIONS = [
 export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const searchParams = useSearchParams();
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -76,6 +78,16 @@ export function ChatView({ conversationId, initialMessages }: ChatViewProps) {
     // Only auto-resume when exactly one unanswered user message (not a pile of failed retries)
     if (last?.role === "user" && secondLast?.role !== "user") {
       reload();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pre-fill input from ?q= URL param (e.g. when navigating from a goal card)
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && initialMessages.length === 0) {
+      setInput(q);
+      inputRef.current?.focus();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

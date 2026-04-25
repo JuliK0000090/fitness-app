@@ -129,7 +129,7 @@ export default async function MonthPage({
       })}
       goals={goals.map((g) => ({
         id: g.id,
-        title: g.title ?? "Goal",
+        title: g.title ?? "",
         targetValue: g.targetValue,
         currentValue: g.currentValue,
         unit: g.unit,

@@ -27,7 +27,7 @@ interface CalendarDay {
 
 interface GoalSummary {
   id: string;
-  title: string;
+  title: string | null;
   targetValue: number | null;
   currentValue: number | null;
   unit: string | null;
@@ -232,33 +232,69 @@ export function MonthView({
       )}
 
       {/* Active goals */}
-      {goals.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">Active goals</p>
-          {goals.map((g) => {
+      <div className="space-y-3">
+        <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">Active goals</p>
+
+        {goals.length === 0 ? (
+          <Link
+            href="/chat?q=I%20don%27t%20have%20any%20goals%20set%20yet%2C%20can%20you%20help%20me%20define%20one%3F"
+            className="flex items-center gap-3 border border-dashed border-border-subtle bg-bg-surface rounded-md px-4 py-4 hover:border-border-default hover:bg-bg-elevated transition-colors group"
+          >
+            <Target size={12} strokeWidth={1.5} className="text-text-disabled shrink-0" />
+            <div className="flex-1">
+              <p className="text-body-sm text-text-disabled">No goals set yet</p>
+              <p className="text-caption text-text-disabled group-hover:text-text-muted transition-colors">Talk to Vita to define your first goal →</p>
+            </div>
+          </Link>
+        ) : (
+          goals.map((g) => {
+            const isUndefined = g.title === "Goal" || !g.title;
             const pct = g.targetValue != null && g.targetValue !== 0 && g.currentValue != null
               ? Math.max(0, Math.min(100, (g.currentValue / g.targetValue) * 100))
               : null;
             const onTrack = g.predictedHitDate && g.deadline
               ? new Date(g.predictedHitDate) <= new Date(g.deadline)
               : null;
+
+            const chatUrl = isUndefined
+              ? `/chat?q=I%20have%20an%20undefined%20goal%2C%20let%27s%20define%20it%20together`
+              : `/chat?q=Let%27s%20talk%20about%20my%20goal%3A%20${encodeURIComponent(g.title ?? "")}`;
+
             return (
-              <div key={g.id} className="border border-border-subtle bg-bg-surface rounded-md px-4 py-3 flex items-center gap-3">
-                <Target size={12} strokeWidth={1.5} className="text-text-disabled shrink-0" />
-                <p className="text-body-sm text-text-secondary flex-1 truncate">{g.title}</p>
-                {pct !== null && (
+              <Link
+                key={g.id}
+                href={chatUrl}
+                className={cn(
+                  "flex items-center gap-3 border rounded-md px-4 py-3 transition-colors group",
+                  isUndefined
+                    ? "border-dashed border-border-subtle bg-bg-surface hover:border-border-default hover:bg-bg-elevated"
+                    : "border-border-subtle bg-bg-surface hover:border-border-default hover:bg-bg-elevated"
+                )}
+              >
+                <Target size={12} strokeWidth={1.5} className={cn("shrink-0", isUndefined ? "text-text-disabled" : "text-text-muted")} />
+                <div className="flex-1 min-w-0">
+                  {isUndefined ? (
+                    <>
+                      <p className="text-body-sm text-text-disabled">Undefined goal</p>
+                      <p className="text-caption text-text-disabled group-hover:text-text-muted transition-colors">Tap to define with Vita →</p>
+                    </>
+                  ) : (
+                    <p className="text-body-sm text-text-secondary truncate">{g.title}</p>
+                  )}
+                </div>
+                {!isUndefined && pct !== null && (
                   <p className="text-caption text-text-muted tabular-nums shrink-0">{Math.round(pct)}%</p>
                 )}
-                {onTrack !== null && (
+                {!isUndefined && onTrack !== null && (
                   onTrack
                     ? <TrendingUp size={11} strokeWidth={1.5} className="text-sage shrink-0" />
                     : <TrendingDown size={11} strokeWidth={1.5} className="text-terracotta shrink-0" />
                 )}
-              </div>
+              </Link>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
 
       {/* 365-day heatmap */}
       <Heatmap heatmap={heatmap} />
