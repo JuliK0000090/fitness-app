@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useOptimistic, useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 import { CheckCircle2, Circle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -65,7 +65,6 @@ export function RitualView({
   readinessScore,
   glp1Active,
 }: Props) {
-  const [timelineOpen, setTimelineOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   const [optimisticHabits, toggleHabit] = useOptimistic(
@@ -169,7 +168,7 @@ export function RitualView({
         {/* Habit quick-tiles */}
         {optimisticHabits.length > 0 && (
           <div className="mt-12 space-y-3">
-            {optimisticHabits.slice(0, 4).map((habit) => (
+            {optimisticHabits.map((habit) => (
               <button
                 key={habit.id}
                 onClick={() => handleToggle(habit.id, habit.done)}
@@ -195,42 +194,6 @@ export function RitualView({
                 )}
               </button>
             ))}
-          </div>
-        )}
-
-        {/* Today timeline — collapsed */}
-        {scheduledWorkouts.length + habits.length > 0 && (
-          <div className="mt-12 space-y-2">
-            <button
-              onClick={() => setTimelineOpen((o) => !o)}
-              className="flex items-center justify-between w-full"
-            >
-              <p className="text-caption text-text-disabled uppercase tracking-widest">
-                Today · {scheduledWorkouts.length + habits.length} blocks
-              </p>
-              <p className="text-caption text-text-disabled">{timelineOpen ? "Less" : "More"}</p>
-            </button>
-
-            {timelineOpen && (
-              <div className="space-y-1.5 mt-3">
-                {scheduledWorkouts.map((sw) => (
-                  <div key={sw.id} className="flex items-center gap-3 py-2 border-b border-border-subtle last:border-0">
-                    <span className="text-caption text-text-disabled w-12 shrink-0">
-                      {sw.scheduledTime ? formatTime(sw.scheduledTime) : "—"}
-                    </span>
-                    <span className="text-body-sm text-text-secondary">{sw.name}</span>
-                    <span className="text-caption text-text-disabled ml-auto">{sw.duration}m</span>
-                  </div>
-                ))}
-                {optimisticHabits.slice(4).map((h) => (
-                  <div key={h.id} className="flex items-center gap-3 py-2 border-b border-border-subtle last:border-0">
-                    <span className="text-caption text-text-disabled w-12 shrink-0">habit</span>
-                    <span className={cn("text-body-sm text-text-secondary flex-1", h.done && "line-through text-text-disabled")}>{h.title}</span>
-                    {h.done && <CheckCircle2 size={12} className="text-champagne shrink-0" />}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
