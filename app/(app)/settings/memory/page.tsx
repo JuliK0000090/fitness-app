@@ -66,10 +66,11 @@ export default function MemoryPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/memories");
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setMemories(data.memories ?? []);
     } catch {
-      /* ignore */
+      toast.error("Could not load memories");
     } finally {
       setLoading(false);
     }
@@ -79,10 +80,11 @@ export default function MemoryPage() {
     setFactsLoading(true);
     try {
       const res = await fetch("/api/facts");
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setFacts(data.facts ?? []);
     } catch {
-      /* ignore */
+      toast.error("Could not load verified facts");
     } finally {
       setFactsLoading(false);
     }

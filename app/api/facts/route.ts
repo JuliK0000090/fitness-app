@@ -7,12 +7,16 @@ import { z } from "zod";
 const db = prisma as any;
 
 export async function GET() {
-  const session = await requireSession();
-  const facts = await db.userFact.findMany({
-    where: { userId: session.userId, active: true },
-    orderBy: [{ confidence: "desc" }, { lastConfirmedAt: "desc" }],
-  });
-  return NextResponse.json({ facts });
+  try {
+    const session = await requireSession();
+    const facts = await db.userFact.findMany({
+      where: { userId: session.userId, active: true },
+      orderBy: [{ confidence: "desc" }, { lastConfirmedAt: "desc" }],
+    });
+    return NextResponse.json({ facts });
+  } catch {
+    return NextResponse.json({ facts: [] });
+  }
 }
 
 const updateSchema = z.object({

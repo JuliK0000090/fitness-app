@@ -54,6 +54,7 @@ const SUGGESTIONS = [
 export function ChatView({ conversationId, initialMessages, prefillMessage }: ChatViewProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const prefillSentRef = useRef(false);
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -81,9 +82,11 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-send prefill message when the conversation is empty (e.g. from goal cards)
+  // Auto-send prefill message when the conversation is empty (e.g. from goal cards).
+  // prefillSentRef guards against React StrictMode double-firing the effect.
   useEffect(() => {
-    if (prefillMessage) {
+    if (prefillMessage && !prefillSentRef.current) {
+      prefillSentRef.current = true;
       append({ role: "user", content: prefillMessage });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

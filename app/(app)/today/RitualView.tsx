@@ -3,6 +3,7 @@
 import { useOptimistic, useTransition } from "react";
 import { CheckCircle2, Circle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type Habit = {
   id: string;
@@ -76,11 +77,15 @@ export function RitualView({
   async function handleToggle(habitId: string, currentDone: boolean) {
     startTransition(async () => {
       toggleHabit(habitId);
-      await fetch("/api/habits/complete", {
+      const res = await fetch("/api/habits/complete", {
         method: currentDone ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ habitId }),
-      }).catch(() => {});
+      }).catch(() => null);
+      if (!res?.ok) {
+        toggleHabit(habitId); // revert
+        toast.error("Could not save — try again");
+      }
     });
   }
 
@@ -151,12 +156,23 @@ export function RitualView({
               </div>
               <button
                 className="w-full py-3 border border-border-default text-text-secondary text-body-sm hover:border-champagne/50 hover:text-text-primary transition-colors rounded"
-                onClick={async () => {
-                  await fetch("/api/scheduled-workouts/complete", {
+                onClick={async (e) => {
+                  const btn = e.currentTarget;
+                  btn.disabled = true;
+                  btn.textContent = "Logging…";
+                  const res = await fetch("/api/scheduled-workouts/complete", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ id: nextWorkout.id }),
-                  }).catch(() => {});
+                  }).catch(() => null);
+                  if (res?.ok) {
+                    btn.textContent = "Done";
+                    btn.className = btn.className.replace("text-text-secondary", "text-champagne").replace("border-border-default", "border-champagne/30");
+                  } else {
+                    btn.disabled = false;
+                    btn.textContent = "Start when ready";
+                    toast.error("Could not log workout — try again");
+                  }
                 }}
               >
                 Start when ready
