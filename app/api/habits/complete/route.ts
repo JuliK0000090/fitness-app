@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { userTodayStr } from "@/lib/time/today";
 
-const XP_HABIT = 10;
 const XP_ALL_HABITS_BONUS = 25;
 
-function todayDate(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+async function userTodayDate(userId: string): Promise<Date> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+  const tz = u?.timezone ?? "UTC";
+  return new Date(userTodayStr(tz) + "T00:00:00.000Z");
 }
 
 export async function POST(req: NextRequest) {
@@ -17,10 +17,11 @@ export async function POST(req: NextRequest) {
   const { habitId } = await req.json();
   if (!habitId) return NextResponse.json({ error: "habitId required" }, { status: 400 });
 
-  const habit = await prisma.habit.findFirst({ where: { id: habitId, userId } });
+  const [habit, date] = await Promise.all([
+    prisma.habit.findFirst({ where: { id: habitId, userId } }),
+    userTodayDate(userId),
+  ]);
   if (!habit) return NextResponse.json({ error: "Habit not found" }, { status: 404 });
-
-  const date = todayDate();
 
   const { completion, totalXp, bonus } = await prisma.$transaction(async (tx) => {
     const completion = await (tx.habitCompletion as any).upsert({
@@ -55,7 +56,7 @@ export async function DELETE(req: NextRequest) {
   const { habitId } = await req.json();
   if (!habitId) return NextResponse.json({ error: "habitId required" }, { status: 400 });
 
-  const date = todayDate();
+  const date = await userTodayDate(userId);
   await prisma.habitCompletion.deleteMany({ where: { habitId, userId, date } });
   return NextResponse.json({ ok: true });
 }
