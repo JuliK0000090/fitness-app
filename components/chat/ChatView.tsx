@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, DragEvent } from "react";
+import { useEffect, useRef, useState, DragEvent } from "react";
 import { useChat, Message } from "ai/react";
-import { Send, Square, RotateCcw, ThumbsUp, ThumbsDown, Copy, Check, Paperclip, Mic, Mic2 } from "lucide-react";
+import { Send, Square, RotateCcw, ThumbsUp, ThumbsDown, Copy, Check, Paperclip, Mic, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { AttachmentPreview, PendingAttachment } from "./AttachmentPreview";
-import { VoiceRecorder } from "./VoiceRecorder";
-import { VoiceMode } from "./VoiceMode";
 import { ToolResultRenderer } from "../cards/ToolResultRenderer";
 import { nanoid } from "nanoid";
 
@@ -59,7 +57,14 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [dragging, setDragging] = useState(false);
-  const [voiceMode, setVoiceMode] = useState(false);
+  const [dictating, setDictating] = useState(false);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const finalTranscriptRef = useRef("");
+  const interimTranscriptRef = useRef("");
+  const userStoppedDictationRef = useRef(false);
+  const baseInputRef = useRef("");
 
   const { messages, input, setInput, handleSubmit, isLoading, stop, reload, error, append } = useChat({
     api: "/api/chat",
@@ -102,11 +107,12 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
         e.preventDefault();
         inputRef.current?.focus();
       }
-      if (e.key === "Escape" && voiceMode) setVoiceMode(false);
+      if (e.key === "Escape" && dictating) stopDictation(false);
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [voiceMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dictating]);
 
   // ── Image resize helper ─────────────────────────────────────────────────────
   function resizeImageToDataUrl(file: File, maxPx: number, quality: number): Promise<string> {
@@ -181,7 +187,12 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
   }
 
   function handleFiles(files: FileList | File[]) {
-    Array.from(files).forEach((f) => uploadFile(f));
+    const arr = Array.from(files);
+    const filtered = arr.filter((f) => !(f.type.startsWith("audio/") || f.type.startsWith("video/")));
+    if (filtered.length < arr.length) {
+      toast.error("Audio and video uploads aren't supported. Use the dictation mic to send a message.");
+    }
+    filtered.forEach((f) => uploadFile(f));
   }
 
   // ── Drag & drop ─────────────────────────────────────────────────────────────
@@ -242,11 +253,165 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
     if (e.key === "Escape" && isLoading) stop();
   }
 
+  // ── Dictation: streams transcript into the textarea live; only stops when user taps stop.
+  // Auto-restarts the recognizer if the browser ends it on silence.
+  function startDictation() {
+    if (typeof window === "undefined") return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Dictation not supported in this browser. Try Chrome or Safari.");
+      return;
+    }
+
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch { /* noop */ }
+      recognitionRef.current = null;
+    }
+
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = "en-US";
+
+    baseInputRef.current = input;
+    finalTranscriptRef.current = "";
+    interimTranscriptRef.current = "";
+    userStoppedDictationRef.current = false;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (e: any) => {
+      let interim = "";
+      let appended = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const seg = e.results[i][0].transcript;
+        if (e.results[i].isFinal) appended += seg;
+        else interim += seg;
+      }
+      if (appended) finalTranscriptRef.current = (finalTranscriptRef.current + " " + appended).replace(/\s+/g, " ").trim();
+      interimTranscriptRef.current = interim.trim();
+      const live = [baseInputRef.current, finalTranscriptRef.current, interimTranscriptRef.current].filter(Boolean).join(" ").replace(/\s+/g, " ");
+      setInput(live);
+    };
+
+    rec.onend = () => {
+      // Auto-restart on silence-driven end. Use a small delay to avoid InvalidStateError.
+      if (!userStoppedDictationRef.current) {
+        setTimeout(() => {
+          if (userStoppedDictationRef.current || !recognitionRef.current) return;
+          try { recognitionRef.current.start(); } catch { /* already running or terminal */ }
+        }, 150);
+        return;
+      }
+      setDictating(false);
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onerror = (e: any) => {
+      // "no-speech" and "aborted" are expected during pauses — ignore so onend can restart.
+      if (e?.error === "no-speech" || e?.error === "aborted") return;
+      if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
+        toast.error("Microphone permission denied. Enable it in browser settings.");
+        userStoppedDictationRef.current = true;
+        setDictating(false);
+        return;
+      }
+      // Network or other transient error: let onend retry.
+    };
+
+    try {
+      rec.start();
+      recognitionRef.current = rec;
+      setDictating(true);
+    } catch {
+      toast.error("Could not start microphone — try again");
+    }
+  }
+
+  async function stopDictation(autoSend: boolean) {
+    userStoppedDictationRef.current = true;
+    const rec = recognitionRef.current;
+    recognitionRef.current = null;
+    if (rec) {
+      try { rec.stop(); } catch { /* noop */ }
+    }
+    setDictating(false);
+
+    const spoken = (finalTranscriptRef.current + " " + interimTranscriptRef.current).replace(/\s+/g, " ").trim();
+    finalTranscriptRef.current = "";
+    interimTranscriptRef.current = "";
+
+    if (autoSend && spoken) {
+      const combined = [baseInputRef.current, spoken].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+      baseInputRef.current = "";
+      setInput("");
+      setPendingAttachments([]);
+      try {
+        await append({ role: "user", content: combined });
+      } catch {
+        toast.error("Could not send — try again");
+        setInput(combined);
+      }
+    }
+  }
+
+  // Stop recognition on unmount.
+  useEffect(() => {
+    return () => {
+      userStoppedDictationRef.current = true;
+      const rec = recognitionRef.current;
+      recognitionRef.current = null;
+      if (rec) try { rec.stop(); } catch { /* noop */ }
+    };
+  }, []);
+
   async function copyMessage(content: string, id: string) {
     await navigator.clipboard.writeText(content);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1500);
   }
+
+  function speakMessage(content: string, id: string) {
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      toast.error("Read-aloud not supported in this browser");
+      return;
+    }
+    if (speakingId === id) {
+      window.speechSynthesis.cancel();
+      setSpeakingId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const cleaned = content
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/[*_~#>]/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!cleaned) return;
+    const utter = new SpeechSynthesisUtterance(cleaned);
+    utter.rate = 1;
+    utter.pitch = 1;
+    const voices = window.speechSynthesis.getVoices();
+    const preferred =
+      voices.find((v) => /samantha|ava|allison|jenny|aria/i.test(v.name) && v.lang.startsWith("en")) ||
+      voices.find((v) => v.lang.startsWith("en"));
+    if (preferred) utter.voice = preferred;
+    utter.onend = () => setSpeakingId((cur) => (cur === id ? null : cur));
+    utter.onerror = () => setSpeakingId((cur) => (cur === id ? null : cur));
+    setSpeakingId(id);
+    window.speechSynthesis.speak(utter);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   async function sendFeedback(messageId: string, rating: 1 | -1) {
     await fetch(`/api/messages/${messageId}/feedback`, {
@@ -255,12 +420,6 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
       body: JSON.stringify({ rating }),
     });
     toast.success(rating === 1 ? "Thanks!" : "Got it.");
-  }
-
-  function handleVoiceTranscript(text: string) {
-    setVoiceMode(false);
-    setInput(text);
-    setTimeout(() => inputRef.current?.focus(), 100);
   }
 
   return (
@@ -321,19 +480,32 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
                   ) : null
                 )}
 
-                {/* Message actions */}
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                {/* Message actions — always visible so the read-aloud button shows on touch devices */}
+                <div className="flex items-center gap-1 pt-1">
+                  <button onClick={() => speakMessage(message.content, message.id)}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded text-caption transition-colors",
+                      speakingId === message.id
+                        ? "text-champagne bg-champagne/10"
+                        : "text-text-muted hover:text-text-primary hover:bg-bg-elevated"
+                    )}
+                    aria-label={speakingId === message.id ? "Stop reading" : "Read aloud"}
+                    title={speakingId === message.id ? "Stop reading" : "Read aloud"}>
+                    {speakingId === message.id
+                      ? <><VolumeX size={12} strokeWidth={1.5} /><span>Stop</span></>
+                      : <><Volume2 size={12} strokeWidth={1.5} /><span>Read</span></>}
+                  </button>
                   <button onClick={() => copyMessage(message.content, message.id)}
-                    className="p-1 rounded text-text-disabled hover:text-text-muted transition-colors" aria-label="Copy">
-                    {copiedId === message.id ? <Check size={11} strokeWidth={1.5} /> : <Copy size={11} strokeWidth={1.5} />}
+                    className="p-1.5 rounded text-text-disabled hover:text-text-muted hover:bg-bg-elevated transition-colors" aria-label="Copy" title="Copy">
+                    {copiedId === message.id ? <Check size={12} strokeWidth={1.5} /> : <Copy size={12} strokeWidth={1.5} />}
                   </button>
                   <button onClick={() => sendFeedback(message.id, 1)}
-                    className="p-1 rounded text-text-disabled hover:text-sage transition-colors" aria-label="Helpful">
-                    <ThumbsUp size={11} strokeWidth={1.5} />
+                    className="p-1.5 rounded text-text-disabled hover:text-sage hover:bg-bg-elevated transition-colors" aria-label="Helpful" title="Helpful">
+                    <ThumbsUp size={12} strokeWidth={1.5} />
                   </button>
                   <button onClick={() => sendFeedback(message.id, -1)}
-                    className="p-1 rounded text-text-disabled hover:text-terracotta transition-colors" aria-label="Not helpful">
-                    <ThumbsDown size={11} strokeWidth={1.5} />
+                    className="p-1.5 rounded text-text-disabled hover:text-terracotta hover:bg-bg-elevated transition-colors" aria-label="Not helpful" title="Not helpful">
+                    <ThumbsDown size={12} strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
@@ -393,12 +565,20 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
               }}
             />
 
-            <VoiceRecorder onRecorded={(file) => uploadFile(file)} />
-
-            <button type="button" onClick={() => setVoiceMode(true)}
-              className="p-1.5 rounded text-text-disabled hover:text-text-muted transition-colors shrink-0" title="Voice mode">
-              <Mic2 size={14} strokeWidth={1.5} />
-            </button>
+            {dictating ? (
+              <button type="button" onClick={() => stopDictation(true)}
+                className="relative p-1.5 rounded bg-champagne/15 text-champagne shrink-0 transition-colors"
+                title="Stop and send">
+                <span aria-hidden className="absolute inset-0 rounded animate-ping" style={{ boxShadow: "0 0 0 2px rgba(212,196,168,0.25)" }} />
+                <Mic size={14} strokeWidth={2} className="relative" />
+              </button>
+            ) : (
+              <button type="button" onClick={startDictation}
+                className="p-1.5 rounded text-text-disabled hover:text-text-muted hover:bg-bg-elevated transition-colors shrink-0"
+                title="Speak — your words will be sent as a message">
+                <Mic size={14} strokeWidth={1.5} />
+              </button>
+            )}
 
             {isLoading ? (
               <button type="button" onClick={stop}
@@ -414,13 +594,16 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
             )}
           </form>
         </div>
-        <p className="text-[10px] text-text-disabled text-center mt-2">
-          Not medical advice. Consult a healthcare professional before starting new programmes.
-        </p>
+        {dictating ? (
+          <p className="text-[10px] text-champagne text-center mt-2 fu">
+            Listening — pauses are fine. Tap the mic to stop and send.
+          </p>
+        ) : (
+          <p className="text-[10px] text-text-disabled text-center mt-2">
+            Not medical advice. Consult a healthcare professional before starting new programmes.
+          </p>
+        )}
       </div>
-
-      {/* Voice mode overlay */}
-      {voiceMode && <VoiceMode onClose={() => setVoiceMode(false)} onTranscript={handleVoiceTranscript} />}
     </div>
   );
 }

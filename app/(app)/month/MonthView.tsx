@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Target, TrendingDown, TrendingUp, GripVertical, X, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Target, TrendingDown, TrendingUp, GripVertical, X, Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -28,7 +28,10 @@ interface CalendarDay {
 interface GoalSummary {
   id: string;
   title: string | null;
+  status: string;
+  category: string;
   targetValue: number | null;
+  startValue: number | null;
   currentValue: number | null;
   unit: string | null;
   predictedHitDate: string | null;
@@ -231,70 +234,8 @@ export function MonthView({
         </p>
       )}
 
-      {/* Active goals */}
-      <div className="space-y-3">
-        <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">Active goals</p>
-
-        {goals.length === 0 ? (
-          <Link
-            href={`/chat?q=${encodeURIComponent("I want to set my first goal. Ask me what you need to know — what I want to achieve, by when, and any details that matter.")}`}
-            className="flex items-center gap-3 border border-dashed border-border-subtle bg-bg-surface rounded-md px-4 py-4 hover:border-border-default hover:bg-bg-elevated transition-colors group"
-          >
-            <Target size={12} strokeWidth={1.5} className="text-text-disabled shrink-0" />
-            <div className="flex-1">
-              <p className="text-body-sm text-text-disabled">No goals set yet</p>
-              <p className="text-caption text-text-disabled group-hover:text-text-muted transition-colors">Talk to Vita to define your first goal →</p>
-            </div>
-          </Link>
-        ) : (
-          goals.map((g) => {
-            const isUndefined = !g.title || g.title.trim() === "";
-            const pct = g.targetValue != null && g.targetValue !== 0 && g.currentValue != null
-              ? Math.max(0, Math.min(100, (g.currentValue / g.targetValue) * 100))
-              : null;
-            const onTrack = g.predictedHitDate && g.deadline
-              ? new Date(g.predictedHitDate) <= new Date(g.deadline)
-              : null;
-
-            const chatUrl = isUndefined
-              ? `/chat?q=${encodeURIComponent("I have a goal I haven't defined yet. Ask me everything you need — what I want to achieve, by when, and any context that matters. Help me make it specific and real.")}`
-              : `/chat?q=${encodeURIComponent(`I want to talk about my goal: "${g.title}". What's the best way to make progress on it?`)}`;
-
-            return (
-              <Link
-                key={g.id}
-                href={chatUrl}
-                className={cn(
-                  "flex items-center gap-3 border rounded-md px-4 py-3 transition-colors group",
-                  isUndefined
-                    ? "border-dashed border-border-subtle bg-bg-surface hover:border-border-default hover:bg-bg-elevated"
-                    : "border-border-subtle bg-bg-surface hover:border-border-default hover:bg-bg-elevated"
-                )}
-              >
-                <Target size={12} strokeWidth={1.5} className={cn("shrink-0", isUndefined ? "text-text-disabled" : "text-text-muted")} />
-                <div className="flex-1 min-w-0">
-                  {isUndefined ? (
-                    <>
-                      <p className="text-body-sm text-text-disabled">Undefined goal</p>
-                      <p className="text-caption text-text-disabled group-hover:text-text-muted transition-colors">Tap to define with Vita →</p>
-                    </>
-                  ) : (
-                    <p className="text-body-sm text-text-secondary truncate">{g.title}</p>
-                  )}
-                </div>
-                {!isUndefined && pct !== null && (
-                  <p className="text-caption text-text-muted tabular-nums shrink-0">{Math.round(pct)}%</p>
-                )}
-                {!isUndefined && onTrack !== null && (
-                  onTrack
-                    ? <TrendingUp size={11} strokeWidth={1.5} className="text-sage shrink-0" />
-                    : <TrendingDown size={11} strokeWidth={1.5} className="text-terracotta shrink-0" />
-                )}
-              </Link>
-            );
-          })
-        )}
-      </div>
+      {/* Goals — same source as /goals page */}
+      <GoalsSection goals={goals} />
 
       {/* 365-day heatmap */}
       <Heatmap heatmap={heatmap} />
@@ -397,6 +338,183 @@ function DayDetail({
         )}
       </div>
     </div>
+  );
+}
+
+function GoalProgressRing({ pct, size = 36 }: { pct: number; size?: number }) {
+  const stroke = 2.5;
+  const r = (size - stroke * 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.min(1, Math.max(0, pct / 100)));
+  return (
+    <svg width={size} height={size} className="-rotate-90 shrink-0" aria-hidden>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(212,196,168,0.12)" strokeWidth={stroke} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none"
+        stroke="rgba(212,196,168,0.7)" strokeWidth={stroke}
+        strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)" }}
+      />
+    </svg>
+  );
+}
+
+function GoalsSection({ goals }: { goals: GoalSummary[] }) {
+  // Hide goals without a title — they're noise on the plan view.
+  // The /goals page is where users define them.
+  const named = goals.filter((g) => g.title && g.title.trim() !== "");
+  const active = named.filter((g) => g.status === "active" || g.status === "paused");
+  const achieved = named.filter((g) => g.status === "achieved");
+
+  if (named.length === 0) {
+    return (
+      <div className="space-y-3">
+        <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">Your goals</p>
+        <Link
+          href={`/chat?q=${encodeURIComponent("I want to set my first goal. Ask me what you need to know — what I want to achieve, by when, and any details that matter.")}`}
+          className="relative flex items-center gap-3 border border-dashed border-border-subtle bg-bg-surface rounded-md px-4 py-4 hover:border-champagne/40 hover:bg-bg-elevated transition-all duration-300 group overflow-hidden"
+        >
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{
+              background: "linear-gradient(90deg, transparent 0%, rgba(212,196,168,0.06) 50%, transparent 100%)",
+              backgroundSize: "200% 100%",
+              animation: "shimmer 2.4s ease-in-out infinite",
+            }}
+          />
+          <Sparkles size={13} strokeWidth={1.5} className="text-champagne/70 shrink-0 relative" />
+          <div className="flex-1 relative">
+            <p className="text-body-sm text-text-secondary">Set your first goal</p>
+            <p className="text-caption text-text-disabled group-hover:text-text-muted transition-colors">Tap — Vita will ask you everything she needs →</p>
+          </div>
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-baseline justify-between">
+        <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">Your goals</p>
+        <Link href="/goals" className="text-caption text-text-disabled hover:text-text-muted transition-colors">
+          View all →
+        </Link>
+      </div>
+
+      <div className="space-y-2">
+        {active.map((g) => <GoalRow key={g.id} g={g} />)}
+        {achieved.length > 0 && (
+          <>
+            <p className="text-[9px] tracking-widest uppercase text-text-disabled pt-2">Achieved</p>
+            {achieved.map((g) => <GoalRow key={g.id} g={g} dimmed />)}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GoalRow({ g, dimmed = false }: { g: GoalSummary; dimmed?: boolean }) {
+  const isUndefined = !g.title || g.title.trim() === "";
+
+  const rangeSize = g.targetValue != null && g.startValue != null
+    ? Math.abs(g.targetValue - g.startValue)
+    : 0;
+  const pct = !isUndefined && rangeSize > 0 && g.currentValue != null && g.startValue != null
+    ? Math.max(0, Math.min(100, Math.abs((g.currentValue - g.startValue) / rangeSize) * 100))
+    : null;
+
+  const onTrack = g.predictedHitDate && g.deadline
+    ? new Date(g.predictedHitDate) <= new Date(g.deadline)
+    : null;
+
+  const chatUrl = isUndefined
+    ? `/chat?q=${encodeURIComponent("I have a goal I haven't defined yet. Ask me everything you need — what I want to achieve, by when, and any context that matters. Help me make it specific and real.")}`
+    : `/chat?q=${encodeURIComponent(`I want to talk about my goal: "${g.title}". What's the best way to make progress on it?`)}`;
+
+  const isAchieved = g.status === "achieved";
+  const isComplete = pct !== null && pct >= 100;
+
+  return (
+    <Link
+      href={chatUrl}
+      className={cn(
+        "relative flex items-center gap-3 border rounded-md px-4 py-3 transition-all duration-300 group overflow-hidden",
+        isUndefined
+          ? "border-dashed border-border-subtle bg-bg-surface hover:border-champagne/40"
+          : "border-border-subtle bg-bg-surface hover:border-champagne/40",
+        dimmed && "opacity-60",
+        "hover:bg-bg-elevated hover:translate-y-[-1px]"
+      )}
+    >
+      {/* Shimmer tease on hover for live goals */}
+      {!isUndefined && !dimmed && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{
+            background: "linear-gradient(90deg, transparent 0%, rgba(212,196,168,0.05) 50%, transparent 100%)",
+            backgroundSize: "200% 100%",
+            animation: "shimmer 2.4s ease-in-out infinite",
+          }}
+        />
+      )}
+
+      {/* Celebration burst when at/over 100% */}
+      {isComplete && !isAchieved && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: "radial-gradient(circle at 30% 50%, rgba(212,196,168,0.10), transparent 60%)",
+            animation: "pulse 3s ease-in-out infinite",
+          }}
+        />
+      )}
+
+      {pct !== null ? (
+        <div className="relative shrink-0">
+          <GoalProgressRing pct={pct} size={36} />
+          <span className="absolute inset-0 flex items-center justify-center text-[9px] tabular-nums text-text-muted">
+            {Math.round(pct)}
+          </span>
+        </div>
+      ) : (
+        <div className="w-9 h-9 rounded-full border border-dashed border-border-subtle flex items-center justify-center shrink-0">
+          <Target size={12} strokeWidth={1.5} className="text-text-disabled" />
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0 relative">
+        {isUndefined ? (
+          <>
+            <p className="text-body-sm text-text-disabled">Undefined goal</p>
+            <p className="text-caption text-text-disabled group-hover:text-text-muted transition-colors">Tap to define with Vita →</p>
+          </>
+        ) : (
+          <>
+            <p className={cn("text-body-sm truncate", isAchieved ? "text-text-disabled" : "text-text-secondary")}>
+              {g.title}
+            </p>
+            <p className="text-caption text-text-disabled truncate">
+              {isAchieved
+                ? "Achieved"
+                : g.deadline
+                  ? `By ${format(new Date(g.deadline), "MMM d")}`
+                  : "Talk to Vita to plan it →"}
+            </p>
+          </>
+        )}
+      </div>
+
+      {!isUndefined && !isAchieved && onTrack !== null && (
+        onTrack
+          ? <TrendingUp size={11} strokeWidth={1.5} className="text-sage shrink-0 relative" />
+          : <TrendingDown size={11} strokeWidth={1.5} className="text-terracotta shrink-0 relative" />
+      )}
+    </Link>
   );
 }
 

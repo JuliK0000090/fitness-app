@@ -24,10 +24,11 @@ export async function POST(req: NextRequest) {
 
   const mime = file.type;
   let type: "image" | "document" | "audio" | "video";
+  const mimeBase = mime.split(";")[0].trim();
   if (ALLOWED_IMAGE.includes(mime)) type = "image";
   else if (ALLOWED_DOC.includes(mime)) type = "document";
-  else if (ALLOWED_AUDIO.includes(mime)) type = "audio";
-  else if (ALLOWED_VIDEO.includes(mime)) type = "video";
+  else if (ALLOWED_AUDIO.includes(mimeBase)) type = "audio";
+  else if (ALLOWED_VIDEO.includes(mimeBase)) type = "video";
   else return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
 
   // Strip EXIF from images server-side (basic: just store as-is for now, can add sharp later)

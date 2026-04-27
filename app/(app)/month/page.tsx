@@ -35,9 +35,13 @@ export default async function MonthPage({
     }),
     prisma.habit.count({ where: { userId, active: true } }),
     prisma.goal.findMany({
-      where: { userId, status: "active" },
-      select: { id: true, title: true, targetValue: true, currentValue: true, unit: true, targetMetric: true, predictedHitDate: true, deadline: true },
-      take: 5,
+      where: { userId },
+      orderBy: [{ status: "asc" }, { priority: "asc" }, { createdAt: "desc" }],
+      select: {
+        id: true, title: true, status: true, category: true,
+        targetValue: true, startValue: true, currentValue: true, unit: true,
+        targetMetric: true, predictedHitDate: true, deadline: true,
+      },
     }),
   ]);
 
@@ -130,7 +134,10 @@ export default async function MonthPage({
       goals={goals.map((g) => ({
         id: g.id,
         title: g.title ?? "",
+        status: g.status,
+        category: g.category ?? "lifestyle",
         targetValue: g.targetValue,
+        startValue: g.startValue,
         currentValue: g.currentValue,
         unit: g.unit,
         predictedHitDate: g.predictedHitDate?.toISOString() ?? null,
