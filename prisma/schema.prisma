@@ -416,6 +416,7 @@ model ScheduledWorkout {
   notes          String?       @db.Text
   status         WorkoutStatus @default(PLANNED)
   source         String        @default("manual") // manual | ai_suggested | imported
+  userEdited     Boolean       @default(false)  // user manually moved/edited — planner regen must respect
   completedAt    DateTime?
   skippedReason  String?
   workoutLogId   String?       @unique

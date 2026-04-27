@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { addDays, startOfWeek, format } from "date-fns";
-import { safeScheduleWorkout } from "@/lib/coach/schedule";
 import { critiqueWeekPlan } from "@/lib/coach/critique";
+import { regenerateUserPlan } from "@/lib/coach/regenerate";
 
 function cadenceStrToEnum(cadence: string) {
   const map: Record<string, "DAILY" | "WEEKLY_N" | "SPECIFIC_DAYS" | "EVERY_OTHER" | "WEEKDAYS" | "WEEKENDS"> = {
@@ -11,15 +10,6 @@ function cadenceStrToEnum(cadence: string) {
     "3x/week": "WEEKLY_N", "5x/week": "WEEKLY_N", weekdays: "WEEKDAYS", weekends: "WEEKENDS",
   };
   return map[cadence.toLowerCase()] ?? "DAILY";
-}
-
-function spreadDaysInWeek(count: number): number[] {
-  if (count <= 0) return [];
-  if (count >= 7) return [0, 1, 2, 3, 4, 5, 6];
-  const gap = Math.floor(7 / count);
-  const days: number[] = [];
-  for (let i = 0; i < count; i++) days.push((i * gap) % 7);
-  return days.sort((a, b) => a - b);
 }
 
 export async function POST(req: NextRequest) {
@@ -67,9 +57,10 @@ export async function POST(req: NextRequest) {
     ));
   }
 
-  // Create weekly targets + 4 weeks of scheduled workouts
+  // Create WorkoutTypes + WeeklyTargets. Actual ScheduledWorkout rows are
+  // produced by the 8-week rolling regenerator below, so the horizon
+  // matches the rest of the app's expectations and re-runs are idempotent.
   const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
 
   if (Array.isArray(workouts)) {
     await Promise.all(workouts.map(async (w: { workoutTypeName: string; timesPerWeek: number; duration?: number }) => {
@@ -78,31 +69,15 @@ export async function POST(req: NextRequest) {
         create: { name: w.workoutTypeName, slug: w.workoutTypeName.toLowerCase().replace(/\s+/g, "_"), defaultDuration: w.duration ?? 45 },
         update: {},
       });
-
       await prisma.weeklyTarget.create({
         data: { userId, goalId: goal.id, workoutTypeId: wt.id, workoutTypeName: w.workoutTypeName, targetCount: w.timesPerWeek },
       });
-
-      const days = spreadDaysInWeek(w.timesPerWeek);
-      for (let week = 0; week < 4; week++) {
-        for (const dayOffset of days) {
-          const date = addDays(weekStart, week * 7 + dayOffset);
-          if (date < now) continue;
-          // Validate-then-commit — silently shifts if a constraint or rule blocks
-          // the requested day, drops the slot if no clean slot exists in 14 days.
-          await safeScheduleWorkout({
-            userId,
-            goalId: goal.id,
-            workoutTypeId: wt.id,
-            workoutTypeName: w.workoutTypeName,
-            scheduledDate: date,
-            duration: w.duration ?? 45,
-            source: "ai_suggested",
-          });
-        }
-      }
     }));
   }
+
+  // Generate the 8-week rolling horizon for this user. Idempotent — running
+  // it again later from the daily cron or another goal change won't duplicate.
+  await regenerateUserPlan(userId);
 
   // Critique pass — Claude reviews the committed plan as a subjective safety net.
   // Issues are logged but don't block the response since the mechanical validator

@@ -143,13 +143,13 @@ async function main() {
           {
             id: "a", userId: user.id, goalId: null, workoutTypeId: null,
             workoutTypeName: "Hot Pilates", scheduledDate: dupDate, scheduledTime: "09:00",
-            duration: 50, intensity: 7, notes: null, status: "PLANNED", source: "test",
+            duration: 50, intensity: 7, notes: null, status: "PLANNED", source: "test", userEdited: false,
             completedAt: null, skippedReason: null, workoutLogId: null, pointsEarned: 0, createdAt: new Date(),
           },
           {
             id: "b", userId: user.id, goalId: null, workoutTypeId: null,
             workoutTypeName: "Hot Pilates", scheduledDate: dupDate, scheduledTime: "17:00",
-            duration: 50, intensity: 7, notes: null, status: "PLANNED", source: "test",
+            duration: 50, intensity: 7, notes: null, status: "PLANNED", source: "test", userEdited: false,
             completedAt: null, skippedReason: null, workoutLogId: null, pointsEarned: 0, createdAt: new Date(),
           },
         ],

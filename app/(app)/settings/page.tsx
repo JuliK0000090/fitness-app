@@ -15,6 +15,7 @@ const SETTINGS = [
     group: "Plan",
     items: [
       { href: "/settings/constraints", icon: ShieldAlert, label: "Constraints", desc: "Treatments, injuries, travel, and blackout days that the planner respects" },
+      { href: "/settings/plan", icon: ShieldAlert, label: "Plan health", desc: "Regenerate the 8-week schedule from your weekly targets" },
     ],
   },
   {

@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { userLocalHour, userYesterday, userTodayStr } from "@/lib/time/today";
 import { findBlockingConstraint } from "@/lib/coach/constraints";
 import { markMissedHabits } from "@/lib/habits/complete";
+import { regenerateUserPlan } from "@/lib/coach/regenerate";
 
 // ── End-of-day rollover (runs every hour, only acts at user-local 00:00) ─────
 export const rolloverScheduledWorkouts = inngest.createFunction(
@@ -188,4 +189,49 @@ export const lateDayBlockCheck = inngest.createFunction(
   },
 );
 
-export const rolloverFunctions = [rolloverScheduledWorkouts, lateDayBlockCheck];
+// ── Daily 02:00 user-local — refresh the 8-week rolling plan horizon ─────────
+// Runs every hour, only acts when the user's local hour is 02. Idempotent so
+// re-firing across timezone overlaps doesn't duplicate. Skips users with no
+// active WeeklyTargets.
+export const regeneratePlanRolling = inngest.createFunction(
+  {
+    id: "regenerate-plan-rolling",
+    triggers: [{ cron: "0 * * * *" }],
+  },
+  async ({ step }) => {
+    const users = await step.run("fetch-users-with-targets", async () => {
+      return prisma.user.findMany({
+        where: {
+          deletedAt: null,
+          onboardingComplete: true,
+          weeklyTargets: { some: { active: true } },
+        },
+        select: { id: true, timezone: true },
+      });
+    });
+
+    let regenerated = 0;
+    let totalCreated = 0;
+    let totalDeleted = 0;
+
+    for (const user of users) {
+      const tz = user.timezone || "UTC";
+      if (userLocalHour(tz) !== 2) continue;
+
+      const result = await step.run(`regen-${user.id}`, async () => {
+        return regenerateUserPlan(user.id);
+      });
+      regenerated++;
+      totalCreated += result.workoutsCreated;
+      totalDeleted += result.workoutsDeleted;
+    }
+
+    return { regenerated, totalCreated, totalDeleted };
+  },
+);
+
+export const rolloverFunctions = [
+  rolloverScheduledWorkouts,
+  lateDayBlockCheck,
+  regeneratePlanRolling,
+];

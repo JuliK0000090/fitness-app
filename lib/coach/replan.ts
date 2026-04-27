@@ -18,6 +18,7 @@ import { addDays } from "date-fns";
 import { prisma } from "../prisma";
 import { findBlockingConstraint } from "./constraints";
 import { validateDayPlan } from "./validate";
+import { regenerateUserPlan } from "./regenerate";
 
 export type ReplanResult = {
   datesUpdated: Date[];
@@ -134,6 +135,11 @@ export async function replanFromConstraint(
       });
     }
   }
+
+  // After moving, run the 8-week regenerator so any week that fell short
+  // because of the constraint gets back-filled with new PLANNED rows on
+  // unblocked days. Idempotent — safe to call always.
+  await regenerateUserPlan(userId);
 
   const datesUpdated = Array.from(datesTouched).sort().map((s) => new Date(`${s}T00:00:00.000Z`));
   const summary = buildSummary(movedDetails, c.reason);

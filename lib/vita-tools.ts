@@ -528,6 +528,7 @@ export function vitaTools(userId: string) {
             scheduledDate: toDate(newDate),
             scheduledTime: newTime ?? undefined,
             status: "MOVED",
+            userEdited: true,
           },
         });
         return { ok: true, newDate, newTime };

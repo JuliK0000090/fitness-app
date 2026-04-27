@@ -78,6 +78,7 @@ export async function safeScheduleWorkout(input: ScheduleInput): Promise<Schedul
       notes: input.notes ?? null,
       status: "PLANNED",
       source: input.source ?? "ai_suggested",
+      userEdited: false,
       completedAt: null,
       skippedReason: null,
       workoutLogId: null,

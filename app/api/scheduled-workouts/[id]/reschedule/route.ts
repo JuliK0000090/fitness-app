@@ -35,6 +35,7 @@ export async function PATCH(
       data: {
         scheduledDate: newDate,
         status: "MOVED",
+        userEdited: true,
       },
       select: { id: true, scheduledDate: true, status: true },
     });
