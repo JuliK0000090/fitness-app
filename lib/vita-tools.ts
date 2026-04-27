@@ -2,6 +2,8 @@ import { z } from "zod";
 import { prisma } from "./prisma";
 import { matchPreset } from "./plans/presets";
 import { addDays, startOfWeek, format, parseISO, isValid } from "date-fns";
+import { TREATMENT_DEFAULTS, TREATMENT_KEYS, buildConstraintFromTreatment } from "./coach/constraints";
+import { replanFromConstraint } from "./coach/replan";
 
 // ─── XP constants ─────────────────────────────────────────────────────────────
 const XP = {
@@ -1200,6 +1202,101 @@ export function vitaTools(userId: string) {
           },
         });
         return { ok: true, factId: updated.id, key, value: newValue };
+      },
+    }),
+
+    // ── Planner constraints ────────────────────────────────────────────────────
+
+    add_planner_constraint: makeTool({
+      description:
+        "Record a treatment, injury, illness, travel, blackout, activity restriction, preference, cycle phase, " +
+        "or recovery rule that the workout planner must respect. Call this IMMEDIATELY when the user mentions " +
+        "anything that should affect future workouts. After it returns, call replan_affected_blocks with the " +
+        "returned constraintId so future plans are updated.\n\n" +
+        "Treatment shortcut: pass `treatmentKey` (one of: " + TREATMENT_KEYS.join(", ") + ") and " +
+        "the function fills in restrictions and an end date from the defaults table.\n\n" +
+        "For non-treatment constraints, pass `type`, `payload`, and `endDate` explicitly.",
+      parameters: z.object({
+        treatmentKey: z.enum(TREATMENT_KEYS as [string, ...string[]]).optional()
+          .describe("Shortcut for known treatments. Sets type=TREATMENT and applies defaults."),
+        type: z.enum([
+          "TREATMENT", "INJURY", "ILLNESS", "TRAVEL",
+          "SCHEDULE_BLACKOUT", "ACTIVITY_RESTRICTION", "PREFERENCE",
+          "CYCLE_PHASE", "RECOVERY_REQUIREMENT",
+        ]).optional().describe("Required if treatmentKey is not given."),
+        scope: z.enum(["HARD", "SOFT", "ADVISORY"]).default("HARD"),
+        startDate: z.string().describe("YYYY-MM-DD. The day the constraint starts applying."),
+        endDate: z.string().optional().describe("YYYY-MM-DD. Omit for indefinite."),
+        payload: z.record(z.unknown()).optional()
+          .describe("Type-specific data. For INJURY: { bodyPart, severity, allowedActivities[] }. " +
+            "For TRAVEL: { departureDate, returnDate, destination, equipmentAvailable[] }. " +
+            "For ACTIVITY_RESTRICTION: { restrictedTags[], reason }. " +
+            "For SCHEDULE_BLACKOUT: { weekdays[], timeRanges[] }."),
+        reason: z.string().describe("One-line human-readable reason, e.g. 'microneedling — no heat 48h'."),
+      }),
+      execute: async ({ treatmentKey, type, scope, startDate, endDate, payload, reason }) => {
+        let createData: Parameters<typeof prisma.plannerConstraint.create>[0]["data"];
+
+        if (treatmentKey) {
+          const built = buildConstraintFromTreatment({
+            treatmentKey,
+            startDate: toDate(startDate),
+          });
+          createData = {
+            userId,
+            type: built.type,
+            scope: scope as any,
+            startDate: built.startDate,
+            endDate: endDate ? toDate(endDate) : built.endDate,
+            payload: built.payload as any,
+            reason: reason || built.reason,
+            source: "user_chat",
+          };
+        } else {
+          if (!type) throw new Error("Either treatmentKey or type is required");
+          createData = {
+            userId,
+            type: type as any,
+            scope: scope as any,
+            startDate: toDate(startDate),
+            endDate: endDate ? toDate(endDate) : null,
+            payload: (payload ?? {}) as any,
+            reason,
+            source: "user_chat",
+          };
+        }
+
+        const c = await prisma.plannerConstraint.create({ data: createData });
+        return {
+          constraintId: c.id,
+          type: c.type,
+          startDate: c.startDate.toISOString().split("T")[0],
+          endDate: c.endDate ? c.endDate.toISOString().split("T")[0] : null,
+          reason: c.reason,
+          // Hint for Vita: she should call replan_affected_blocks next.
+          nextStep: "Call replan_affected_blocks with this constraintId to update future plans.",
+        };
+      },
+    }),
+
+    replan_affected_blocks: makeTool({
+      description:
+        "Re-validate every PLANNED ScheduledWorkout in the constraint's date range against ALL active " +
+        "constraints. Workouts that conflict are moved or replaced. Returns a summary that you should " +
+        "include in your reply so the user knows what changed and why.",
+      parameters: z.object({
+        constraintId: z.string(),
+        notify: z.boolean().default(true)
+          .describe("Whether to surface a ChatSuggestion for the change. The chat reply still summarizes."),
+      }),
+      execute: async ({ constraintId, notify }) => {
+        const result = await replanFromConstraint(constraintId, { notify });
+        return {
+          datesUpdated: result.datesUpdated.map((d) => d.toISOString().split("T")[0]),
+          workoutsMoved: result.blocksMoved,
+          movedDetails: result.movedDetails,
+          summary: result.summary,
+        };
       },
     }),
   };

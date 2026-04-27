@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Brain, Shield, Bell, Watch, Heart, ChevronRight } from "lucide-react";
+import { Brain, Shield, Bell, Watch, Heart, ChevronRight, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 
 const SETTINGS = [
@@ -11,6 +11,12 @@ const SETTINGS = [
     ],
   },
   // GLP-1 mode hidden — feature blended out pending re-enable
+  {
+    group: "Plan",
+    items: [
+      { href: "/settings/constraints", icon: ShieldAlert, label: "Constraints", desc: "Treatments, injuries, travel, and blackout days that the planner respects" },
+    ],
+  },
   {
     group: "Privacy & Memory",
     items: [

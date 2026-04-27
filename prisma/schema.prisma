@@ -32,6 +32,8 @@ enum WorkoutStatus {
   DONE
   SKIPPED
   MOVED
+  MISSED         // end-of-day rollover: was PLANNED, never completed, no constraint blocked it
+  AUTO_SKIPPED   // end-of-day rollover: was PLANNED, blocked by an active PlannerConstraint
 }
 
 enum CompletionStatus {
@@ -125,6 +127,8 @@ model User {
   reactiveAdjustments   ReactiveAdjustmentLog[]
   insightFiredLogs      InsightFiredLog[]
   userFacts             UserFact[]
+  plannerConstraints    PlannerConstraint[]
+  planValidationLogs    PlanValidationLog[]
 
   @@index([email])
 }
@@ -1096,4 +1100,61 @@ model HealthAndroidWaitlist {
   requestedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Planner constraints — first-class user inputs that the validator + replanner
+// query on every plan generation. See PLANNER.md for the full architecture.
+// ───────────────────────────────────────────────────────────────────────────
+
+enum ConstraintType {
+  TREATMENT             // microneedling, botox, dental, surgery — payload: { treatmentName, restrictions[] }
+  INJURY                // knee, lower back — payload: { bodyPart, severity, allowedActivities[] }
+  ILLNESS               // cold, flu — payload: { severity, suggestedRestUntil }
+  TRAVEL                // payload: { departureDate, returnDate, destination, equipmentAvailable[] }
+  SCHEDULE_BLACKOUT     // unavailable on these days/times — payload: { weekdays[], timeRanges[] }
+  ACTIVITY_RESTRICTION  // no heat, no high-impact — payload: { restrictedTags[], reason }
+  PREFERENCE            // morning person, hates burpees — payload: { type, value }
+  CYCLE_PHASE           // late luteal, period — payload: { phase, intensity }
+  RECOVERY_REQUIREMENT  // rest day Sunday, 48h between heavy lifts — payload: { rule }
+}
+
+enum ConstraintScope {
+  HARD     // never violate, plan must accommodate
+  SOFT     // prefer not to violate, allow if no alternative
+  ADVISORY // surface as info only
+}
+
+model PlannerConstraint {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       ConstraintType
+  scope      ConstraintScope
+  startDate  DateTime        @db.Date
+  endDate    DateTime?       @db.Date
+  payload    Json
+  reason     String          @db.Text
+  source     String          // "user_chat" | "manual_settings" | "system_rule" | "wearable_inferred"
+  active     Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  resolvedAt DateTime?
+
+  @@index([userId, active, startDate, endDate])
+  @@index([userId, type])
+}
+
+model PlanValidationLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         DateTime @db.Date
+  attemptCount Int      @default(1)
+  finalStatus  String   // "PASSED" | "PASSED_WITH_WARNINGS" | "FAILED_USER_NOTIFIED"
+  violations   Json
+  finalPlan    Json
+  createdAt    DateTime @default(now())
+
+  @@index([userId, date])
 }
