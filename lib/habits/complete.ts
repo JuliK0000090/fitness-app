@@ -6,6 +6,32 @@
 
 import { prisma } from "@/lib/prisma";
 
+/**
+ * Catch the Postgres CHECK constraint that bans future-dated HabitCompletion
+ * rows (see scripts/migrate.js Phase 2). Logs a clear "data integrity bug"
+ * message instead of bubbling up an opaque DB error. Returns true if the
+ * write succeeded, false if it was rejected — caller decides what to do.
+ */
+async function safeCompletionWrite<T>(
+  description: string,
+  fn: () => Promise<T>,
+): Promise<T | null> {
+  try {
+    return await fn();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/habit_completion_date_not_future|scheduled_workout_done_only_past_or_today/.test(msg)) {
+      console.error(
+        `[planner-health] CHECK constraint blocked write — ${description}. ` +
+        `This is a bug — caller tried to record a completion for a future date. ` +
+        `Investigate the call site. Original error: ${msg.split("\n")[0]}`,
+      );
+      return null;
+    }
+    throw e;
+  }
+}
+
 const XP_HABIT = 10;
 const XP_ALL_BONUS = 25;
 
@@ -33,25 +59,32 @@ export async function completeHabit(
   // Already DONE — no-op
   if (existing?.status === "DONE") return { ok: true, xpAwarded: 0 };
 
-  if (existing) {
-    // Exists but not DONE (e.g. SKIPPED by rollover) — upgrade to DONE
-    await (prisma.habitCompletion as any).update({
-      where: { id: existing.id },
-      data: { status: "DONE", source, completedAt: new Date(), points: habit.pointsOnComplete },
-    });
-  } else {
-    await (prisma.habitCompletion as any).create({
-      data: {
-        habitId,
-        userId,
-        date,
-        status: "DONE",
-        source,
-        completedAt: new Date(),
-        points: habit.pointsOnComplete,
-      },
-    });
-  }
+  const writeOk = await safeCompletionWrite(
+    `completeHabit user=${userId.slice(0, 8)} habit=${habitId.slice(0, 8)} date=${date.toISOString().split("T")[0]}`,
+    async () => {
+      if (existing) {
+        // Exists but not DONE (e.g. SKIPPED by rollover) — upgrade to DONE
+        await (prisma.habitCompletion as any).update({
+          where: { id: existing.id },
+          data: { status: "DONE", source, completedAt: new Date(), points: habit.pointsOnComplete },
+        });
+      } else {
+        await (prisma.habitCompletion as any).create({
+          data: {
+            habitId,
+            userId,
+            date,
+            status: "DONE",
+            source,
+            completedAt: new Date(),
+            points: habit.pointsOnComplete,
+          },
+        });
+      }
+      return true;
+    },
+  );
+  if (!writeOk) return { ok: false, xpAwarded: 0 };
 
   // XP award
   await prisma.user.update({
