@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { dayPhase, dotsForDay, ringForDay, DOT_CLASS, RING_STROKE } from "@/lib/calendar/render-rules";
-import { completeWorkout } from "@/app/actions/habits";
+import { completeWorkout, uncompleteWorkout } from "@/app/actions/habits";
 
 interface WorkoutItem {
   id: string;
@@ -284,22 +284,46 @@ function DayDetail({
   const [, startTransition] = useTransition();
   const [pendingId, setPendingId] = useState<string | null>(null);
 
-  function handleComplete(workoutId: string, prevStatus: string) {
-    if (!isPastOrToday) {
-      toast.error("Can't log a workout for a future day. Move it to today first.");
+  function handleToggle(workoutId: string, currentStatus: string) {
+    if (pendingId) return;
+
+    if (currentStatus === "DONE") {
+      // Uncheck path — always allowed for the user's own row.
+      setPendingId(workoutId);
+      onWorkoutStatusChange(workoutId, "PLANNED");
+      startTransition(async () => {
+        try {
+          await uncompleteWorkout(workoutId);
+          toast.success("Unchecked");
+        } catch {
+          onWorkoutStatusChange(workoutId, "DONE"); // revert
+          toast.error("Could not undo — try again");
+        } finally {
+          setPendingId(null);
+        }
+      });
       return;
     }
-    if (pendingId) return;
+
+    // Checking path — only allowed for past or today.
+    if (!isPastOrToday) {
+      toast.error("Can't log a future workout. It can only be checked on the day it happens.");
+      return;
+    }
     setPendingId(workoutId);
     onWorkoutStatusChange(workoutId, "DONE"); // optimistic
     startTransition(async () => {
       try {
         await completeWorkout(workoutId);
         toast.success("Logged");
-      } catch {
-        // Revert
-        onWorkoutStatusChange(workoutId, prevStatus);
-        toast.error("Could not log — try again");
+      } catch (e: unknown) {
+        onWorkoutStatusChange(workoutId, currentStatus); // revert
+        const msg = e instanceof Error ? e.message : "";
+        if (msg.includes("FUTURE_WORKOUT_NOT_ALLOWED")) {
+          toast.error("Server says this is a future workout — your timezone may have crossed midnight. Try again later.");
+        } else {
+          toast.error("Could not log — try again");
+        }
       } finally {
         setPendingId(null);
       }
@@ -339,15 +363,23 @@ function DayDetail({
 
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); if (w.status !== "DONE") handleComplete(w.id, w.status); }}
-                disabled={w.status === "DONE" || !isPastOrToday || pendingId === w.id}
-                aria-label={w.status === "DONE" ? "Already logged" : isPastOrToday ? "Mark as done" : "Future workout — can't log yet"}
-                title={w.status === "DONE" ? "Logged" : isPastOrToday ? "Mark as done" : "Future workout — move to today first"}
+                onClick={(e) => { e.stopPropagation(); handleToggle(w.id, w.status); }}
+                disabled={pendingId === w.id || (w.status !== "DONE" && !isPastOrToday)}
+                aria-label={
+                  w.status === "DONE" ? "Tap to uncheck"
+                  : isPastOrToday ? "Mark as done"
+                  : "Future workout — only available on its date"
+                }
+                title={
+                  w.status === "DONE" ? "Tap to undo"
+                  : isPastOrToday ? "Mark as done"
+                  : "Only check this on the day you actually do it"
+                }
                 className={cn(
                   "w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors",
-                  w.status === "DONE" ? "border-champagne/40 bg-champagne/10 cursor-default" :
+                  w.status === "DONE" ? "border-champagne/40 bg-champagne/10 hover:border-champagne hover:bg-champagne/15 cursor-pointer" :
                   isPastOrToday ? "border-border-default hover:border-champagne/60 hover:bg-champagne/5 cursor-pointer" :
-                  "border-border-subtle/60 cursor-not-allowed",
+                  "border-border-subtle/60 cursor-not-allowed opacity-60",
                   pendingId === w.id && "opacity-50"
                 )}
               >

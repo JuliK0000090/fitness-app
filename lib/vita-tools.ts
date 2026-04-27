@@ -5,6 +5,7 @@ import { addDays, startOfWeek, format, parseISO, isValid } from "date-fns";
 import { TREATMENT_DEFAULTS, TREATMENT_KEYS, buildConstraintFromTreatment } from "./coach/constraints";
 import { replanFromConstraint } from "./coach/replan";
 import { safeScheduleWorkout } from "./coach/schedule";
+import { userTodayStr } from "./time/today";
 
 // ─── XP constants ─────────────────────────────────────────────────────────────
 const XP = {
@@ -536,7 +537,11 @@ export function vitaTools(userId: string) {
     }),
 
     complete_workout: makeTool({
-      description: "Mark a scheduled workout as done and log it",
+      description:
+        "Mark a scheduled workout as done and log it. ONLY for workouts whose " +
+        "scheduledDate is today or in the past. Refuses with FUTURE_WORKOUT_NOT_ALLOWED " +
+        "if the user is asking you to log something for a future date — instead, ask the " +
+        "user if they want to reschedule it to today.",
       parameters: z.object({
         scheduledWorkoutId: z.string(),
         durationMin: z.number().optional(),
@@ -548,6 +553,28 @@ export function vitaTools(userId: string) {
           where: { id: scheduledWorkoutId, userId },
         });
         if (!sw) throw new Error("Scheduled workout not found");
+
+        if (sw.status === "DONE") {
+          return {
+            scheduledWorkoutId,
+            alreadyDone: true,
+            note: "This workout was already marked done. No change made.",
+          };
+        }
+
+        // User-tz future-date guard. Mirrors the completeWorkout server action;
+        // the Postgres CHECK is a UTC-only safety net, not a substitute.
+        const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+        const tz = u?.timezone ?? "UTC";
+        const todayStr = userTodayStr(tz);
+        const swDateStr = sw.scheduledDate.toISOString().split("T")[0];
+        if (swDateStr > todayStr) {
+          throw new Error(
+            `FUTURE_WORKOUT_NOT_ALLOWED: cannot log a workout dated ${swDateStr} — ` +
+            `the user's local today is ${todayStr}. If they actually did the workout already, ` +
+            `reschedule it to today first using reschedule_workout, then log it.`,
+          );
+        }
 
         // Create WorkoutLog
         const log = await prisma.workoutLog.create({

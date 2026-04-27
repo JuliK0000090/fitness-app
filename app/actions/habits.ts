@@ -58,12 +58,37 @@ export async function skipWorkout(scheduledWorkoutId: string, reason?: string) {
   return { ok: true };
 }
 
+/**
+ * Mark a scheduled workout as DONE.
+ *
+ * Hard rule: the workout's scheduledDate must be ≤ user-local-today.
+ * The UTC-only Postgres CHECK is a safety net; this function uses the
+ * user's stored timezone so EDT-evening (UTC-already-tomorrow) edge
+ * cases can't slip through.
+ *
+ * Idempotent: no-op if already DONE.
+ */
 export async function completeWorkout(scheduledWorkoutId: string, durationMin?: number) {
   const session = await requireSession();
   const userId = session.userId;
 
   const sw = await prisma.scheduledWorkout.findFirst({ where: { id: scheduledWorkoutId, userId } });
   if (!sw) throw new Error("Scheduled workout not found");
+
+  if (sw.status === "DONE") {
+    return { ok: true, alreadyDone: true };
+  }
+
+  // User-timezone-aware future-date guard.
+  const tz = await getUserTimezone(userId);
+  const todayStr = userTodayStr(tz);
+  const swDateStr = sw.scheduledDate.toISOString().split("T")[0];
+  if (swDateStr > todayStr) {
+    throw new Error(
+      `FUTURE_WORKOUT_NOT_ALLOWED: cannot mark a workout dated ${swDateStr} as done — ` +
+      `your local today is ${todayStr}. If the date is wrong, reschedule the workout first.`,
+    );
+  }
 
   const log = await prisma.workoutLog.create({
     data: {
@@ -81,6 +106,50 @@ export async function completeWorkout(scheduledWorkoutId: string, durationMin?: 
   });
 
   await prisma.user.update({ where: { id: userId }, data: { totalXp: { increment: 50 } } });
+
+  revalidatePath("/today");
+  revalidatePath("/week");
+  revalidatePath("/month");
+  return { ok: true };
+}
+
+/**
+ * Undo a workout completion. Reverts status → PLANNED, deletes the
+ * WorkoutLog row, refunds the XP, and clears completedAt / workoutLogId.
+ *
+ * Used by the calendar checkbox toggle so a user can correct an accidental
+ * tap. Idempotent: no-op if the workout isn't DONE.
+ */
+export async function uncompleteWorkout(scheduledWorkoutId: string) {
+  const session = await requireSession();
+  const userId = session.userId;
+
+  const sw = await prisma.scheduledWorkout.findFirst({ where: { id: scheduledWorkoutId, userId } });
+  if (!sw) throw new Error("Scheduled workout not found");
+  if (sw.status !== "DONE") {
+    return { ok: true, wasNotDone: true };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (sw.workoutLogId) {
+      await tx.workoutLog.deleteMany({ where: { id: sw.workoutLogId, userId } });
+    }
+    await tx.scheduledWorkout.update({
+      where: { id: scheduledWorkoutId },
+      data: {
+        status: "PLANNED",
+        completedAt: null,
+        workoutLogId: null,
+        pointsEarned: 0,
+      },
+    });
+    if (sw.pointsEarned > 0) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { totalXp: { decrement: sw.pointsEarned } },
+      });
+    }
+  });
 
   revalidatePath("/today");
   revalidatePath("/week");

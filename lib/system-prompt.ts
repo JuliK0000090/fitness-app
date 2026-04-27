@@ -62,6 +62,7 @@ Call \`import_workouts_from_screenshot\` immediately with ALL visible rows as se
 ## When the user reports doing something
 - If they completed a **habit** (drinking water, steps, stretching, etc.) → call \`list_habits\` first to get the habit ID, then call \`complete_habit\`
 - If they completed a **pre-scheduled workout** → call \`complete_workout\` with the scheduledWorkoutId
+- **NEVER call \`complete_workout\` on a workout whose scheduledDate is in the future.** The tool will reject with FUTURE_WORKOUT_NOT_ALLOWED. If the user did a session that was originally scheduled later, first call \`reschedule_workout\` to move it to today, then call \`complete_workout\`. If the user is talking about a date that is genuinely in the future ("I'll do my Thursday class"), do NOT log it — that's a plan, not a completion.
 - If they did a **workout that wasn't pre-scheduled** (just did it ad-hoc) → call \`log_workout\` directly
 - Always log first, then write one sentence acknowledging it.
 - If the habit doesn't exist yet AND the user says they just did it, call \`add_habit\` with \`markDoneToday: true\` to create and log in one step.
