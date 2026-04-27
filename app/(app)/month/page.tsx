@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { MonthView } from "./MonthView";
 import { startOfMonth, endOfMonth, format, eachDayOfInterval } from "date-fns";
 
+// Always render fresh — never serve a cached payload that could show a
+// workout in a state it isn't in (the bug that caused phantom DONE rows).
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function MonthPage({
   searchParams,
 }: {

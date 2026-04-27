@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Target, TrendingDown, TrendingUp, GripVertical, X, Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -279,10 +280,20 @@ function DayDetail({
   draggingId: string | null;
   onWorkoutStatusChange: (workoutId: string, status: string) => void;
 }) {
+  const router = useRouter();
   const dateLabel = format(new Date(day.dateStr + "T12:00:00Z"), "EEEE, MMMM d");
   const isPastOrToday = day.dateStr <= todayStr;
   const [, startTransition] = useTransition();
   const [pendingId, setPendingId] = useState<string | null>(null);
+
+  /**
+   * If the server says the row doesn't exist, the local state is a ghost
+   * (stale render). Don't revert — pull fresh data so the user sees reality.
+   */
+  function isStaleRowError(e: unknown): boolean {
+    const msg = e instanceof Error ? e.message : String(e);
+    return /Scheduled workout not found|RecordNotFound/i.test(msg);
+  }
 
   function handleToggle(workoutId: string, currentStatus: string) {
     if (pendingId) return;
@@ -295,9 +306,14 @@ function DayDetail({
         try {
           await uncompleteWorkout(workoutId);
           toast.success("Unchecked");
-        } catch {
-          onWorkoutStatusChange(workoutId, "DONE"); // revert
-          toast.error("Could not undo — try again");
+        } catch (e) {
+          if (isStaleRowError(e)) {
+            toast.message("This workout is no longer in your plan — refreshing.");
+            router.refresh();
+          } else {
+            onWorkoutStatusChange(workoutId, "DONE"); // revert
+            toast.error("Could not undo — try again");
+          }
         } finally {
           setPendingId(null);
         }
@@ -317,11 +333,15 @@ function DayDetail({
         await completeWorkout(workoutId);
         toast.success("Logged");
       } catch (e: unknown) {
-        onWorkoutStatusChange(workoutId, currentStatus); // revert
         const msg = e instanceof Error ? e.message : "";
-        if (msg.includes("FUTURE_WORKOUT_NOT_ALLOWED")) {
+        if (isStaleRowError(e)) {
+          toast.message("This workout is no longer in your plan — refreshing.");
+          router.refresh();
+        } else if (msg.includes("FUTURE_WORKOUT_NOT_ALLOWED")) {
+          onWorkoutStatusChange(workoutId, currentStatus);
           toast.error("Server says this is a future workout — your timezone may have crossed midnight. Try again later.");
         } else {
+          onWorkoutStatusChange(workoutId, currentStatus);
           toast.error("Could not log — try again");
         }
       } finally {
