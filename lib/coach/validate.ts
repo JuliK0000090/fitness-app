@@ -143,8 +143,8 @@ export function validateDayPlan(
       const allowed = ((c.payload as Record<string, unknown>)?.allowedActivities as string[]) || [];
       if (allowed.length > 0) {
         for (const w of plan.workouts) {
-          const name = (w.workoutTypeName || "").toLowerCase();
-          const ok = allowed.some((a) => name.includes(a.toLowerCase()));
+          const name = normalizeName(w.workoutTypeName);
+          const ok = allowed.some((a) => name.includes(normalizeName(a)));
           if (!ok) {
             const bodyPart = (c.payload as Record<string, unknown>)?.bodyPart || "injury";
             violations.push({
@@ -201,6 +201,12 @@ export function validateDayPlan(
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Lowercase + strip non-alphanumerics so "Upper Body" and "upper_body" match. */
+function normalizeName(name: string | null | undefined): string {
+  if (!name) return "";
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);

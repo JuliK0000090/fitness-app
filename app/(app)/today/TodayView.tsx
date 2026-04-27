@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { completeHabit, uncompleteHabit, completeWorkout, skipWorkout, deleteHabit } from "@/app/actions/habits";
 import { TodaySignals } from "@/components/health/TodaySignals";
 import { EditorialRule } from "@/components/ui/editorial-rule";
+import { PlannerBanner, ReplanSuggestion, ConstraintHeadsUp } from "@/components/planner/PlannerBanner";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   CheckCircle: CheckCircle2, CheckCircle2, Circle, Footprints, Droplets, Wind, Zap, Sun, Moon,
@@ -64,6 +65,8 @@ interface TodayViewProps {
   showHealthBanner: boolean;
   readinessScore: number | null;
   todaySteps: number | null;
+  plannerReplan: ReplanSuggestion | null;
+  plannerConstraintsToday: ConstraintHeadsUp[];
 }
 
 const HABITS_VISIBLE_DEFAULT = 5;
@@ -90,6 +93,7 @@ export function TodayView({
   habits: initHabits, scheduledWorkouts: initWorkouts, weeklyTargets,
   notifications: initNotifications, hasGoals, showHealthBanner,
   readinessScore, todaySteps,
+  plannerReplan, plannerConstraintsToday,
 }: TodayViewProps) {
   const [notifications, setNotifications] = useState(initNotifications);
   const [editMode, setEditMode] = useState(false);
@@ -209,6 +213,9 @@ export function TodayView({
         </div>
         <p className="text-caption text-text-disabled">{xpToNext.toLocaleString()} XP to Level {level + 1}</p>
       </div>
+
+      {/* ── Planner heads-up + recent re-plan banner ──────────────────────── */}
+      <PlannerBanner replan={plannerReplan} constraintsToday={plannerConstraintsToday} />
 
       {/* ── Health signals ───────────────────────────────────────────────── */}
       <TodaySignals />

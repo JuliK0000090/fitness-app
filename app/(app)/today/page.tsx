@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { TodayView } from "./TodayView";
 import { RitualView } from "./RitualView";
 import { userTodayStr, localMidnightUTC } from "@/lib/time/today";
+import { constraintAppliesToDate } from "@/lib/coach/constraints";
 
 function computeLevel(totalXp: number) {
   const level = Math.max(1, Math.floor(Math.sqrt(totalXp / 50)));
@@ -176,6 +177,36 @@ export default async function TodayPage() {
 
   const notificationsForView = notifications.map((n) => ({ id: n.id, title: n.title, body: n.body }));
 
+  // Planner banner — recent re-plan + active constraints applying today
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const replanSuggestion = await prisma.chatSuggestion.findFirst({
+    where: { userId, type: "PLAN_REPLANNED", dismissed: false, createdAt: { gte: since } },
+    orderBy: { createdAt: "desc" },
+  });
+  const activeConstraints = await prisma.plannerConstraint.findMany({
+    where: { userId, active: true },
+  });
+  const constraintsToday = activeConstraints
+    .filter((c) => constraintAppliesToDate(c, todayDate))
+    .map((c) => ({
+      id: c.id,
+      type: c.type,
+      reason: c.reason,
+      endDate: c.endDate ? c.endDate.toISOString().split("T")[0] : null,
+    }));
+
+  const replanForView = replanSuggestion ? {
+    id: replanSuggestion.id,
+    title: replanSuggestion.title,
+    body: replanSuggestion.body,
+    payload: (replanSuggestion.payload as object) as {
+      constraintId: string;
+      constraintReason: string;
+      movedDetails: Array<{ workoutId: string; name: string; fromDate: string; toDate: string | null; reason: string }>;
+      createdAt: string;
+    } | null,
+  } : null;
+
   // Ritual mode: new users default to RITUAL; existing users default to DASHBOARD
   const todayMode = (user as any).todayMode ?? "DASHBOARD";
 
@@ -190,6 +221,8 @@ export default async function TodayPage() {
         weeklyTargets={weeklyTargetsForView}
         readinessScore={readinessScore}
         glp1Active={false}
+        plannerReplan={replanForView}
+        plannerConstraintsToday={constraintsToday}
       />
     );
   }
@@ -211,6 +244,8 @@ export default async function TodayPage() {
       showHealthBanner={showHealthBanner}
       readinessScore={readinessScore}
       todaySteps={todaySteps}
+      plannerReplan={replanForView}
+      plannerConstraintsToday={constraintsToday}
     />
   );
 }

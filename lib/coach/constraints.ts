@@ -122,8 +122,8 @@ export function findBlockingConstraint(
 
     if (c.type === "INJURY") {
       const allowed: string[] = ((c.payload as Record<string, unknown>)?.allowedActivities as string[]) || [];
-      const name = (sw.workoutTypeName || "").toLowerCase();
-      const hits = allowed.length === 0 || allowed.some((a) => name.includes(a.toLowerCase()));
+      const name = normalizeName(sw.workoutTypeName);
+      const hits = allowed.length === 0 || allowed.some((a) => name.includes(normalizeName(a)));
       if (!hits) return c;
     }
   }
@@ -136,6 +136,12 @@ export function extractRestrictions(c: PlannerConstraint): string[] {
   const arr1 = (p.restrictions as string[]) || [];
   const arr2 = (p.restrictedTags as string[]) || [];
   return [...arr1, ...arr2];
+}
+
+/** Lowercase + strip non-alphanumerics so "Upper Body" and "upper_body" match. */
+function normalizeName(name: string | null | undefined): string {
+  if (!name) return "";
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 export function stripTime(d: Date): Date {

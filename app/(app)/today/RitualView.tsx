@@ -4,6 +4,7 @@ import { useOptimistic, useTransition } from "react";
 import { CheckCircle2, Circle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { PlannerBanner, ReplanSuggestion, ConstraintHeadsUp } from "@/components/planner/PlannerBanner";
 
 type Habit = {
   id: string;
@@ -39,6 +40,8 @@ type Props = {
   weeklyTargets: WeeklyTarget[];
   readinessScore: number | null;
   glp1Active: boolean;
+  plannerReplan: ReplanSuggestion | null;
+  plannerConstraintsToday: ConstraintHeadsUp[];
 };
 
 function readinessLine(score: number | null): string {
@@ -65,6 +68,8 @@ export function RitualView({
   weeklyTargets,
   readinessScore,
   glp1Active,
+  plannerReplan,
+  plannerConstraintsToday,
 }: Props) {
   const [, startTransition] = useTransition();
 
@@ -125,6 +130,11 @@ export function RitualView({
           <p className="text-body-lg text-text-secondary leading-relaxed">
             {introLine}
           </p>
+        </div>
+
+        {/* Planner heads-up + recent re-plan banner */}
+        <div className="mt-6">
+          <PlannerBanner replan={plannerReplan} constraintsToday={plannerConstraintsToday} />
         </div>
 
         {/* Rest day — full empty state */}
