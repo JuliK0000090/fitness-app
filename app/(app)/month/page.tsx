@@ -31,7 +31,7 @@ export default async function MonthPage({
     }),
     prisma.habitCompletion.findMany({
       where: { userId, date: { gte: monthStart, lte: monthEnd } },
-      select: { date: true, habitId: true },
+      select: { date: true, habitId: true, status: true },
     }),
     prisma.habit.count({ where: { userId, active: true } }),
     prisma.goal.findMany({
@@ -63,10 +63,11 @@ export default async function MonthPage({
     }
   }
 
-  const completionsByDay: Record<string, number> = {};
+  const completionsByDay: Record<string, Array<{ status: "DONE" | "MISSED" | "SKIPPED" | "PENDING" }>> = {};
   for (const c of completions) {
     const key = format(new Date(c.date), "yyyy-MM-dd");
-    completionsByDay[key] = (completionsByDay[key] ?? 0) + 1;
+    if (!completionsByDay[key]) completionsByDay[key] = [];
+    completionsByDay[key].push({ status: c.status as "DONE" | "MISSED" | "SKIPPED" | "PENDING" });
   }
 
   // Build 365-day heatmap (past year)
@@ -118,17 +119,13 @@ export default async function MonthPage({
       daysInMonth={eachDayOfInterval({ start: monthStart, end: monthEnd }).map((d) => {
         const key = format(d, "yyyy-MM-dd");
         const workouts = swByDay[key] ?? [];
-        const habitDone = completionsByDay[key] ?? 0;
-        const habitPct = habits > 0 ? Math.round((habitDone / habits) * 100) : 0;
-        const allDone = workouts.every((w) => w.status === "DONE") && habitPct >= 80;
-        const partial = habitPct > 0 || workouts.some((w) => w.status === "DONE");
-        const isRest = workouts.length === 0;
+        const dayCompletions = completionsByDay[key] ?? [];
         return {
           dateStr: key,
           dayNum: format(d, "d"),
           workouts,
-          habitPct,
-          shade: allDone ? "done" : partial ? "partial" : isRest ? "rest" : "none",
+          habitCompletions: dayCompletions,
+          totalHabitsForDay: habits, // simplification: all active habits expected daily
         };
       })}
       goals={goals.map((g) => ({

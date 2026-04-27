@@ -6,8 +6,7 @@ import { ChevronLeft, ChevronRight, Target, TrendingDown, TrendingUp, GripVertic
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
-
-type DayShade = "done" | "partial" | "rest" | "none";
+import { dayPhase, dotsForDay, ringForDay, DOT_CLASS, RING_STROKE } from "@/lib/calendar/render-rules";
 
 interface WorkoutItem {
   id: string;
@@ -17,12 +16,14 @@ interface WorkoutItem {
   source: string;
 }
 
+interface DayHabitCompletion { status: "DONE" | "MISSED" | "SKIPPED" | "PENDING"; }
+
 interface CalendarDay {
   dateStr: string;
   dayNum: string;
   workouts: WorkoutItem[];
-  habitPct: number;
-  shade: DayShade;
+  habitCompletions: DayHabitCompletion[];
+  totalHabitsForDay: number;
 }
 
 interface GoalSummary {
@@ -186,24 +187,33 @@ export function MonthView({
               )}>
                 {day.dayNum}
               </p>
-              {day.workouts.length > 0 && (
-                <div className="flex gap-px justify-center flex-wrap">
-                  {day.workouts.slice(0, 3).map((w, i) => {
-                    const todayForDot = new Intl.DateTimeFormat("en-CA").format(new Date());
-                    const isPast = day.dateStr <= todayForDot;
-                    return (
-                      <div key={i} className={cn(
-                        "w-1 h-1 rounded-full",
-                        isPast && w.status === "DONE" ? "bg-champagne" :
-                        isPast && w.status === "SKIPPED" ? "bg-border-subtle" :
-                        w.source === "ai_suggested" ? "bg-border-default ring-[0.5px] ring-champagne/30" :
-                        "bg-border-strong"
-                      )} />
-                    );
-                  })}
-                </div>
-              )}
-              {day.habitPct > 0 && <HabitArc pct={day.habitPct} />}
+              {(() => {
+                const phase = dayPhase(day.dateStr, todayStr);
+                const dots = dotsForDay({
+                  phase,
+                  workouts: day.workouts.map((w) => ({ status: w.status as never, source: w.source })),
+                  habitCompletions: day.habitCompletions,
+                  totalHabitsForDay: day.totalHabitsForDay,
+                });
+                const ring = ringForDay({
+                  phase,
+                  workouts: day.workouts.map((w) => ({ status: w.status as never, source: w.source })),
+                  habitCompletions: day.habitCompletions,
+                  totalHabitsForDay: day.totalHabitsForDay,
+                });
+                return (
+                  <>
+                    {dots.length > 0 && (
+                      <div className="flex gap-px justify-center flex-wrap">
+                        {dots.slice(0, 3).map((dot, i) => (
+                          <div key={i} className={cn("w-1 h-1 rounded-full", DOT_CLASS[dot.color])} />
+                        ))}
+                      </div>
+                    )}
+                    {ring.show && <HabitArc fillRatio={ring.fillRatio} stroke={RING_STROKE[ring.color]} />}
+                  </>
+                );
+              })()}
             </button>
           );
         })}
@@ -328,14 +338,20 @@ function DayDetail({
           </p>
         )}
 
-        {day.habitPct > 0 && (
-          <div className="flex items-center gap-2 pt-2 border-t border-border-subtle px-2">
-            <div className="w-16 h-px bg-border-subtle relative overflow-hidden rounded-full">
-              <div className="absolute inset-y-0 left-0 bg-champagne" style={{ width: `${day.habitPct}%` }} />
+        {(() => {
+          if (day.totalHabitsForDay === 0) return null;
+          const done = day.habitCompletions.filter((c) => c.status === "DONE").length;
+          const pct = Math.min(100, Math.round((done / day.totalHabitsForDay) * 100));
+          if (pct === 0 && !isPastOrToday) return null;
+          return (
+            <div className="flex items-center gap-2 pt-2 border-t border-border-subtle px-2">
+              <div className="w-16 h-px bg-border-subtle relative overflow-hidden rounded-full">
+                <div className="absolute inset-y-0 left-0 bg-champagne" style={{ width: `${pct}%` }} />
+              </div>
+              <p className="text-caption text-text-disabled">{pct}% habits</p>
             </div>
-            <p className="text-caption text-text-disabled">{day.habitPct}% habits</p>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
@@ -518,17 +534,18 @@ function GoalRow({ g, dimmed = false }: { g: GoalSummary; dimmed?: boolean }) {
   );
 }
 
-function HabitArc({ pct }: { pct: number }) {
+function HabitArc({ fillRatio, stroke }: { fillRatio: number; stroke: string }) {
   const size = 12;
   const r = (size - 2) / 2;
   const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - Math.min(1, pct / 100));
+  const offset = circ * (1 - Math.min(1, Math.max(0, fillRatio)));
   return (
     <svg width={size} height={size} className="-rotate-90" aria-hidden>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(212,196,168,0.12)" strokeWidth={1.5} />
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke="rgba(212,196,168,0.45)" strokeWidth={1.5}
+        className={stroke}
+        strokeWidth={1.5}
         strokeDasharray={circ} strokeDashoffset={offset}
         strokeLinecap="round"
       />
