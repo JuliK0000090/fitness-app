@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useTransition } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Target, TrendingDown, TrendingUp, GripVertical, X, Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { dayPhase, dotsForDay, ringForDay, DOT_CLASS, RING_STROKE } from "@/lib/calendar/render-rules";
+import { completeWorkout } from "@/app/actions/habits";
 
 interface WorkoutItem {
   id: string;
@@ -231,10 +232,18 @@ export function MonthView({
       {selectedDay && (
         <DayDetail
           day={selectedDay}
+          todayStr={todayStr}
           onClose={() => setSelectedDate(null)}
           onDragStart={onWorkoutDragStart}
           onDragEnd={onWorkoutDragEnd}
           draggingId={dragWorkout?.id ?? null}
+          onWorkoutStatusChange={(workoutId, status) => {
+            setDays((prev) => prev.map((d) =>
+              d.dateStr === selectedDay.dateStr
+                ? { ...d, workouts: d.workouts.map((w) => w.id === workoutId ? { ...w, status } : w) }
+                : d
+            ));
+          }}
         />
       )}
 
@@ -255,20 +264,47 @@ export function MonthView({
 
 function DayDetail({
   day,
+  todayStr,
   onClose,
   onDragStart,
   onDragEnd,
   draggingId,
+  onWorkoutStatusChange,
 }: {
   day: CalendarDay;
+  todayStr: string;
   onClose: () => void;
   onDragStart: (e: React.DragEvent, workoutId: string, fromDate: string) => void;
   onDragEnd: () => void;
   draggingId: string | null;
+  onWorkoutStatusChange: (workoutId: string, status: string) => void;
 }) {
   const dateLabel = format(new Date(day.dateStr + "T12:00:00Z"), "EEEE, MMMM d");
-  const todayStr = new Intl.DateTimeFormat("en-CA").format(new Date());
   const isPastOrToday = day.dateStr <= todayStr;
+  const [, startTransition] = useTransition();
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  function handleComplete(workoutId: string, prevStatus: string) {
+    if (!isPastOrToday) {
+      toast.error("Can't log a workout for a future day. Move it to today first.");
+      return;
+    }
+    if (pendingId) return;
+    setPendingId(workoutId);
+    onWorkoutStatusChange(workoutId, "DONE"); // optimistic
+    startTransition(async () => {
+      try {
+        await completeWorkout(workoutId);
+        toast.success("Logged");
+      } catch {
+        // Revert
+        onWorkoutStatusChange(workoutId, prevStatus);
+        toast.error("Could not log — try again");
+      } finally {
+        setPendingId(null);
+      }
+    });
+  }
 
   return (
     <div className="border border-border-subtle bg-bg-surface rounded-md overflow-hidden">
@@ -301,16 +337,24 @@ function DayDetail({
                 <div className="w-3 shrink-0" />
               )}
 
-              <div className={cn(
-                "w-5 h-5 rounded border flex items-center justify-center shrink-0",
-                isPastOrToday && w.status === "DONE" ? "border-champagne/40 bg-champagne/10" :
-                w.source === "ai_suggested" ? "border-border-default" :
-                "border-border-subtle"
-              )}>
-                {isPastOrToday && w.status === "DONE" && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); if (w.status !== "DONE") handleComplete(w.id, w.status); }}
+                disabled={w.status === "DONE" || !isPastOrToday || pendingId === w.id}
+                aria-label={w.status === "DONE" ? "Already logged" : isPastOrToday ? "Mark as done" : "Future workout — can't log yet"}
+                title={w.status === "DONE" ? "Logged" : isPastOrToday ? "Mark as done" : "Future workout — move to today first"}
+                className={cn(
+                  "w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors",
+                  w.status === "DONE" ? "border-champagne/40 bg-champagne/10 cursor-default" :
+                  isPastOrToday ? "border-border-default hover:border-champagne/60 hover:bg-champagne/5 cursor-pointer" :
+                  "border-border-subtle/60 cursor-not-allowed",
+                  pendingId === w.id && "opacity-50"
+                )}
+              >
+                {w.status === "DONE" && (
                   <Check size={10} strokeWidth={2} className="text-champagne" />
                 )}
-              </div>
+              </button>
 
               <div className="flex-1 min-w-0">
                 <p className={cn(
