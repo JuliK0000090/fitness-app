@@ -1,11 +1,10 @@
-const CACHE_NAME = 'vita-v1';
+// Bump CACHE_NAME on every shape change to force old caches to be purged.
+const CACHE_NAME = 'vita-v3';
 const STATIC_ASSETS = [
-  '/',
-  '/today',
   '/manifest.json',
 ];
 
-// Install: cache static assets
+// Install: cache a tiny set of fully-static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
@@ -23,38 +22,45 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: cache-first for static assets, network-first for navigation
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-
-  // Only handle GET requests
   if (request.method !== 'GET') return;
 
-  // Navigation requests: network-first, fall back to cache
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
-    );
+  let url;
+  try { url = new URL(request.url); } catch { return; }
+
+  // Same-origin only — never intercept third-party requests.
+  if (url.origin !== self.location.origin) return;
+
+  // Never intercept Next.js build output, server actions, API routes, RSC payloads,
+  // or HMR/Turbopack assets. These must always go straight to the network so a
+  // redeploy with new chunk hashes can't be served stale from the cache.
+  if (
+    url.pathname.startsWith('/_next/') ||
+    url.pathname.startsWith('/api/') ||
+    url.search.includes('_rsc=') ||
+    url.search.includes('__nextjs_')
+  ) {
     return;
   }
 
-  // Static assets: cache-first
+  // Navigation: network-only, no caching. We don't want to serve a stale HTML
+  // doc that still references chunk hashes from a previous deploy.
+  if (request.mode === 'navigate') {
+    return;
+  }
+
+  // Other same-origin GETs (icons, manifest, public images): cache-first.
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
       return fetch(request).then((response) => {
-        if (response.ok) {
+        if (response.ok && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
         return response;
-      });
+      }).catch(() => cached);
     })
   );
 });
