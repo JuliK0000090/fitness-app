@@ -213,16 +213,50 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
     if (files.length) handleFiles(files);
   }
 
+  /**
+   * Stop the recognizer synchronously and clear every dictation ref. Called by
+   * Send / Enter / unmount — anything that ends the dictation outside of the
+   * mic-tap path. After this returns the recognizer is fully detached and its
+   * onresult can no longer repopulate the input.
+   */
+  function stopDictationSync() {
+    userStoppedDictationRef.current = true;
+    const rec = recognitionRef.current;
+    recognitionRef.current = null;
+    if (rec) {
+      try { rec.onresult = null; rec.onend = null; rec.onerror = null; } catch { /* noop */ }
+      try { rec.stop(); } catch { /* noop */ }
+      try { rec.abort?.(); } catch { /* noop */ }
+    }
+    finalTranscriptRef.current = "";
+    interimTranscriptRef.current = "";
+    baseInputRef.current = "";
+    setDictating(false);
+  }
+
   // ── Submit with attachments ─────────────────────────────────────────────────
   async function submitWithAttachments(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() && pendingAttachments.length === 0) return;
-    if (isLoading) return;
+    if (!input.trim() && pendingAttachments.length === 0) {
+      // Nothing to send — but if dictation is running with no transcript yet, stop it.
+      if (dictating) stopDictationSync();
+      return;
+    }
+    if (isLoading) {
+      if (dictating) stopDictationSync();
+      return;
+    }
+
+    // Capture the current text BEFORE stopping dictation so a late onresult
+    // can't race the submit. Stop the recognizer first to prevent the live
+    // transcript from re-filling the textarea after we clear it.
+    const submittedText = input.trim();
+    if (dictating) stopDictationSync();
 
     // Build content parts
     const parts: { type: string; text?: string; image?: string; data?: string; mimeType?: string; name?: string }[] = [];
 
-    if (input.trim()) parts.push({ type: "text", text: input.trim() });
+    if (submittedText) parts.push({ type: "text", text: submittedText });
 
     for (const att of pendingAttachments) {
       if (att.type === "image" && att.url) {
@@ -330,21 +364,14 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
   }
 
   async function stopDictation(autoSend: boolean) {
-    userStoppedDictationRef.current = true;
-    const rec = recognitionRef.current;
-    recognitionRef.current = null;
-    if (rec) {
-      try { rec.stop(); } catch { /* noop */ }
-    }
-    setDictating(false);
-
+    // Capture the spoken text + base BEFORE we tear down the refs.
     const spoken = (finalTranscriptRef.current + " " + interimTranscriptRef.current).replace(/\s+/g, " ").trim();
-    finalTranscriptRef.current = "";
-    interimTranscriptRef.current = "";
+    const base = baseInputRef.current;
+
+    stopDictationSync();
 
     if (autoSend && spoken) {
-      const combined = [baseInputRef.current, spoken].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-      baseInputRef.current = "";
+      const combined = [base, spoken].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
       setInput("");
       setPendingAttachments([]);
       try {
@@ -362,7 +389,11 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
       userStoppedDictationRef.current = true;
       const rec = recognitionRef.current;
       recognitionRef.current = null;
-      if (rec) try { rec.stop(); } catch { /* noop */ }
+      if (rec) {
+        try { rec.onresult = null; rec.onend = null; rec.onerror = null; } catch { /* noop */ }
+        try { rec.stop(); } catch { /* noop */ }
+        try { rec.abort?.(); } catch { /* noop */ }
+      }
     };
   }, []);
 
