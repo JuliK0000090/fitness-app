@@ -4,6 +4,7 @@ import { matchPreset } from "./plans/presets";
 import { addDays, startOfWeek, format, parseISO, isValid } from "date-fns";
 import { TREATMENT_DEFAULTS, TREATMENT_KEYS, buildConstraintFromTreatment } from "./coach/constraints";
 import { replanFromConstraint } from "./coach/replan";
+import { safeScheduleWorkout } from "./coach/schedule";
 
 // ─── XP constants ─────────────────────────────────────────────────────────────
 const XP = {
@@ -484,21 +485,32 @@ export function vitaTools(userId: string) {
           create: { name: workoutTypeName, slug: workoutTypeName.toLowerCase().replace(/\s+/g, "_"), defaultDuration: duration },
           update: {},
         });
-        const sw = await (prisma.scheduledWorkout as any).create({
-          data: {
-            userId,
-            goalId: goalId ?? null,
-            workoutTypeId: wt.id,
-            workoutTypeName,
-            scheduledDate: toDate(scheduledDate),
-            scheduledTime: scheduledTime ?? null,
-            duration,
-            notes: notes ?? null,
-            status: "PLANNED",
-            source: "ai_suggested",
-          },
+        const outcome = await safeScheduleWorkout({
+          userId,
+          goalId: goalId ?? null,
+          workoutTypeId: wt.id,
+          workoutTypeName,
+          scheduledDate: toDate(scheduledDate),
+          scheduledTime: scheduledTime ?? null,
+          duration: duration ?? 45,
+          notes: notes ?? null,
+          source: "ai_suggested",
         });
-        return { scheduledWorkoutId: sw.id, workoutTypeName, scheduledDate, scheduledTime };
+        if (!outcome.scheduledWorkout) {
+          return {
+            scheduledWorkoutId: null,
+            error: "Could not schedule on or near the requested date without breaking a planner rule",
+            violations: outcome.violations.map((v) => v.description),
+          };
+        }
+        return {
+          scheduledWorkoutId: outcome.scheduledWorkout.id,
+          workoutTypeName,
+          scheduledDate: outcome.scheduledWorkout.scheduledDate.toISOString().split("T")[0],
+          scheduledTime: outcome.scheduledWorkout.scheduledTime,
+          shifted: outcome.shifted,
+          warnings: outcome.violations.filter((v) => v.severity === "warning").map((v) => v.description),
+        };
       },
     }),
 

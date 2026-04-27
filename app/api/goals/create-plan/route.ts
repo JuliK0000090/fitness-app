@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { addDays, startOfWeek, format } from "date-fns";
+import { safeScheduleWorkout } from "@/lib/coach/schedule";
+import { critiqueWeekPlan } from "@/lib/coach/critique";
 
 function cadenceStrToEnum(cadence: string) {
   const map: Record<string, "DAILY" | "WEEKLY_N" | "SPECIFIC_DAYS" | "EVERY_OTHER" | "WEEKDAYS" | "WEEKENDS"> = {
@@ -86,20 +88,42 @@ export async function POST(req: NextRequest) {
         for (const dayOffset of days) {
           const date = addDays(weekStart, week * 7 + dayOffset);
           if (date < now) continue;
-          await prisma.scheduledWorkout.create({
-            data: {
-              userId,
-              goalId: goal.id,
-              workoutTypeId: wt.id,
-              workoutTypeName: w.workoutTypeName,
-              scheduledDate: date,
-              duration: w.duration ?? 45,
-              status: "PLANNED",
-            },
+          // Validate-then-commit — silently shifts if a constraint or rule blocks
+          // the requested day, drops the slot if no clean slot exists in 14 days.
+          await safeScheduleWorkout({
+            userId,
+            goalId: goal.id,
+            workoutTypeId: wt.id,
+            workoutTypeName: w.workoutTypeName,
+            scheduledDate: date,
+            duration: w.duration ?? 45,
+            source: "ai_suggested",
           });
         }
       }
     }));
+  }
+
+  // Critique pass — Claude reviews the committed plan as a subjective safety net.
+  // Issues are logged but don't block the response since the mechanical validator
+  // already enforced the hard rules.
+  try {
+    const planned = await prisma.scheduledWorkout.findMany({
+      where: {
+        userId,
+        goalId: goal.id,
+        scheduledDate: { gte: now },
+        status: "PLANNED",
+      },
+      orderBy: { scheduledDate: "asc" },
+      take: 28,
+    });
+    const critique = await critiqueWeekPlan(planned, userId);
+    if (!critique.ok && critique.issues.length > 0) {
+      console.warn("[planner] critique flagged issues for", goal.id, critique.issues);
+    }
+  } catch (e) {
+    console.error("[planner] critique failed:", e);
   }
 
   return NextResponse.json({ goalId: goal.id, title });

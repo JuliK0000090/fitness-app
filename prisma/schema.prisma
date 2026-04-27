@@ -369,10 +369,11 @@ model HabitCompletion {
 model ChatSuggestion {
   id          String    @id @default(cuid())
   userId      String
-  type        String    // habit_adjustment / goal_nudge / streak_recovery / etc.
+  type        String    // habit_adjustment / goal_nudge / streak_recovery / PLAN_REPLANNED / PLAN_VALIDATION_FAILED
   title       String
   body        String    @db.Text
   habitId     String?   // linked habit if type = habit_adjustment
+  payload     Json?     // structured data — used by PLAN_REPLANNED for the changes drawer
   dismissed   Boolean   @default(false)
   appliedAt   DateTime?
   createdAt   DateTime  @default(now())
