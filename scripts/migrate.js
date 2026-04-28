@@ -74,6 +74,50 @@ async function run() {
         )
     `);
 
+    // ScheduledWorkout: completedAt cannot precede the scheduledDate. (Both
+    // sides are tolerated as null — a row that's never been completed has
+    // completedAt=NULL.) Cast completedAt to date to match scheduledDate's
+    // @db.Date column and avoid spurious failures from time-of-day jitter.
+    await client.query(`
+      ALTER TABLE "ScheduledWorkout"
+        DROP CONSTRAINT IF EXISTS scheduled_workout_completedAt_after_date
+    `);
+    await client.query(`
+      ALTER TABLE "ScheduledWorkout"
+        ADD CONSTRAINT scheduled_workout_completedAt_after_date
+        CHECK (
+          "completedAt" IS NULL OR "completedAt"::date >= "scheduledDate"
+        )
+    `);
+
+    // WorkoutLog: startedAt cannot be in the future. A WorkoutLog
+    // represents an actually-completed session — by definition it can't
+    // claim to have started later than now. CURRENT_TIMESTAMP is server-tz
+    // (UTC on Railway); the application code is the one that does
+    // user-tz precision, this is the backstop.
+    await client.query(`
+      ALTER TABLE "WorkoutLog"
+        DROP CONSTRAINT IF EXISTS workout_log_no_future_startedAt
+    `);
+    await client.query(`
+      ALTER TABLE "WorkoutLog"
+        ADD CONSTRAINT workout_log_no_future_startedAt
+        CHECK ("startedAt" <= CURRENT_TIMESTAMP)
+    `);
+
+    // HabitCompletion: completedAt cannot precede date.
+    await client.query(`
+      ALTER TABLE "HabitCompletion"
+        DROP CONSTRAINT IF EXISTS habit_completion_completedAt_after_date
+    `);
+    await client.query(`
+      ALTER TABLE "HabitCompletion"
+        ADD CONSTRAINT habit_completion_completedAt_after_date
+        CHECK (
+          "completedAt" IS NULL OR "completedAt"::date >= "date"
+        )
+    `);
+
     await client.end();
     console.log("planner-health CHECK constraints installed");
   } catch (e) {

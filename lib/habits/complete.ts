@@ -20,10 +20,10 @@ async function safeCompletionWrite<T>(
     return await fn();
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (/habit_completion_date_not_future|scheduled_workout_done_only_past_or_today/.test(msg)) {
+    if (/habit_completion_date_not_future|habit_completion_completedat_after_date|scheduled_workout_done_only_past_or_today|scheduled_workout_completedat_after_date|workout_log_no_future_startedat/i.test(msg)) {
       console.error(
         `[planner-health] CHECK constraint blocked write — ${description}. ` +
-        `This is a bug — caller tried to record a completion for a future date. ` +
+        `This is a bug — caller tried to write a temporally invalid row. ` +
         `Investigate the call site. Original error: ${msg.split("\n")[0]}`,
       );
       return null;
