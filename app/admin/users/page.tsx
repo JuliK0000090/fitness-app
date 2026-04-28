@@ -117,20 +117,9 @@ export default async function AdminUsersPage() {
   const users = await loadUsers();
 
   // Aggregates
-  const total = users.length;
-  const verified = users.filter((u) => u.emailVerified).length;
-  const onboarded = users.filter((u) => u.onboardingComplete).length;
-  const withGoal = users.filter((u) => u.goalCount > 0).length;
-  const withSchedule = users.filter((u) => u.scheduledFutureCount > 0).length;
-  const completedAtLeastOne = users.filter((u) => u.workoutLogsCount > 0).length;
-  const withPush = users.filter((u) => u.pushSubsCount > 0).length;
-
-  const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const newLast7d = users.filter((u) => u.createdAt >= since7d).length;
-
-  // Recently active (last session within 24h)
-  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const activeLast24h = users.filter((u) => u.lastSessionAt && u.lastSessionAt >= since24h).length;
+  const aggregates = computeAggregates(users);
+  const { total, verified, onboarded, withGoal, withSchedule,
+          completedAtLeastOne, newLast7d, activeLast24h } = aggregates;
 
   return (
     <div className="min-h-screen bg-bg-base px-5 py-10">
@@ -216,7 +205,7 @@ export default async function AdminUsersPage() {
 
         <p className="text-caption text-text-disabled">
           Funnel order: <span className="text-text-secondary">verified → onboarded → scheduled → logged</span>.
-          A green badge means that step is complete. Look for users stuck at one step — that's where the flow is breaking.
+          A green badge means that step is complete. Look for users stuck at one step — that&apos;s where the flow is breaking.
         </p>
 
         <section className="space-y-2 pt-4 border-t border-border-subtle">
@@ -229,6 +218,24 @@ export default async function AdminUsersPage() {
       </div>
     </div>
   );
+}
+
+// Pure-but-uses-Date.now: kept as a top-level helper (not in render) so
+// the component body satisfies react-hooks/purity.
+function computeAggregates(users: UserRow[]) {
+  const now = Date.now();
+  const since7d = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const since24h = new Date(now - 24 * 60 * 60 * 1000);
+  return {
+    total: users.length,
+    verified: users.filter((u) => u.emailVerified).length,
+    onboarded: users.filter((u) => u.onboardingComplete).length,
+    withGoal: users.filter((u) => u.goalCount > 0).length,
+    withSchedule: users.filter((u) => u.scheduledFutureCount > 0).length,
+    completedAtLeastOne: users.filter((u) => u.workoutLogsCount > 0).length,
+    newLast7d: users.filter((u) => u.createdAt >= since7d).length,
+    activeLast24h: users.filter((u) => u.lastSessionAt && u.lastSessionAt >= since24h).length,
+  };
 }
 
 function Stat({ label, value, sub }: { label: string; value: number; sub?: string }) {

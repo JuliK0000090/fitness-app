@@ -20,7 +20,7 @@
  *   - No multi-page wizard chrome — one screen, content swaps
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mic, Square, ArrowRight, Check, X, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -39,15 +39,16 @@ export default function WelcomePage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
 
-  // Step 1
+  // Step 1 — read the user's tz once at first render, lazily, so we don't
+  // re-set state inside an effect (avoids react-hooks/set-state-in-effect).
   const [name, setName] = useState("");
-  const [timezone, setTimezone] = useState<string>("UTC");
-  useEffect(() => {
+  const [timezone, setTimezone] = useState<string>(() => {
+    if (typeof window === "undefined") return "UTC";
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (tz) setTimezone(tz);
-    } catch { /* noop */ }
-  }, []);
+      return tz || "UTC";
+    } catch { return "UTC"; }
+  });
 
   // Step 2
   const [goalText, setGoalText] = useState("");
@@ -368,7 +369,7 @@ function Step2({
           disabled={!goalText.trim()}
           className="w-full py-2.5 rounded bg-champagne text-champagne-fg text-body-sm font-medium hover:bg-champagne-soft disabled:opacity-30 transition-colors"
         >
-          That's it
+          That&apos;s it
         </button>
       </div>
 
@@ -381,7 +382,7 @@ function Step2({
               onClick={() => pickChip(chip)}
               className="w-full text-left text-body-sm text-text-secondary px-3 py-2 rounded border border-border-subtle hover:border-border-default hover:bg-bg-elevated transition-colors"
             >
-              "{chip}"
+              &ldquo;{chip}&rdquo;
             </button>
           ))}
         </div>
@@ -440,7 +441,7 @@ function Step3({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-serif text-display-xl font-light text-text-primary leading-tight">Here's what I heard.</h1>
+        <h1 className="font-serif text-display-xl font-light text-text-primary leading-tight">Here&apos;s what I heard.</h1>
         <p className="text-body-sm text-text-muted mt-2">Tap anything to edit.</p>
       </div>
 
@@ -484,7 +485,7 @@ function Step3({
         {/* Habits */}
         <div className="space-y-2 pt-3 border-t border-border-subtle">
           <div className="flex items-center justify-between">
-            <label className="text-caption text-text-disabled uppercase tracking-widest">I'll track these every week</label>
+            <label className="text-caption text-text-disabled uppercase tracking-widest">I&apos;ll track these every week</label>
             <button onClick={addHabit} className="text-text-disabled hover:text-text-secondary">
               <Plus size={14} strokeWidth={1.5} />
             </button>
@@ -545,7 +546,7 @@ function Step3({
         {/* Measurements */}
         <div className="space-y-2 pt-3 border-t border-border-subtle">
           <div className="flex items-center justify-between">
-            <label className="text-caption text-text-disabled uppercase tracking-widest">I'll track these measurements</label>
+            <label className="text-caption text-text-disabled uppercase tracking-widest">I&apos;ll track these measurements</label>
             <button onClick={addMeasurement} className="text-text-disabled hover:text-text-secondary">
               <Plus size={14} strokeWidth={1.5} />
             </button>
@@ -595,7 +596,7 @@ function Step4({ onConnect, onLater }: { onConnect: () => void; onLater: () => v
       <div>
         <h1 className="font-serif text-display-xl font-light text-text-primary leading-tight">One more thing.</h1>
         <p className="text-body-lg text-text-secondary mt-3">
-          Your iPhone's data makes this work way better. Apple Health takes 90 seconds to set up. We can do it now or later.
+          Your iPhone&apos;s data makes this work way better. Apple Health takes 90 seconds to set up. We can do it now or later.
         </p>
       </div>
       <div className="space-y-2">

@@ -10,7 +10,7 @@
  * template / encouragement page.
  */
 
-import { addDays, getISOWeek, getYear, startOfWeek } from "date-fns";
+import { addDays, getISOWeek, getYear } from "date-fns";
 import { prisma } from "@/lib/prisma";
 
 export type PartnerWeekSummary = {

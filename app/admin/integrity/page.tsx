@@ -4,7 +4,6 @@
  * Surfaces:
  *   - Unresolved IntegrityAlert rows (hourly sweep canary)
  *   - Last 24h NotificationLog grouped by category x skipReason
- *     (delivery health — should be mostly nulls = delivered)
  *   - Last 24h Email rows by status (Resend health)
  */
 
@@ -33,29 +32,32 @@ async function isAdmin(): Promise<{ ok: boolean; email?: string }> {
   return { ok: true, email: u.email };
 }
 
-export default async function AdminIntegrityPage() {
-  const auth = await isAdmin();
-  if (!auth.ok) notFound();
-
+// All impure date math + db reads live in this async helper, so the
+// component body stays render-pure (satisfies react-hooks/purity).
+async function loadIntegrityData() {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const [unresolved, recentResolved, notifLogs, emails] = await Promise.all([
+    prisma.integrityAlert.findMany({
+      where: { resolvedAt: null },
+      orderBy: { detectedAt: "desc" },
+      take: 30,
+    }),
+    prisma.integrityAlert.findMany({
+      where: { resolvedAt: { gte: since24h } },
+      orderBy: { resolvedAt: "desc" },
+      take: 10,
+    }),
+    prisma.notificationLog.findMany({
+      where: { sentAt: { gte: since24h } },
+      select: { category: true, skipReason: true, delivered: true },
+    }),
+    prisma.email.findMany({
+      where: { createdAt: { gte: since24h } },
+      select: { status: true, templateId: true },
+    }),
+  ]);
 
-  // ── Unresolved IntegrityAlert ─────────────────────────────────────────
-  const unresolved = await prisma.integrityAlert.findMany({
-    where: { resolvedAt: null },
-    orderBy: { detectedAt: "desc" },
-    take: 30,
-  });
-  const recentResolved = await prisma.integrityAlert.findMany({
-    where: { resolvedAt: { gte: since24h } },
-    orderBy: { resolvedAt: "desc" },
-    take: 10,
-  });
-
-  // ── NotificationLog last 24h ──────────────────────────────────────────
-  const notifLogs = await prisma.notificationLog.findMany({
-    where: { sentAt: { gte: since24h } },
-    select: { category: true, skipReason: true, delivered: true },
-  });
+  // Group notif logs by category | outcome
   const notifByGroup = new Map<string, number>();
   for (const r of notifLogs) {
     const key = `${r.category} | ${r.delivered ? "DELIVERED" : (r.skipReason ?? "no-reason")}`;
@@ -65,11 +67,7 @@ export default async function AdminIntegrityPage() {
     .map(([key, count]) => ({ key, count }))
     .sort((a, b) => b.count - a.count);
 
-  // ── Email last 24h ────────────────────────────────────────────────────
-  const emails = await prisma.email.findMany({
-    where: { createdAt: { gte: since24h } },
-    select: { status: true, templateId: true },
-  });
+  // Group emails by template | status
   const emailByGroup = new Map<string, number>();
   for (const r of emails) {
     const key = `${r.templateId} | ${r.status}`;
@@ -78,6 +76,15 @@ export default async function AdminIntegrityPage() {
   const emailRows = Array.from(emailByGroup.entries())
     .map(([key, count]) => ({ key, count }))
     .sort((a, b) => b.count - a.count);
+
+  return { unresolved, recentResolved, notifRows, emailRows };
+}
+
+export default async function AdminIntegrityPage() {
+  const auth = await isAdmin();
+  if (!auth.ok) notFound();
+
+  const { unresolved, recentResolved, notifRows, emailRows } = await loadIntegrityData();
 
   return (
     <div className="min-h-screen bg-bg-base px-5 py-10">

@@ -44,7 +44,7 @@ export default async function EncouragePartner({
         <div className="max-w-md text-center space-y-4">
           <h1 className="font-serif text-display-md font-light text-text-primary">Already sent this week.</h1>
           <p className="text-body text-text-muted">
-            One per week, on purpose. {userFirstName}'s next note slot opens Sunday.
+            One per week, on purpose. {userFirstName}&apos;s next note slot opens Sunday.
           </p>
         </div>
       </div>
@@ -59,7 +59,7 @@ export default async function EncouragePartner({
             One line for {userFirstName}.
           </h1>
           <p className="text-body text-text-muted">
-            Lands in her app. She'll know it's from you.
+            Lands in her app. She&apos;ll know it&apos;s from you.
           </p>
         </div>
 

@@ -211,7 +211,6 @@ export const reactiveAdjustmentSent = inngest.createFunction(
     id: "notif-reactive-adjustment",
     triggers: [{ event: "planner/replan-summary" }],
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async ({ event }: { event: { data: { userId: string; summary: string; deepLink?: string } } }) => {
     const { userId, summary, deepLink } = event.data;
     return send({

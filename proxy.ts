@@ -35,6 +35,11 @@ const PUBLIC_PATHS = [
   "/api/debug",
   "/api/unsubscribe",
   "/unsubscribe",
+  "/api/partner/accept",
+  "/api/partner/decline",
+  "/api/partner/encourage",
+  "/partner/accept",
+  "/partner/encourage",
   "/mockups",
 ];
 

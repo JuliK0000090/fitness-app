@@ -34,7 +34,7 @@ export default async function AcceptPartnerInvite({
     return (
       <div className="min-h-screen bg-bg-base flex items-center justify-center px-6">
         <div className="max-w-md text-center space-y-4">
-          <h1 className="font-serif text-display-md font-light text-text-primary">You're in.</h1>
+          <h1 className="font-serif text-display-md font-light text-text-primary">You&apos;re in.</h1>
           <p className="text-body text-text-muted">First weekly note arrives Sunday.</p>
         </div>
       </div>
@@ -77,7 +77,7 @@ export default async function AcceptPartnerInvite({
       <div className="max-w-md w-full space-y-8">
         <div className="space-y-3 text-center">
           <h1 className="font-serif text-display-xl font-light text-text-primary leading-tight">
-            You're {userFirstName}'s pick.
+            You&apos;re {userFirstName}&apos;s pick.
           </h1>
           <p className="text-body-lg text-text-secondary">
             One quiet email a week, every Sunday morning. Workouts done, habits stuck with, streak alive
@@ -90,7 +90,7 @@ export default async function AcceptPartnerInvite({
             type="submit"
             className="w-full py-3 rounded bg-champagne text-champagne-fg text-body font-medium hover:bg-champagne-soft transition-colors"
           >
-            I'm in
+            I&apos;m in
           </button>
           {!session && (
             <p className="text-caption text-text-disabled text-center">
