@@ -360,6 +360,11 @@ function DayDetail({
       </div>
 
       <div className="p-4 space-y-1">
+        {!isPastOrToday && day.workouts.length > 0 && (
+          <p className="text-caption text-text-disabled mb-2 px-2">
+            Planned for {dateLabel.split(",").slice(1).join(",").trim()}. Comes due on the day — check-marks unlock then.
+          </p>
+        )}
         {day.workouts.length === 0 ? (
           <p className="text-caption text-text-disabled py-2">Rest day — no workouts scheduled.</p>
         ) : (

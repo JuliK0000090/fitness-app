@@ -1160,3 +1160,20 @@ model PlanValidationLog {
 
   @@index([userId, date])
 }
+
+// Temporal-rules canary. The hourly dataIntegritySweep writes a row here
+// whenever it finds a violation in the live data. Rows are kept for
+// post-incident audit; resolvedAt is set by the next clean sweep. See
+// CALENDAR_RULES.md.
+model IntegrityAlert {
+  id         String    @id @default(cuid())
+  detectedAt DateTime  @default(now())
+  table      String    // "ScheduledWorkout" | "WorkoutLog" | "HabitCompletion"
+  rule       String    // e.g. "future-completed", "log-startedAt-future"
+  count      Int
+  sample     Json      // up to 5 row IDs + key fields
+  resolvedAt DateTime?
+
+  @@index([detectedAt])
+  @@index([resolvedAt])
+}
