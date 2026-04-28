@@ -116,6 +116,11 @@ export default async function MonthPage({
 
   return (
     <MonthView
+      // Remount on month change so internal state (days, selectedDate, drag,
+      // dropTarget) doesn't leak across navigation. Without this key, useState
+      // holds onto the previous month's data because useState only reads the
+      // prop on first mount.
+      key={monthLabel}
       monthLabel={monthLabel}
       prevMonth={prevMonth}
       nextMonth={nextMonth}
