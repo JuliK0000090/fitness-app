@@ -15,5 +15,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!user.onboardingComplete) redirect("/welcome");
 
-  return <AppShell user={user}><PageTransition>{children}</PageTransition></AppShell>;
+  // Admin email check — gates the admin links in the avatar dropdown.
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "juliana.kolarski@gmail.com")
+    .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const isAdmin = adminEmails.includes(user.email.toLowerCase());
+
+  return (
+    <AppShell user={{ ...user, isAdmin }}>
+      <PageTransition>{children}</PageTransition>
+    </AppShell>
+  );
 }

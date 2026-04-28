@@ -9,9 +9,10 @@ import { Home, MessageCircle, Calendar, Target, X, Menu, Sparkles } from "lucide
 import { cn } from "@/lib/utils";
 import { InstallPrompt } from "./InstallPrompt";
 import { VitaWordmark } from "@/components/ui/VitaWordmark";
+import { UserMenu } from "./UserMenu";
 
 interface AppShellProps {
-  user: { id: string; name: string | null; email: string; avatarUrl: string | null };
+  user: { id: string; name: string | null; email: string; avatarUrl: string | null; isAdmin?: boolean };
   children: React.ReactNode;
 }
 
@@ -41,8 +42,8 @@ export function AppShell({ user, children }: AppShellProps) {
   }, []);
 
   const isChat = pathname.startsWith("/chat");
+  const isToday = pathname === "/today";
   const isGuest = user.email.startsWith("guest_") && user.email.endsWith("@guest.vita");
-  const initial = (user.name?.[0] ?? user.email[0]).toUpperCase();
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-base">
@@ -72,7 +73,16 @@ export function AppShell({ user, children }: AppShellProps) {
               {sidebarOpen ? <X size={15} strokeWidth={1.5} /> : <Menu size={15} strokeWidth={1.5} />}
             </button>
           )}
-          <VitaWordmark className="text-text-primary" />
+          {/* Wordmark — always brings the user back to /today. On /today
+              itself it stays focusable but doesn't navigate anywhere new. */}
+          <Link
+            href="/today"
+            aria-label="Go to today"
+            aria-current={isToday ? "page" : undefined}
+            className="inline-flex items-center group transition-opacity hover:opacity-80"
+          >
+            <VitaWordmark className="text-text-primary" />
+          </Link>
         </div>
 
         <div className="flex items-center gap-3">
@@ -83,10 +93,7 @@ export function AppShell({ user, children }: AppShellProps) {
             <span>Search</span>
             <kbd className="px-1.5 py-0.5 rounded text-[10px] bg-bg-elevated border border-border-subtle font-sans">⌘K</kbd>
           </button>
-          <Link href="/profile"
-            className="w-7 h-7 rounded-full border border-border-default flex items-center justify-center text-caption text-text-muted hover:border-border-strong hover:text-text-secondary transition-colors font-medium">
-            {initial}
-          </Link>
+          <UserMenu user={user} />
         </div>
       </header>
 
