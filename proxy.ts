@@ -41,9 +41,16 @@ const PUBLIC_PATHS = [
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Allow public paths and static files
+  // Allow public paths and static files. Match the path itself, query-only
+  // suffixes, AND sub-paths so that prefixes like `/api/webhooks` cover
+  // every concrete endpoint underneath (e.g. `/api/webhooks/hae/{token}`,
+  // `/api/webhooks/resend`, `/api/webhooks/terra`).
   if (
-    PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "?")) ||
+    PUBLIC_PATHS.some((p) =>
+      pathname === p ||
+      pathname.startsWith(p + "?") ||
+      pathname.startsWith(p + "/")
+    ) ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/auth/callback") ||
     pathname.includes(".")
