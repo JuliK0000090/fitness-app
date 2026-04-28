@@ -5,7 +5,10 @@ import { addDays, startOfWeek, format, parseISO, isValid } from "date-fns";
 import { TREATMENT_DEFAULTS, TREATMENT_KEYS, buildConstraintFromTreatment } from "./coach/constraints";
 import { replanFromConstraint } from "./coach/replan";
 import { safeScheduleWorkout } from "./coach/schedule";
-import { userTodayStr } from "./time/today";
+import {
+  validateWorkoutStatusChange,
+  validateWorkoutLogCreate,
+} from "./calendar/temporal-rules";
 
 // ─── XP constants ─────────────────────────────────────────────────────────────
 const XP = {
@@ -562,18 +565,17 @@ export function vitaTools(userId: string) {
           };
         }
 
-        // User-tz future-date guard. Mirrors the completeWorkout server action;
-        // the Postgres CHECK is a UTC-only safety net, not a substitute.
+        // Temporal guard — single source of truth in lib/calendar/temporal-rules.ts.
         const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
         const tz = u?.timezone ?? "UTC";
-        const todayStr = userTodayStr(tz);
-        const swDateStr = sw.scheduledDate.toISOString().split("T")[0];
-        if (swDateStr > todayStr) {
-          throw new Error(
-            `FUTURE_WORKOUT_NOT_ALLOWED: cannot log a workout dated ${swDateStr} — ` +
-            `the user's local today is ${todayStr}. If they actually did the workout already, ` +
-            `reschedule it to today first using reschedule_workout, then log it.`,
-          );
+        const tCheck = validateWorkoutStatusChange({
+          scheduledDate: sw.scheduledDate,
+          userTimezone: tz,
+          currentStatus: sw.status,
+          newStatus: "DONE",
+        });
+        if (!tCheck.ok) {
+          throw new Error(`${tCheck.code}: ${tCheck.reason}`);
         }
 
         // Create WorkoutLog
@@ -608,17 +610,30 @@ export function vitaTools(userId: string) {
     }),
 
     log_workout: makeTool({
-      description: "Log a workout the user has already completed — use this when the user says they JUST DID a workout (not pre-scheduled). For scheduled workouts, use complete_workout instead.",
+      description:
+        "Log a workout the user has ALREADY COMPLETED — use this when the user says they JUST DID " +
+        "a workout (not pre-scheduled). For scheduled workouts, use complete_workout instead. " +
+        "REJECTS with FUTURE_WORKOUT_LOG_NOT_ALLOWED if `date` is in the user's future — never log " +
+        "something that hasn't happened. If the user is talking about a future plan, do NOT call this.",
       parameters: z.object({
         workoutName: z.string().describe("Name of the workout, e.g. 'Hot Yoga', 'Run', 'HIIT'"),
         durationMin: z.number().describe("Duration in minutes"),
         intensity: z.number().min(1).max(10).optional().describe("Perceived effort 1-10"),
         caloriesEst: z.number().optional(),
         notes: z.string().optional(),
-        date: z.string().optional().describe("YYYY-MM-DD, defaults to today"),
+        date: z.string().optional().describe("YYYY-MM-DD, defaults to today. Must be today or past in the user's tz."),
       }),
       execute: async ({ workoutName, durationMin, intensity, caloriesEst, notes, date }) => {
         const startedAt = date ? toDate(date) : new Date();
+
+        // Temporal guard — user-tz aware, runs before the DB CHECK constraint.
+        const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+        const tz = u?.timezone ?? "UTC";
+        const result = validateWorkoutLogCreate({ startedAt, userTimezone: tz });
+        if (!result.ok) {
+          throw new Error(`${result.code}: ${result.reason}`);
+        }
+
         const log = await prisma.workoutLog.create({
           data: {
             userId,
@@ -646,12 +661,33 @@ export function vitaTools(userId: string) {
     }),
 
     skip_workout: makeTool({
-      description: "Mark a scheduled workout as skipped",
+      description:
+        "Mark a scheduled workout as SKIPPED. Only for workouts whose scheduledDate is today " +
+        "or in the past — skipping is a present-moment action, you can't skip something that " +
+        "hasn't been scheduled to happen yet. To remove a future workout from the plan, use " +
+        "reschedule_workout (move it) or just leave it PLANNED and let the user decide later.",
       parameters: z.object({
         scheduledWorkoutId: z.string(),
         reason: z.string().optional(),
       }),
       execute: async ({ scheduledWorkoutId, reason }) => {
+        const sw = await prisma.scheduledWorkout.findFirst({
+          where: { id: scheduledWorkoutId, userId },
+        });
+        if (!sw) throw new Error("Scheduled workout not found");
+
+        const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+        const tz = u?.timezone ?? "UTC";
+        const result = validateWorkoutStatusChange({
+          scheduledDate: sw.scheduledDate,
+          userTimezone: tz,
+          currentStatus: sw.status,
+          newStatus: "SKIPPED",
+        });
+        if (!result.ok) {
+          throw new Error(`${result.code}: ${result.reason}`);
+        }
+
         await prisma.scheduledWorkout.update({
           where: { id: scheduledWorkoutId, userId },
           data: { status: "SKIPPED", skippedReason: reason ?? null },
@@ -835,6 +871,10 @@ export function vitaTools(userId: string) {
       execute: async ({ workouts }) => {
         const results: { date: string; time: string; className: string; status: string; logId?: string }[] = [];
 
+        // Pull user's timezone once; the temporal validator needs it.
+        const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+        const tz = u?.timezone ?? "UTC";
+
         for (const w of workouts) {
           const dateObj = toDate(w.date);
           if (!isValid(dateObj)) continue;
@@ -848,6 +888,15 @@ export function vitaTools(userId: string) {
           }
 
           if (w.status === "completed") {
+            // Temporal guard — refuse to create a WorkoutLog with a future
+            // startedAt. The previous bug that drove three days of phantom
+            // 'Hot HIIT Pilates' checks came from this exact path: the
+            // screenshot parser misread a class booking as a completion.
+            const tValid = validateWorkoutLogCreate({ startedAt: dateObj, userTimezone: tz });
+            if (!tValid.ok) {
+              results.push({ date: w.date, time: w.time ?? "", className: w.className, status: "rejected_future" });
+              continue;
+            }
             // ── Deduplication: check ±30 min window for same workout name ──────
             const windowStart = new Date(dateObj.getTime() - 30 * 60 * 1000);
             const windowEnd   = new Date(dateObj.getTime() + 30 * 60 * 1000);

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { completeHabit as _completeHabit, uncompleteHabit as _uncompleteHabit } from "@/lib/habits/complete";
 import { userTodayStr } from "@/lib/time/today";
+import { validateWorkoutStatusChange } from "@/lib/calendar/temporal-rules";
 
 async function getUserTimezone(userId: string): Promise<string> {
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
@@ -79,15 +80,16 @@ export async function completeWorkout(scheduledWorkoutId: string, durationMin?: 
     return { ok: true, alreadyDone: true };
   }
 
-  // User-timezone-aware future-date guard.
+  // Temporal guard — single source of truth in lib/calendar/temporal-rules.ts.
   const tz = await getUserTimezone(userId);
-  const todayStr = userTodayStr(tz);
-  const swDateStr = sw.scheduledDate.toISOString().split("T")[0];
-  if (swDateStr > todayStr) {
-    throw new Error(
-      `FUTURE_WORKOUT_NOT_ALLOWED: cannot mark a workout dated ${swDateStr} as done — ` +
-      `your local today is ${todayStr}. If the date is wrong, reschedule the workout first.`,
-    );
+  const tCheck = validateWorkoutStatusChange({
+    scheduledDate: sw.scheduledDate,
+    userTimezone: tz,
+    currentStatus: sw.status,
+    newStatus: "DONE",
+  });
+  if (!tCheck.ok) {
+    throw new Error(`${tCheck.code}: ${tCheck.reason}`);
   }
 
   const log = await prisma.workoutLog.create({
