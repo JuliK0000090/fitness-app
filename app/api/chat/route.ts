@@ -241,6 +241,13 @@ export async function POST(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userFactsCtx = buildUserFactsContext(activeUserFacts as any[]);
 
+  // Active accountability partner (if any) — first-name only for the prompt.
+  const activePartner = await prisma.accountabilityPartner.findFirst({
+    where: { userId, status: "ACCEPTED" },
+    select: { partnerName: true },
+  });
+  const partnerName = activePartner?.partnerName?.split(/\s+/)[0] ?? null;
+
   const systemPrompt = buildSystemPrompt({
     userName: user.name,
     customInstructions: user.customInstructions,
@@ -251,6 +258,7 @@ export async function POST(req: NextRequest) {
     conversationContext,
     glp1Context: glp1Ctx,
     userFactsContext: userFactsCtx,
+    partnerName,
   });
   if (lastMessage?.role === "user") {
     try {
