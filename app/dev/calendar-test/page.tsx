@@ -10,6 +10,8 @@
  */
 
 import { notFound } from "next/navigation";
+import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import {
   CalendarDayState, dotsForDay, ringForDay,
   DOT_CLASS, RING_STROKE,
@@ -147,8 +149,32 @@ function Ring({ ring }: { ring: ReturnType<typeof ringForDay> }) {
   );
 }
 
-export default function CalendarTestPage() {
-  if (process.env.NODE_ENV === "production" && process.env.ENABLE_DEV_PAGES !== "1") {
+// Comma-separated list of admin emails who can view dev pages even in
+// production (no env-var dance required). Falls back to a hard-coded list
+// if not set on the host. The page renders only synthetic data, so the risk
+// of widening access is purely whether you want strangers seeing the
+// internals.
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "juliana.kolarski@gmail.com")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+async function isAdmin(): Promise<boolean> {
+  const session = await getSession();
+  if (!session) return false;
+  const u = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { email: true },
+  });
+  return !!u && ADMIN_EMAILS.includes(u.email.toLowerCase());
+}
+
+export default async function CalendarTestPage() {
+  // Production: allow if env var explicitly set OR if signed-in user is admin.
+  // Dev: always allow.
+  if (process.env.NODE_ENV === "production"
+      && process.env.ENABLE_DEV_PAGES !== "1"
+      && !(await isAdmin())) {
     notFound();
   }
 
