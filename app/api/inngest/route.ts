@@ -8,6 +8,7 @@ import { runInsightMoments } from "@/lib/jobs/insights";
 import { decayMemoryConfidence } from "@/lib/jobs/memory-decay";
 import { rolloverFunctions } from "@/lib/jobs/rollover";
 import { integrityFunctions } from "@/lib/jobs/integrity";
+import { notificationFunctions } from "@/lib/jobs/notifications";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -17,6 +18,7 @@ export const { GET, POST, PUT } = serve({
     ...healthIngestFunctions,
     ...rolloverFunctions,
     ...integrityFunctions,
+    ...notificationFunctions,
     runReactiveAdjustments,
     runInsightMoments,
     decayMemoryConfidence,

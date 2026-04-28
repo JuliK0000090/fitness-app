@@ -16,6 +16,7 @@
 
 import { addDays } from "date-fns";
 import { prisma } from "../prisma";
+import { inngest } from "../inngest";
 import { findBlockingConstraint } from "./constraints";
 import { validateDayPlan } from "./validate";
 import { regenerateUserPlan } from "./regenerate";
@@ -159,6 +160,17 @@ export async function replanFromConstraint(
         } as object,
       },
     });
+
+    // Fire a push notification via the reactiveAdjustment scheduler.
+    // Best-effort: a failed enqueue must not block the replan.
+    try {
+      await inngest.send({
+        name: "planner/replan-summary",
+        data: { userId, summary, deepLink: "/month" },
+      });
+    } catch (e) {
+      console.error("[replan] failed to enqueue reactive-adjustment notification:", e);
+    }
   }
 
   return {

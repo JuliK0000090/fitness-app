@@ -108,6 +108,8 @@ model User {
   auditLogs         AuditLog[]
   feedbackItems     MessageFeedback[]
   pushSubscriptions PushSubscription[]
+  notificationPreference NotificationPreference?
+  notificationLogs       NotificationLog[]
   emails            Email[]
   emailPreference   EmailPreference?
   unsubscribeTokens UnsubscribeToken[]
@@ -634,6 +636,41 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Per-user push notification preferences. One row per user, lazily
+// created on first /settings/notifications visit. See lib/notifications/send.ts.
+model NotificationPreference {
+  userId               String  @id
+  preWorkout           Boolean @default(true)
+  streakSave           Boolean @default(true)
+  weeklyReview         Boolean @default(true)
+  reactiveAdjustment   Boolean @default(true)
+  partnerEncouragement Boolean @default(true)
+  quietHoursStart      String  @default("22:00") // user-local 24h time
+  quietHoursEnd        String  @default("07:00")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Audit log of every push attempted. Used for the >2-per-24h throttle and
+// for surfacing delivery health on /admin.
+model NotificationLog {
+  id        String   @id @default(cuid())
+  userId    String
+  category  String   // "preWorkout" | "streakSave" | "weeklyReview" | "reactiveAdjustment" | "partnerEncouragement"
+  title     String
+  body      String
+  deepLink  String?
+  sentAt    DateTime @default(now())
+  delivered Boolean  @default(false)
+  clicked   Boolean  @default(false)
+  skipReason String? // populated when send.ts decided not to send (quiet hours, prefs off, throttle)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sentAt])
+  @@index([userId, category, sentAt])
 }
 
 // ─── Wearables ────────────────────────────────────────────────────────────────
