@@ -37,7 +37,7 @@ export default function RegisterPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Registration failed");
       toast.success("Account created! Check your email to verify.");
-      router.push("/onboarding");
+      router.push("/welcome");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {

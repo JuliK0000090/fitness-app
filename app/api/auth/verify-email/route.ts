@@ -13,5 +13,5 @@ export async function GET(req: NextRequest) {
     data: { emailVerified: new Date(), emailVerifyToken: null },
   });
 
-  return NextResponse.redirect(new URL("/onboarding?verified=1", req.url));
+  return NextResponse.redirect(new URL("/welcome?verified=1", req.url));
 }

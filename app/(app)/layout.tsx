@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     select: { id: true, name: true, email: true, avatarUrl: true, onboardingComplete: true },
   });
 
-  if (!user.onboardingComplete) redirect("/onboarding");
+  if (!user.onboardingComplete) redirect("/welcome");
 
   return <AppShell user={user}><PageTransition>{children}</PageTransition></AppShell>;
 }
