@@ -131,6 +131,8 @@ model User {
   userFacts             UserFact[]
   plannerConstraints    PlannerConstraint[]
   planValidationLogs    PlanValidationLog[]
+  accountabilityPartners AccountabilityPartner[] @relation("UserPartners")
+  partnerOf              AccountabilityPartner[] @relation("PartnerOf")
 
   @@index([email])
 }
@@ -1202,6 +1204,61 @@ model PlanValidationLog {
 // whenever it finds a violation in the live data. Rows are kept for
 // post-incident audit; resolvedAt is set by the next clean sweep. See
 // CALENDAR_RULES.md.
+// ───────────────────────────────────────────────────────────────────────────
+// Accountability partner v1 — see TRACK_B.md.
+// One partner per user (privacy by default; never measurements/photos/goal
+// text). Weekly summary email Sunday 10:00 user-local. One encouragement
+// per ISO week from partner -> user.
+// ───────────────────────────────────────────────────────────────────────────
+
+enum PartnerStatus {
+  PENDING   // invite sent, partner hasn't clicked accept yet
+  ACCEPTED  // active partnership, weekly emails firing
+  DECLINED  // partner explicitly declined
+  ENDED     // either side ended the partnership
+}
+
+enum ShareLevel {
+  MINIMAL   // streak count only
+  STANDARD  // workouts done/planned, habit %, streak
+  // never: weight, body fat, measurements, goal text, photos
+}
+
+model AccountabilityPartner {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation("UserPartners", fields: [userId], references: [id], onDelete: Cascade)
+  partnerEmail  String
+  partnerName   String
+  partnerUserId String?
+  partnerUser   User?         @relation("PartnerOf", fields: [partnerUserId], references: [id], onDelete: SetNull)
+  status        PartnerStatus @default(PENDING)
+  invitedAt     DateTime      @default(now())
+  acceptedAt    DateTime?
+  endedAt       DateTime?
+  inviteToken   String        @unique
+  shareLevel    ShareLevel    @default(STANDARD)
+
+  encouragements PartnerEncouragement[]
+
+  @@index([userId, status])
+  @@index([partnerEmail])
+}
+
+model PartnerEncouragement {
+  id          String                @id @default(cuid())
+  partnerId   String
+  partner     AccountabilityPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  message     String                @db.Text  // max 280 chars enforced in handler
+  sentAt      DateTime              @default(now())
+  weekOfYear  Int   // ISO week 1..53; with yearNumber forms a unique slot per partner per week
+  yearNumber  Int
+  readAt      DateTime?
+
+  @@unique([partnerId, weekOfYear, yearNumber])
+  @@index([partnerId, sentAt])
+}
+
 model IntegrityAlert {
   id         String    @id @default(cuid())
   detectedAt DateTime  @default(now())

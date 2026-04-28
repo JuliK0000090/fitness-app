@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Brain, Shield, Bell, Watch, Heart, ChevronRight, ShieldAlert } from "lucide-react";
+import { Brain, Shield, Bell, Watch, Heart, ChevronRight, ShieldAlert, Users } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 
 const SETTINGS = [
@@ -16,6 +16,12 @@ const SETTINGS = [
     items: [
       { href: "/settings/constraints", icon: ShieldAlert, label: "Constraints", desc: "Treatments, injuries, travel, and blackout days that the planner respects" },
       { href: "/settings/plan", icon: ShieldAlert, label: "Plan health", desc: "Regenerate the 8-week schedule from your weekly targets" },
+    ],
+  },
+  {
+    group: "Network",
+    items: [
+      { href: "/settings/partner", icon: Users, label: "Accountability partner", desc: "One person, one weekly note. Privacy by default." },
     ],
   },
   {

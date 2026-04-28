@@ -134,7 +134,7 @@ async function main() {
 
     const goal = await prisma.goal.findUnique({ where: { id: goalId } });
     ok("Goal exists", !!goal);
-    ok("Goal deadline parsed", goal?.deadline?.toISOString().startsWith("2026-07-14"));
+    ok("Goal deadline parsed", !!goal?.deadline?.toISOString().startsWith("2026-07-14"));
 
     const habits = await prisma.habit.findMany({ where: { userId: user.id, active: true } });
     ok(`Habits count = 4 (got ${habits.length})`, habits.length === 4);

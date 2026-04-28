@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useTransition } from "react";
+import { useOptimistic, useTransition, useState } from "react";
 import { CheckCircle2, Circle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -42,6 +42,7 @@ type Props = {
   glp1Active: boolean;
   plannerReplan: ReplanSuggestion | null;
   plannerConstraintsToday: ConstraintHeadsUp[];
+  partnerNote: { id: string; partnerName: string; message: string; sentAt: string } | null;
 };
 
 function readinessLine(score: number | null): string {
@@ -70,6 +71,7 @@ export function RitualView({
   glp1Active,
   plannerReplan,
   plannerConstraintsToday,
+  partnerNote,
 }: Props) {
   const [, startTransition] = useTransition();
 
@@ -136,6 +138,9 @@ export function RitualView({
         <div className="mt-6">
           <PlannerBanner replan={plannerReplan} constraintsToday={plannerConstraintsToday} />
         </div>
+
+        {/* Partner encouragement card */}
+        {partnerNote && <PartnerNoteCard note={partnerNote} />}
 
         {/* Rest day — full empty state */}
         {isRestDay && (
@@ -270,6 +275,31 @@ export function RitualView({
           </a>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PartnerNoteCard({ note }: { note: { id: string; partnerName: string; message: string; sentAt: string } }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+
+  async function markRead() {
+    setDismissed(true);
+    await fetch(`/api/partner/encouragement/${note.id}/read`, { method: "POST" }).catch(() => {});
+  }
+
+  return (
+    <div className="mt-6 border-l-2 border-champagne/60 pl-4 py-3 space-y-2">
+      <p className="text-[10px] tracking-widest uppercase text-text-disabled">From {note.partnerName}</p>
+      <p className="font-serif text-display-sm font-light italic text-text-primary leading-snug">
+        &ldquo;{note.message}&rdquo;
+      </p>
+      <button
+        onClick={markRead}
+        className="text-caption text-text-disabled hover:text-text-muted underline underline-offset-2"
+      >
+        Got it
+      </button>
     </div>
   );
 }

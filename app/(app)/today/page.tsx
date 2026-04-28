@@ -207,6 +207,23 @@ export default async function TodayPage() {
     } | null,
   } : null;
 
+  // Most recent unread encouragement from the user's accountability partner.
+  // Hidden once the user has opened it (readAt set).
+  const recentEnc = await prisma.partnerEncouragement.findFirst({
+    where: {
+      partner: { userId, status: "ACCEPTED" },
+      readAt: null,
+    },
+    orderBy: { sentAt: "desc" },
+    include: { partner: { select: { partnerName: true } } },
+  });
+  const partnerNote = recentEnc ? {
+    id: recentEnc.id,
+    partnerName: recentEnc.partner.partnerName,
+    message: recentEnc.message,
+    sentAt: recentEnc.sentAt.toISOString(),
+  } : null;
+
   // Ritual mode: new users default to RITUAL; existing users default to DASHBOARD
   const todayMode = (user as any).todayMode ?? "DASHBOARD";
 
@@ -223,6 +240,7 @@ export default async function TodayPage() {
         glp1Active={false}
         plannerReplan={replanForView}
         plannerConstraintsToday={constraintsToday}
+        partnerNote={partnerNote}
       />
     );
   }
@@ -246,6 +264,7 @@ export default async function TodayPage() {
       todaySteps={todaySteps}
       plannerReplan={replanForView}
       plannerConstraintsToday={constraintsToday}
+      partnerNote={partnerNote}
     />
   );
 }

@@ -67,6 +67,7 @@ interface TodayViewProps {
   todaySteps: number | null;
   plannerReplan: ReplanSuggestion | null;
   plannerConstraintsToday: ConstraintHeadsUp[];
+  partnerNote: { id: string; partnerName: string; message: string; sentAt: string } | null;
 }
 
 const HABITS_VISIBLE_DEFAULT = 5;
@@ -94,6 +95,7 @@ export function TodayView({
   notifications: initNotifications, hasGoals, showHealthBanner,
   readinessScore, todaySteps,
   plannerReplan, plannerConstraintsToday,
+  partnerNote: _partnerNote,
 }: TodayViewProps) {
   const [notifications, setNotifications] = useState(initNotifications);
   const [editMode, setEditMode] = useState(false);
