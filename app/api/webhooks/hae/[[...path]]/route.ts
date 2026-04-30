@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { inngest } from "@/lib/inngest";
+import { processHaeRawById } from "@/lib/health/process-hae";
 
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
@@ -90,10 +91,23 @@ async function handle(
       },
     });
 
-    await inngest.send({
-      name: "health/hae.raw.received",
-      data: { rawId: raw.id, userId: integration.userId },
-    });
+    // Process inline. Inngest event below is kept as a belt-and-braces
+    // fallback in case the inline processing throws — but we don't depend
+    // on Inngest cloud being reachable from production.
+    try {
+      await processHaeRawById(raw.id);
+    } catch (e) {
+      console.error("[HAE] inline processing failed (will retry via Inngest):", e instanceof Error ? e.message : String(e));
+    }
+
+    // Best-effort fan-out to the Inngest pipeline. If signing keys aren't
+    // set the send is a no-op; the inline call above already did the work.
+    try {
+      await inngest.send({
+        name: "health/hae.raw.received",
+        data: { rawId: raw.id, userId: integration.userId },
+      });
+    } catch { /* swallow — Inngest unreachable is fine */ }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
