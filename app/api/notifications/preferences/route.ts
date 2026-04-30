@@ -11,6 +11,7 @@ const PatchBody = z.object({
   weeklyReview: z.boolean().optional(),
   reactiveAdjustment: z.boolean().optional(),
   partnerEncouragement: z.boolean().optional(),
+  lateDayNudge: z.boolean().optional(),
   quietHoursStart: z.string().regex(TIME_RE, "HH:MM").optional(),
   quietHoursEnd: z.string().regex(TIME_RE, "HH:MM").optional(),
 });

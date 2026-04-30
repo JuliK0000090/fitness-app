@@ -674,6 +674,10 @@ model NotificationPreference {
   weeklyReview         Boolean @default(true)
   reactiveAdjustment   Boolean @default(true)
   partnerEncouragement Boolean @default(true)
+  // Late-day "you're close to your wearable target" nudge (22:00–23:30
+  // user-local). Bypasses quiet hours by design because the user opted
+  // into a specifically-late ping; respects the daily 1-per-day throttle.
+  lateDayNudge         Boolean @default(true)
   quietHoursStart      String  @default("22:00") // user-local 24h time
   quietHoursEnd        String  @default("07:00")
 

@@ -18,9 +18,18 @@ export default async function AppleHealthPage() {
   const integration = await getOrCreateIntegration(userId);
   const webhookUrl = `${ORIGIN}/api/webhooks/hae/${integration.webhookToken}`;
 
-  const [daysOfHistory, qrCodeDataUrl] = await Promise.all([
+  const [daysOfHistory, qrCodeDataUrl, wearableHabits] = await Promise.all([
     db.haeDaily.count({ where: { userId } }),
     QRCode.toDataURL(webhookUrl, { width: 200, margin: 1 }),
+    prisma.habit.findMany({
+      where: {
+        userId,
+        active: true,
+        trackingMode: { in: ["WEARABLE_AUTO", "HYBRID"] },
+      },
+      select: { id: true, title: true, metricKey: true, metricTarget: true, metricComparison: true },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   return (
@@ -31,6 +40,13 @@ export default async function AppleHealthPage() {
       totalPayloadCount={integration.totalPayloadCount ?? 0}
       daysOfHistory={daysOfHistory}
       active={integration.active}
+      wearableHabits={wearableHabits.map((h) => ({
+        id: h.id,
+        title: h.title ?? "",
+        metricKey: h.metricKey,
+        metricTarget: h.metricTarget,
+        metricComparison: h.metricComparison,
+      }))}
     />
   );
 }

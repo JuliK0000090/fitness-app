@@ -6,6 +6,14 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
 
+interface WearableHabit {
+  id: string;
+  title: string;
+  metricKey: string | null;
+  metricTarget: number | null;
+  metricComparison: "GTE" | "LTE" | "EQ" | null;
+}
+
 interface Props {
   webhookUrl: string;
   qrCodeDataUrl: string;
@@ -13,6 +21,7 @@ interface Props {
   totalPayloadCount: number;
   daysOfHistory: number;
   active: boolean;
+  wearableHabits: WearableHabit[];
 }
 
 interface Status {
@@ -33,6 +42,7 @@ export function AppleHealthSetup({
   totalPayloadCount: initialPayloadCount,
   daysOfHistory: initialDays,
   active: initialActive,
+  wearableHabits,
 }: Props) {
   const [checks, setChecks] = useState([false, false, false]);
   const [copied, setCopied] = useState(false);
@@ -296,6 +306,34 @@ export function AppleHealthSetup({
         )}
       </div>
 
+      {/* Auto-tracking habits — shown only when there is at least one */}
+      {isConnected && wearableHabits.length > 0 && (
+        <div className="glass rounded-2xl p-4 mb-6">
+          <p className="text-sm font-semibold mb-1">
+            Auto-tracking habits using Apple Health: {wearableHabits.length}
+          </p>
+          <p className="text-xs text-muted-foreground mb-3">
+            These resolve themselves at end of day. No tap needed.
+          </p>
+          <ul className="space-y-1.5">
+            {wearableHabits.map((h) => (
+              <li key={h.id} className="text-xs text-muted-foreground flex items-baseline justify-between gap-3">
+                <span className="truncate">{h.title}</span>
+                <span className="font-mono text-[11px] text-muted-foreground/70 shrink-0">
+                  {formatHabitTrigger(h)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/habits"
+            className="inline-block mt-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
+          >
+            Edit habits →
+          </Link>
+        </div>
+      )}
+
       {/* Disconnect / reconnect */}
       {isConnected ? (
         <div className="border-t border-white/5 pt-4 flex items-center gap-3">
@@ -342,4 +380,17 @@ export function AppleHealthSetup({
       </p>
     </div>
   );
+}
+
+function formatHabitTrigger(h: WearableHabit): string {
+  if (!h.metricKey || h.metricTarget == null) return "";
+  const op = h.metricComparison === "LTE" ? "≤" : h.metricComparison === "EQ" ? "=" : "≥";
+  switch (h.metricKey) {
+    case "steps":         return `${op} ${h.metricTarget.toLocaleString()} steps`;
+    case "sleepHours":    return `${op} ${h.metricTarget}h sleep`;
+    case "activeMinutes": return `${op} ${h.metricTarget} active min`;
+    case "restingHr":     return `${op} ${h.metricTarget} bpm`;
+    case "hrvMs":         return `${op} ${h.metricTarget} ms`;
+    default:              return `${op} ${h.metricTarget} ${h.metricKey}`;
+  }
 }

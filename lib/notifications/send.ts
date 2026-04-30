@@ -30,7 +30,8 @@ export type NotificationCategory =
   | "streakSave"
   | "weeklyReview"
   | "reactiveAdjustment"
-  | "partnerEncouragement";
+  | "partnerEncouragement"
+  | "lateDayNudge";
 
 const RESTRAINED_DAILY_LIMIT = 2;
 const ESSENTIAL_CATEGORIES = new Set<NotificationCategory>([

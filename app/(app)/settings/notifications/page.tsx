@@ -37,6 +37,7 @@ type PushPrefs = {
   weeklyReview: boolean;
   reactiveAdjustment: boolean;
   partnerEncouragement: boolean;
+  lateDayNudge: boolean;
   quietHoursStart: string;
   quietHoursEnd: string;
 };
@@ -47,6 +48,7 @@ const PUSH_DEFAULTS: PushPrefs = {
   weeklyReview: true,
   reactiveAdjustment: true,
   partnerEncouragement: true,
+  lateDayNudge: true,
   quietHoursStart: "22:00",
   quietHoursEnd: "07:00",
 };
@@ -57,6 +59,7 @@ const PUSH_ITEMS: { key: keyof PushPrefs; label: string; desc: string }[] = [
   { key: "weeklyReview",         label: "Sunday review",         desc: "7 PM Sunday — your week at a glance" },
   { key: "reactiveAdjustment",   label: "Plan changes",          desc: "When Vita moves a workout because of a constraint or treatment" },
   { key: "partnerEncouragement", label: "From your partner",     desc: "When your accountability partner sends you a note" },
+  { key: "lateDayNudge",         label: "Late-day step reminders", desc: "10 PM ping only if you're within 25% of a wearable target" },
 ];
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
