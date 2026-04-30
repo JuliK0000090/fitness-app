@@ -61,11 +61,6 @@ export function SignalsSection({ data }: { data: SignalsData }) {
 
   return (
     <section className="space-y-6">
-      {/* Headline */}
-      <p className="font-serif text-body-lg font-light text-text-primary leading-snug">
-        {data.headline}
-      </p>
-
       <SectionLabel>
         Today&apos;s signals · {countConnected(t)} of 6 connected
       </SectionLabel>

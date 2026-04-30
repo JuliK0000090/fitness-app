@@ -145,13 +145,6 @@ export function RitualView({
         {/* Partner encouragement card */}
         {partnerNote && <PartnerNoteCard note={partnerNote} />}
 
-        {/* Wearable signals */}
-        {signalsData && (
-          <div className="mt-10">
-            <SignalsSection data={signalsData} />
-          </div>
-        )}
-
         {/* Rest day — full empty state */}
         {isRestDay && (
           <div className="mt-24 space-y-3">
@@ -274,6 +267,13 @@ export function RitualView({
             <p className="text-body-sm text-text-muted">Muscle defense active. Strength sessions and protein goals are tracked.</p>
           </div>
         ) */}
+
+        {/* Wearable signals — bottom of page so habits stay top-of-mind */}
+        {signalsData && (
+          <div className="mt-12">
+            <SignalsSection data={signalsData} />
+          </div>
+        )}
 
         {/* Talk to Vita — ghosted */}
         <div className="mt-16 border-t border-border-subtle pt-6">

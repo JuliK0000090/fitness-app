@@ -250,9 +250,6 @@ export function TodayView({
       {/* ── Planner heads-up + recent re-plan banner ──────────────────────── */}
       <PlannerBanner replan={plannerReplan} constraintsToday={plannerConstraintsToday} />
 
-      {/* ── Health signals ───────────────────────────────────────────────── */}
-      {signalsData ? <SignalsSection data={signalsData} /> : null}
-
       {/* ── Notifications ───────────────────────────────────────────────── */}
       {notifications.map((n) => (
         <div key={n.id} className="flex gap-3 p-4 rounded-md border border-border-subtle bg-bg-surface">
@@ -481,6 +478,10 @@ export function TodayView({
           </Link>
         </div>
       )}
+
+      {/* ── Health signals — bottom of the page so the daily checklist
+              stays the focus. Today's signals + this week sparkline. ────────── */}
+      {signalsData ? <SignalsSection data={signalsData} /> : null}
 
       {/* ── Talk to Vita ─────────────────────────────────────────────────── */}
       <Link
