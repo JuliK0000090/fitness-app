@@ -174,7 +174,17 @@ export async function rollupDailyForDate(userId: string, localDateStr: string): 
     return pickBySourcePriority(aggregated);
   }
 
-  const stepsResult = getMetricWithSource("steps", "max");
+  // Aggregations:
+  //   steps, exercise_minutes, distance_km, active_energy_kj,
+  //   resting_energy_kj, flights_climbed → SUM (HAE sends bucketed
+  //   per-window counts; max gives a single bucket, not the day).
+  //   stand_hours → MAX (running daily total, last value wins).
+  //   sleep_hours → MAX (one nightly total per source).
+  //   heart_rate_resting / heart_rate_avg / hrv_ms → AVG.
+  // The unique key on HaeMetric (userId, date, metricType, source,
+  // recordedAt) prevents the same sample being counted twice across
+  // overlapping HAE payloads, so SUM is safe.
+  const stepsResult = getMetricWithSource("steps", "sum");
   const hrvMs = getMetric("hrv_ms", "avg");
   const heartRateResting = getMetric("heart_rate_resting", "avg");
   const sleepHours = getMetric("sleep_hours", "max");
@@ -195,15 +205,15 @@ export async function rollupDailyForDate(userId: string, localDateStr: string): 
   const totalWorkoutMinutes = workouts.reduce(
     (s: number, w: { durationMin: number }) => s + w.durationMin, 0,
   );
-  const exerciseMins = getMetric("exercise_minutes", "max");
+  const exerciseMins = getMetric("exercise_minutes", "sum");
   const standHrs = getMetric("stand_hours", "max");
-  const flights = getMetric("flights_climbed", "max");
+  const flights = getMetric("flights_climbed", "sum");
 
   const row = {
     steps: stepsResult ? Math.round(stepsResult.value) : null,
     stepsSource: stepsResult?.source ?? null,
-    activeEnergyKj: getMetric("active_energy_kj", "max"),
-    restingEnergyKj: getMetric("resting_energy_kj", "max"),
+    activeEnergyKj: getMetric("active_energy_kj", "sum"),
+    restingEnergyKj: getMetric("resting_energy_kj", "sum"),
     heartRateAvg: heartRateAvgRaw !== null ? Math.round(heartRateAvgRaw) : null,
     heartRateResting: heartRateResting !== null ? Math.round(heartRateResting) : null,
     hrvMs,
@@ -211,7 +221,7 @@ export async function rollupDailyForDate(userId: string, localDateStr: string): 
     workoutMinutes: totalWorkoutMinutes || null,
     workoutCount: workouts.length,
     exerciseMinutes: exerciseMins !== null ? Math.round(exerciseMins) : null,
-    distanceKm: getMetric("distance_km", "max"),
+    distanceKm: getMetric("distance_km", "sum"),
     standHours: standHrs !== null ? Math.round(standHrs) : null,
     flightsClimbed: flights !== null ? Math.round(flights) : null,
     readinessScore,

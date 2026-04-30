@@ -9,6 +9,7 @@ import {
   validateWorkoutStatusChange,
   validateWorkoutLogCreate,
 } from "./calendar/temporal-rules";
+import { userTodayStr as userTodayStrTz } from "./time/today";
 
 // ─── XP constants ─────────────────────────────────────────────────────────────
 const XP = {
@@ -20,6 +21,15 @@ const XP = {
 } as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const DEFAULT_TZ = "America/Toronto";
+
+/**
+ * SERVER-UTC today. Only correct for users in UTC. Kept for the few
+ * call sites that actually need server time (e.g. event timestamps);
+ * NEVER use this for HabitCompletion.date or any user-facing "today".
+ * Use the user-tz aware helper below.
+ */
 function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
@@ -75,6 +85,28 @@ function makeTool<TInput, TOutput>(config: {
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
 export function vitaTools(userId: string) {
+  // Memoize timezone for the lifetime of one tools instance so we don't
+  // re-fetch user.timezone on every habit tap. Cleared automatically when
+  // the per-request closure goes out of scope.
+  let cachedTz: string | null = null;
+  async function tz(): Promise<string> {
+    if (cachedTz) return cachedTz;
+    const u = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    cachedTz = u?.timezone || DEFAULT_TZ;
+    return cachedTz;
+  }
+  /** UTC midnight that represents "today" in the user's local timezone. */
+  async function userTodayDate(): Promise<Date> {
+    return new Date(userTodayStrTz(await tz()) + "T00:00:00.000Z");
+  }
+  /** "YYYY-MM-DD" of the user's local today. */
+  async function userTodayString(): Promise<string> {
+    return userTodayStrTz(await tz());
+  }
+
   return {
 
     // ── Goal tools ─────────────────────────────────────────────────────────────
@@ -354,7 +386,7 @@ export function vitaTools(userId: string) {
         let completedToday = false;
         let xpAwarded = 0;
         if (input.markDoneToday) {
-          const dateObj = new Date(todayStr());
+          const dateObj = await userTodayDate();
           await (prisma.habitCompletion as any).upsert({
             where: { habitId_date: { habitId: habit.id, date: dateObj } },
             create: { habitId: habit.id, userId, date: dateObj, points: habit.pointsOnComplete, status: "DONE", source: "MANUAL", completedAt: new Date() },
@@ -382,12 +414,13 @@ export function vitaTools(userId: string) {
       description: "List active habits with today's completion status",
       parameters: z.object({}),
       execute: async () => {
+        const todayDate = await userTodayDate();
         const habits = await prisma.habit.findMany({
           where: { userId, active: true },
           orderBy: { createdAt: "asc" },
           include: {
             completions: {
-              where: { date: new Date(todayStr()) },
+              where: { date: todayDate },
               take: 1,
             },
           },
@@ -415,7 +448,12 @@ export function vitaTools(userId: string) {
         const habit = await prisma.habit.findFirst({ where: { id: habitId, userId } });
         if (!habit) throw new Error("Habit not found");
 
-        const dateObj = new Date(date ?? todayStr());
+        const dateObj = date ? new Date(date) : await userTodayDate();
+        // Refuse future dates — backstop matches the DB CHECK constraint.
+        const today = await userTodayDate();
+        if (dateObj.getTime() > today.getTime()) {
+          throw new Error("Cannot create habit completion in the future");
+        }
 
         const { completion, totalXp, bonus } = await prisma.$transaction(async (tx) => {
           const completion = await (tx.habitCompletion as any).upsert({
@@ -463,7 +501,7 @@ export function vitaTools(userId: string) {
         date: z.string().optional(),
       }),
       execute: async ({ habitId, date }) => {
-        const dateObj = new Date(date ?? todayStr());
+        const dateObj = date ? new Date(date) : await userTodayDate();
         await prisma.habitCompletion.deleteMany({ where: { habitId, userId, date: dateObj } });
         return { ok: true };
       },
@@ -783,7 +821,7 @@ export function vitaTools(userId: string) {
       description: "Get today's habits and scheduled workout",
       parameters: z.object({}),
       execute: async () => {
-        const today = new Date(todayStr());
+        const today = await userTodayDate();
         const [habits, scheduledWorkouts, completions] = await Promise.all([
           prisma.habit.findMany({
             where: { userId, active: true },
@@ -1058,7 +1096,7 @@ export function vitaTools(userId: string) {
       }),
       execute: async ({ metricType, startDate, endDate }) => {
         const db = prisma as any;
-        const today = todayStr();
+        const today = await userTodayString();
         const end = endDate ?? today;
         const startUTC = new Date(startDate + "T00:00:00.000Z");
         const endUTC = new Date(end + "T23:59:59.999Z");

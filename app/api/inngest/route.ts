@@ -12,6 +12,7 @@ import { notificationFunctions } from "@/lib/jobs/notifications";
 import { partnerJobs } from "@/lib/jobs/partner";
 import { dashboardFunctions } from "@/lib/jobs/dashboard";
 import { wearableJobFunctions } from "@/lib/jobs/wearable";
+import { integrityWatchdogFunctions } from "@/lib/jobs/integrity-watchdog";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -25,6 +26,7 @@ export const { GET, POST, PUT } = serve({
     ...partnerJobs,
     ...dashboardFunctions,
     ...wearableJobFunctions,
+    ...integrityWatchdogFunctions,
     runReactiveAdjustments,
     runInsightMoments,
     decayMemoryConfidence,
