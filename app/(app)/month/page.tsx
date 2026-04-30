@@ -75,9 +75,26 @@ export default async function MonthPage({
     completionsByDay[key].push({ status: c.status as "DONE" | "MISSED" | "SKIPPED" | "PENDING" });
   }
 
-  // Build 365-day heatmap (past year)
+  // Adaptive heatmap window — show what we have, framed honestly.
+  //   <14 days of account history → MonthView shows the empty-state line
+  //   14–89 days → "Last 30 days" — a 30-cell strip
+  //   90–364 days → "Last 90 days" — a 90-cell grid
+  //   365+ days → "Past year" — the full 365-cell grid
+  const userMeta = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { createdAt: true },
+  });
+  const accountAgeDays = userMeta?.createdAt
+    ? Math.floor((Date.now() - userMeta.createdAt.getTime()) / 86_400_000)
+    : 0;
+  const heatmapWindowDays = accountAgeDays >= 365 ? 365 : accountAgeDays >= 90 ? 90 : 30;
+  const heatmapLabel =
+    heatmapWindowDays === 365 ? "Past year"
+    : heatmapWindowDays === 90 ? "Last 90 days"
+    : "Last 30 days";
+
   const heatmapStart = new Date();
-  heatmapStart.setFullYear(heatmapStart.getFullYear() - 1);
+  heatmapStart.setDate(heatmapStart.getDate() - heatmapWindowDays);
   const heatmapEnd = new Date();
 
   const [heatmapScheduled, heatmapLogs, heatmapCompletions] = await Promise.all([
@@ -151,6 +168,9 @@ export default async function MonthPage({
         deadline: g.deadline?.toISOString() ?? null,
       }))}
       heatmap={heatmapByDay}
+      heatmapLabel={heatmapLabel}
+      heatmapWindowDays={heatmapWindowDays}
+      accountAgeDays={accountAgeDays}
     />
   );
 }

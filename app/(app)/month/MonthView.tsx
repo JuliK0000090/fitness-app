@@ -50,6 +50,9 @@ interface MonthViewProps {
   daysInMonth: CalendarDay[];
   goals: GoalSummary[];
   heatmap: Record<string, number>;
+  heatmapLabel: string;
+  heatmapWindowDays: number;
+  accountAgeDays: number;
 }
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -57,6 +60,7 @@ const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export function MonthView({
   monthLabel, prevMonth, nextMonth, todayStr,
   monthStartDay, daysInMonth: initialDays, goals, heatmap,
+  heatmapLabel, heatmapWindowDays, accountAgeDays,
 }: MonthViewProps) {
   const [days, setDays] = useState(initialDays);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -257,20 +261,26 @@ export function MonthView({
       {/* Goals — same source as /goals page */}
       <GoalsSection goals={goals} />
 
-      {/* 365-day heatmap — only once there's enough history to mean
-          something. Empty squares feel hollow; better to promise the
-          page will fill in over time. */}
-      {Object.keys(heatmap).length >= 14 ? (
-        <Heatmap heatmap={heatmap} />
-      ) : (
+      {/* Heatmap — adaptive window. Below 14 days of account history we
+          show only a quiet empty-state line; otherwise a 30 / 90 / 365
+          cell strip framed honestly so a sparse year doesn't feel like
+          a bug. */}
+      {accountAgeDays < 14 ? (
         <div className="space-y-3">
           <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">
-            Past year
+            Consistency
           </p>
           <p className="text-body-sm text-text-muted">
-            Your year will appear here once there&apos;s a story to tell.
+            Your activity grid fills in over the first two weeks. Check
+            back then.
           </p>
         </div>
+      ) : (
+        <Heatmap
+          heatmap={heatmap}
+          label={heatmapLabel}
+          windowDays={heatmapWindowDays}
+        />
       )}
     </div>
   );
@@ -667,10 +677,18 @@ function HabitArc({ fillRatio, stroke }: { fillRatio: number; stroke: string }) 
   );
 }
 
-function Heatmap({ heatmap }: { heatmap: Record<string, number> }) {
+function Heatmap({
+  heatmap,
+  label,
+  windowDays,
+}: {
+  heatmap: Record<string, number>;
+  label: string;
+  windowDays: number;
+}) {
   const today = new Date();
   const days: { dateStr: string; value: number }[] = [];
-  for (let i = 364; i >= 0; i--) {
+  for (let i = windowDays - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     const key = format(d, "yyyy-MM-dd");
@@ -684,15 +702,24 @@ function Heatmap({ heatmap }: { heatmap: Record<string, number> }) {
   ];
 
   const maxVal = Math.max(...days.map((d) => d.value), 1);
+  const activeDayCount = days.filter((d) => d.value > 0).length;
+  const cols = Math.ceil(padded.length / 7);
 
   return (
     <div className="space-y-3">
-      <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">Past year</p>
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+        <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">
+          {label}
+        </p>
+        <p className="text-caption text-text-disabled tabular-nums">
+          {activeDayCount} of {windowDays} active
+        </p>
+      </div>
       <div className="overflow-x-auto">
         <div
           className="grid gap-[2px]"
           style={{
-            gridTemplateColumns: `repeat(${Math.ceil(padded.length / 7)}, 10px)`,
+            gridTemplateColumns: `repeat(${cols}, 10px)`,
             gridTemplateRows: "repeat(7, 10px)",
           }}
         >

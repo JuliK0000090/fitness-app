@@ -180,8 +180,11 @@ export function SignalsSection({ data }: { data: SignalsData }) {
         )}
       </div>
 
-      {/* This week — only render if we actually have any data */}
-      {hasAny(data.stepsLast7) ? (
+      {/* This week — always render when steps are connected. The sparkline
+          itself shows a "Synced N of 7 days" caption when sparse, so the
+          user reads "early data" rather than "broken chart". Hide only
+          when steps aren't connected at all. */}
+      {data.isApplehealthConnected || hasAny(data.stepsLast7) ? (
         <div className="space-y-2.5">
           <SectionLabel>This week</SectionLabel>
           <WeekSparkline days={data.stepsLast7} target={stepsTarget} unit="steps" />

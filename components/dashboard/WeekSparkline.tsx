@@ -3,8 +3,11 @@
 /**
  * 7-day sparkline. Each day is a thin vertical bar; bars that crossed
  * the target tint sage, others stay champagne. Missing days render as
- * a faint placeholder so gaps in the data are visible (rather than
- * silently showing a flat trend).
+ * a faint placeholder so gaps in the data are visible.
+ *
+ * When the wearable hasn't synced every day, a small caption frames
+ * the gap honestly ("Synced 2 of 7 days") so the user reads "early
+ * data" rather than "broken chart".
  *
  * Mobile-first: bars stretch to fill width, hint labels under each bar.
  */
@@ -18,9 +21,11 @@ type Props = {
 export function WeekSparkline({ days, target, unit }: Props) {
   const max = Math.max(target, ...days.map((d) => d.value ?? 0));
   const safeMax = max > 0 ? max : 1;
+  const syncedCount = days.filter((d) => d.value !== null).length;
+  const isSparse = syncedCount < days.length;
 
   return (
-    <div className="border border-border-subtle bg-bg-surface rounded-md p-4">
+    <div className="border border-border-subtle bg-bg-surface rounded-md p-4 space-y-3">
       <div className="grid grid-cols-7 gap-2 items-end h-20">
         {days.map((d) => {
           const v = d.value ?? 0;
@@ -45,6 +50,11 @@ export function WeekSparkline({ days, target, unit }: Props) {
           );
         })}
       </div>
+      {isSparse ? (
+        <p className="text-caption text-text-muted">
+          Synced {syncedCount} of {days.length} days. Gaps are days the wearable hasn&apos;t pushed yet.
+        </p>
+      ) : null}
     </div>
   );
 }
