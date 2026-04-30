@@ -4,12 +4,20 @@ import { TodayView } from "./TodayView";
 import { RitualView } from "./RitualView";
 import { userTodayStr, localMidnightUTC } from "@/lib/time/today";
 import { constraintAppliesToDate } from "@/lib/coach/constraints";
+import { getOrGenerateTodayHeadline } from "@/lib/dashboard/headline";
+import type { SignalsData } from "@/components/dashboard/SignalsSection";
 
 function computeLevel(totalXp: number) {
   const level = Math.max(1, Math.floor(Math.sqrt(totalXp / 50)));
   const currentFloor = 50 * level * (level + 1);
   const nextFloor = 50 * (level + 1) * (level + 2);
   return { level, totalXp, xpToNext: nextFloor - totalXp, xpInLevel: totalXp - currentFloor };
+}
+
+function defaultHeadline(connected: boolean): string {
+  return connected
+    ? "Your dashboard. Numbers fill in as your wearable syncs."
+    : "Connect Apple Health to see your numbers here.";
 }
 
 function isHabitDueToday(cadence: string, specificDays: number[], timezone: string): boolean {
@@ -94,6 +102,12 @@ export default async function TodayPage() {
   const todaySteps: number | null = healthToday?.steps ?? null;
   const readinessScore: number | null = healthToday?.readinessScore ?? null;
 
+  // Last-7-days bounds for sparkline + baselines
+  const sevenDaysAgo = new Date(todayDate);
+  sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 6);
+  const baselineFrom = new Date(todayDate);
+  baselineFrom.setUTCDate(baselineFrom.getUTCDate() - 7);
+
   const [
     habits,
     scheduledWorkouts,
@@ -102,6 +116,9 @@ export default async function TodayPage() {
     weeklyDoneScheduled,
     weeklyDoneLogs,
     hasGoals,
+    todayHealthMetrics,
+    last7Steps,
+    baselineRows,
   ] = await Promise.all([
     prisma.habit.findMany({ where: { userId, active: true }, orderBy: { createdAt: "asc" } }),
 
@@ -130,6 +147,36 @@ export default async function TodayPage() {
     }),
 
     prisma.goal.count({ where: { userId, status: "active" } }).then((c) => c > 0),
+
+    // Today's HealthDaily metrics (canonical, multi-source). The dashboard
+    // tile grid reads from this; HaeDaily is the HAE-specific roll-up that
+    // feeds it. New for the Track WD dashboard rebuild.
+    prisma.healthDaily.findMany({
+      where: {
+        userId,
+        date: todayDate,
+        metric: { in: ["steps", "activeMinutes", "caloriesActive", "sleepHours", "hrvMs", "restingHr"] },
+      },
+      select: { metric: true, value: true },
+    }),
+
+    // Last 7 days of steps for the week sparkline
+    prisma.healthDaily.findMany({
+      where: { userId, metric: "steps", date: { gte: sevenDaysAgo, lte: todayDate } },
+      select: { date: true, value: true },
+    }),
+
+    // Baseline (last 7 days excl. today) — used for delta captions on
+    // sleep / HRV / resting HR. We only need the steady-state metrics
+    // here since steps already has its own pace estimator.
+    prisma.healthDaily.findMany({
+      where: {
+        userId,
+        date: { gte: baselineFrom, lt: todayDate },
+        metric: { in: ["sleepHours", "hrvMs", "restingHr"] },
+      },
+      select: { metric: true, value: true },
+    }),
   ]);
 
   // Merge weekly done counts from both sources (scheduled completions + ad-hoc logs)
@@ -150,14 +197,93 @@ export default async function TodayPage() {
   const completedIds = new Set(completions.map((c) => c.habitId));
   const dueHabits = habits.filter((h) => isHabitDueToday(h.cadence, h.specificDays, timezone));
 
-  const habitsForView = dueHabits.map((h) => ({
-    id: h.id,
-    title: h.title,
-    icon: h.icon ?? "CheckCircle",
-    duration: h.duration,
-    pointsOnComplete: h.pointsOnComplete,
-    done: completedIds.has(h.id),
-  }));
+  // Map of HealthDaily metric -> today's value, used to render wearable
+  // habit progress bars without an extra DB query per habit.
+  const todayMetricMap: Record<string, number> = {};
+  for (const r of todayHealthMetrics) todayMetricMap[r.metric] = r.value;
+
+  const habitsForView = dueHabits.map((h) => {
+    const trackingMode = h.trackingMode;
+    const metricKey = h.metricKey;
+    const metricTarget = h.metricTarget;
+    const wearableValue = metricKey ? (todayMetricMap[metricKey] ?? null) : null;
+    return {
+      id: h.id,
+      title: h.title,
+      icon: h.icon ?? "CheckCircle",
+      duration: h.duration,
+      pointsOnComplete: h.pointsOnComplete,
+      done: completedIds.has(h.id),
+      trackingMode,
+      metricKey,
+      metricTarget,
+      wearableValue,
+    };
+  });
+
+  // Steps target: prefer the user's actual habit target if they have a
+  // wearable steps habit, otherwise fall back to 10k.
+  const stepsHabit = habits.find((h) => h.metricKey === "steps" && h.trackingMode !== "MANUAL");
+  const stepsTargetUser = stepsHabit?.metricTarget ?? null;
+  const activeMinHabit = habits.find((h) => h.metricKey === "activeMinutes" && h.trackingMode !== "MANUAL");
+  const activeMinTargetUser = activeMinHabit?.metricTarget ?? null;
+
+  // Baseline averages (last 7 days, excl today)
+  const avgFor = (metric: string): number | null => {
+    const vals = baselineRows.filter((r) => r.metric === metric).map((r) => r.value);
+    if (vals.length < 3) return null; // need at least 3 readings
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  };
+
+  // Build last-7-days steps array, oldest first, with nulls for missing days
+  const stepsByDate = new Map<string, number>();
+  for (const r of last7Steps) {
+    stepsByDate.set(r.date.toISOString().split("T")[0], r.value);
+  }
+  const stepsLast7: { date: string; value: number | null }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(todayDate);
+    d.setUTCDate(d.getUTCDate() - i);
+    const key = d.toISOString().split("T")[0];
+    stepsLast7.push({ date: key, value: stepsByDate.get(key) ?? null });
+  }
+
+  // Headline. We tolerate a slow LLM by capping the wait; if it exceeds
+  // the budget we render nothing rather than freezing the page. The
+  // morning Inngest job pre-fills future days so this rarely runs inline.
+  const headlineResult = await Promise.race([
+    getOrGenerateTodayHeadline(userId).catch(() => ({ text: "", cached: false })),
+    new Promise<{ text: string; cached: boolean }>((resolve) =>
+      setTimeout(() => resolve({ text: "", cached: false }), 4000),
+    ),
+  ]);
+
+  const isApplehealthConnected = !!(healthIntegration && healthIntegration.active);
+
+  const signalsData: SignalsData | null = (isApplehealthConnected || todayHealthMetrics.length > 0)
+    ? {
+        headline: headlineResult.text || defaultHeadline(isApplehealthConnected),
+        isApplehealthConnected,
+        today: {
+          steps: todayMetricMap.steps ?? null,
+          activeMinutes: todayMetricMap.activeMinutes ?? null,
+          caloriesActive: todayMetricMap.caloriesActive ?? null,
+          sleepHours: todayMetricMap.sleepHours ?? null,
+          hrvMs: todayMetricMap.hrvMs ?? null,
+          restingHr: todayMetricMap.restingHr ?? null,
+        },
+        baseline: {
+          sleepHours: avgFor("sleepHours"),
+          hrvMs: avgFor("hrvMs"),
+          restingHr: avgFor("restingHr"),
+        },
+        targets: {
+          steps: stepsTargetUser,
+          activeMinutes: activeMinTargetUser,
+        },
+        stepsLast7,
+      }
+    : null;
 
   const workoutsForView = scheduledWorkouts.map((sw) => ({
     id: sw.id,
@@ -265,6 +391,7 @@ export default async function TodayPage() {
       plannerReplan={replanForView}
       plannerConstraintsToday={constraintsToday}
       partnerNote={partnerNote}
+      signalsData={signalsData}
     />
   );
 }

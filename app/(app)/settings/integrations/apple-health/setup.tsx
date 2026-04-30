@@ -38,6 +38,7 @@ export function AppleHealthSetup({
   const [copied, setCopied] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [status, setStatus] = useState<Status>({
     connected: initialActive && !!initialLastPayloadAt,
@@ -90,6 +91,24 @@ export function AppleHealthSetup({
     }
   }
 
+  async function backfill() {
+    setBackfilling(true);
+    try {
+      const res = await fetch("/api/admin/bridge-hae-to-health");
+      if (!res.ok) throw new Error("backfill request failed");
+      const data = await res.json();
+      const ok = typeof data.bridgedOk === "number" ? data.bridgedOk : 0;
+      const myStepRows = data?.healthDaily?.myStepRows ?? 0;
+      toast.success(`Backfilled ${ok} day${ok === 1 ? "" : "s"}. ${myStepRows} step day${myStepRows === 1 ? "" : "s"} are yours.`);
+      // Give the toast a moment, then redirect to /today.
+      setTimeout(() => { window.location.href = "/today"; }, 1200);
+    } catch {
+      toast.error("Backfill failed. See server logs.");
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
   async function reconnect() {
     setReconnecting(true);
     try {
@@ -128,6 +147,17 @@ export function AppleHealthSetup({
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Data flows automatically from your iPhone to Vita.
+            </p>
+            <button
+              onClick={backfill}
+              disabled={backfilling}
+              className="mt-3 inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={backfilling ? "animate-spin" : ""} />
+              {backfilling ? "Backfilling…" : "Backfill from existing payloads"}
+            </button>
+            <p className="text-[10px] text-muted-foreground/70 mt-1.5">
+              Re-runs the daily roll-up so missing days appear in /today. Idempotent.
             </p>
           </div>
         </div>

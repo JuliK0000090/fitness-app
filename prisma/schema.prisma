@@ -135,6 +135,7 @@ model User {
   haeMetrics            HaeMetric[]
   haeDailies            HaeDaily[]
   haeWorkouts           HaeWorkout[]
+  todayHeadlines        TodayHeadline[]
   androidWaitlist       HealthAndroidWaitlist?
   glp1Profile           GLP1Profile?
   nutritionLogs         NutritionLog[]
@@ -1038,6 +1039,22 @@ model HealthDaily {
   @@unique([userId, date, metric])
   @@index([userId, date])
   @@index([userId, metric, date])
+}
+
+// Per-user-per-day cache for the LLM-generated dashboard headline. Filled
+// by the morning-headlines Inngest job (6:00–7:30 user-local) and read
+// by /today. Pre-generation keeps page-load fast and bounds cost.
+model TodayHeadline {
+  userId      String
+  date        DateTime @db.Date
+  text        String   @db.Text
+  generatedAt DateTime @default(now())
+  contextHash String?  // sha256 of the inputs — used to detect drift if we want to regenerate
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, date])
+  @@index([userId, date])
 }
 
 model HealthOverride {

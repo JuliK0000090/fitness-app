@@ -10,6 +10,7 @@ import { rolloverFunctions } from "@/lib/jobs/rollover";
 import { integrityFunctions } from "@/lib/jobs/integrity";
 import { notificationFunctions } from "@/lib/jobs/notifications";
 import { partnerJobs } from "@/lib/jobs/partner";
+import { dashboardFunctions } from "@/lib/jobs/dashboard";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -21,6 +22,7 @@ export const { GET, POST, PUT } = serve({
     ...integrityFunctions,
     ...notificationFunctions,
     ...partnerJobs,
+    ...dashboardFunctions,
     runReactiveAdjustments,
     runInsightMoments,
     decayMemoryConfidence,
