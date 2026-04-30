@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { userToday, userYesterday, userTodayStr } from "@/lib/time/today";
 
@@ -31,23 +31,44 @@ const SOURCE_PRIORITY = ["apple_health", "garmin", "oura", "whoop", "fitbit", "m
 const db = prisma as any;
 
 export async function GET(req: NextRequest) {
-  const session = await requireSession();
+  // Two auth paths:
+  //   - x-admin-secret header matches ADMIN_SECRET → unattended cron use
+  //     (the daily integrity-check routine uses this). Caller must also
+  //     supply ?email=... naming the user to check.
+  //   - Otherwise: session auth, with ?email= as an admin override.
+  const adminSecret = process.env.ADMIN_SECRET;
+  const headerSecret = req.headers.get("x-admin-secret");
+  const cronAuthorized = !!adminSecret && headerSecret === adminSecret;
 
-  // Admin override
-  let userId = session.userId;
+  let userId: string;
   const emailParam = req.nextUrl.searchParams.get("email");
-  if (emailParam) {
-    const me = await prisma.user.findUnique({
-      where: { id: session.userId }, select: { email: true },
-    });
-    if (!me || !ADMIN_EMAILS.includes(me.email.toLowerCase())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  if (cronAuthorized) {
+    if (!emailParam) {
+      return NextResponse.json({ error: "?email= required when authenticating by header" }, { status: 400 });
     }
     const target = await prisma.user.findUnique({
       where: { email: emailParam }, select: { id: true },
     });
     if (!target) return NextResponse.json({ error: "user not found" }, { status: 404 });
     userId = target.id;
+  } else {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    userId = session.userId;
+    if (emailParam) {
+      const me = await prisma.user.findUnique({
+        where: { id: session.userId }, select: { email: true },
+      });
+      if (!me || !ADMIN_EMAILS.includes(me.email.toLowerCase())) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const target = await prisma.user.findUnique({
+        where: { email: emailParam }, select: { id: true },
+      });
+      if (!target) return NextResponse.json({ error: "user not found" }, { status: 404 });
+      userId = target.id;
+    }
   }
 
   const user = await prisma.user.findUnique({
