@@ -1,0 +1,64 @@
+/* Pitch-deck print stylesheet — shared by /decks/advisor and /decks/investor.
+ * One <section class="deck-slide"> per slide. Screen view shows them
+ * stacked vertically with subtle dividers. Print view forces each to a
+ * full PDF page. Background and accents preserved via color-adjust:exact. */
+
+.deck-slide {
+  --deck-bg: #0A0D12;
+  --deck-fg: #F5F2ED;
+  --deck-fg-muted: #A8A29A;
+  --deck-fg-secondary: #D4CFC4;
+  --deck-fg-disabled: #5A5651;
+  --deck-accent: #D4C4A8;
+  --deck-border: #2A3142;
+  background: var(--deck-bg);
+  color: var(--deck-fg);
+}
+
+.deck-slide-content {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media screen {
+  .deck-slide {
+    min-height: 100vh;
+    padding: 96px 64px;
+    border-bottom: 1px solid var(--deck-border);
+    display: flex;
+    align-items: center;
+  }
+  .deck-slide:last-child { border-bottom: none; }
+}
+
+@media print {
+  /* Bleed dark navy to the page edge. */
+  html, body { background: #0A0D12 !important; color: #F5F2ED !important; }
+  .deck-noprint { display: none !important; }
+  .deck-slide {
+    page-break-after: always;
+    break-after: page;
+    height: 100vh;
+    width: 100vw;
+    padding: 64px;
+    box-sizing: border-box;
+    border-bottom: none !important;
+    display: flex;
+    align-items: center;
+    /* Force colour fidelity in printed PDF. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .deck-slide:last-child { page-break-after: auto; }
+}
+
+/* Personalization tokens — render in terracotta until edited so they
+ * stand out against the navy and so a forgotten {NAME} on send is
+ * impossible to miss. */
+.deck-token {
+  color: #C77B5C;
+  font-style: italic;
+  border-bottom: 1px dashed currentColor;
+  padding: 0 2px;
+}
