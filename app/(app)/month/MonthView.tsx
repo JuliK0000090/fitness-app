@@ -257,8 +257,21 @@ export function MonthView({
       {/* Goals — same source as /goals page */}
       <GoalsSection goals={goals} />
 
-      {/* 365-day heatmap */}
-      <Heatmap heatmap={heatmap} />
+      {/* 365-day heatmap — only once there's enough history to mean
+          something. Empty squares feel hollow; better to promise the
+          page will fill in over time. */}
+      {Object.keys(heatmap).length >= 14 ? (
+        <Heatmap heatmap={heatmap} />
+      ) : (
+        <div className="space-y-3">
+          <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">
+            Past year
+          </p>
+          <p className="text-body-sm text-text-muted">
+            Your year will appear here once there&apos;s a story to tell.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -26,7 +26,7 @@ export default async function BodyPage() {
 
   const now = new Date();
 
-  const [avatar, milestones, events] = await Promise.all([
+  const [avatar, milestones, events, avatarWaitlist] = await Promise.all([
     db.avatar.findUnique({ where: { userId } }),
     db.avatarMilestone.findMany({
       where: { userId, date: { gte: now } },
@@ -38,6 +38,7 @@ export default async function BodyPage() {
       orderBy: { date: "asc" },
       take: 3,
     }),
+    db.avatarWaitlist.findUnique({ where: { userId }, select: { joinedAt: true } }),
   ]);
 
   // Group measurements by kind
@@ -129,6 +130,7 @@ export default async function BodyPage() {
         milestoneSvgs,
         eventSvgs,
       }}
+      avatarOnWaitlist={!!avatarWaitlist}
     />
   );
 }

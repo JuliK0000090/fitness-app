@@ -19,10 +19,17 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Vita — Your AI Fitness Coach",
-  description: "Personalised AI coaching to help you reach your body and lifestyle goals.",
+  title: "Vita — A private trainer who remembers you",
+  description: "Vita is the AI fitness coach for women with sophisticated body and lifestyle goals.",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Vita" },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
+      { url: "/icons/icon-512.svg", sizes: "512x512", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/icons/icon-192.svg", sizes: "192x192", type: "image/svg+xml" }],
+  },
 };
 
 export const viewport: Viewport = {

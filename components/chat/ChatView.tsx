@@ -613,7 +613,8 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
 
             {isLoading ? (
               <button type="button" onClick={stop}
-                className="p-1.5 rounded border border-terracotta/40 text-terracotta shrink-0 hover:bg-terracotta-soft transition-colors">
+                className="p-1.5 rounded border border-champagne/50 text-champagne shrink-0 hover:bg-champagne/10 transition-colors"
+                title="Stop generating">
                 <Square size={14} strokeWidth={1.5} />
               </button>
             ) : (

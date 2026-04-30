@@ -483,16 +483,8 @@ export function TodayView({
               stays the focus. Today's signals + this week sparkline. ────────── */}
       {signalsData ? <SignalsSection data={signalsData} /> : null}
 
-      {/* ── Talk to Vita ─────────────────────────────────────────────────── */}
-      <Link
-        href="/chat"
-        className="w-full flex items-center justify-between px-4 py-3.5 rounded-md border border-border-subtle bg-bg-surface hover:border-border-default transition-colors group"
-      >
-        <span className="text-body text-text-muted group-hover:text-text-secondary transition-colors">
-          Say anything to Vita...
-        </span>
-        <ArrowRight size={14} strokeWidth={1.5} className="text-text-disabled group-hover:text-champagne transition-colors" />
-      </Link>
+      {/* Removed — chat lives on the /chat tab. A duplicate input here
+          was half-built and fragmented the action surface. */}
 
     </div>
   );

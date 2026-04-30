@@ -31,6 +31,9 @@ export type HeadlineContext = {
   workoutsToday: { name: string; time: string | null }[];
   primaryGoalTitle: string | null;
   yesterdayWearableResults: { habitTitle: string; status: "DONE" | "MISSED"; valueText: string }[];
+  yesterdayHabitDone: number;          // count of habits with a DONE row yesterday
+  yesterdayHabitTotal: number;         // active habits yesterday (all sources counted)
+  streakDays: number;                  // user.currentStreak — never reset on miss visually but still tracked
 };
 
 /**
@@ -49,7 +52,7 @@ export async function buildHeadlineContext(userId: string): Promise<HeadlineCont
   const baselineFrom = new Date(today);
   baselineFrom.setUTCDate(baselineFrom.getUTCDate() - BASELINE_DAYS);
 
-  const [sleepLastNight, hrvLastNight, rhrLastNight, stepsToday, baselineRows, todaysWorkouts, primaryGoal, yesterdayHabitResults] = await Promise.all([
+  const [sleepLastNight, hrvLastNight, rhrLastNight, stepsToday, baselineRows, todaysWorkouts, primaryGoal, yesterdayHabitResults, yesterdayDoneAll, activeHabitsCount, userRow] = await Promise.all([
     prisma.healthDaily.findUnique({ where: { userId_date_metric: { userId, date: yesterday, metric: "sleepHours" } } }),
     prisma.healthDaily.findUnique({ where: { userId_date_metric: { userId, date: yesterday, metric: "hrvMs" } } }),
     prisma.healthDaily.findUnique({ where: { userId_date_metric: { userId, date: yesterday, metric: "restingHr" } } }),
@@ -77,6 +80,14 @@ export async function buildHeadlineContext(userId: string): Promise<HeadlineCont
       where: { userId, date: yesterday, source: "WEARABLE_AUTO" },
       include: { habit: { select: { title: true, metricKey: true, metricTarget: true } } },
     }),
+    // Yesterday's total completions across ALL sources (manual + wearable)
+    prisma.habitCompletion.count({
+      where: { userId, date: yesterday, status: "DONE" },
+    }),
+    // Active habits count — denominator for yesterday's ratio
+    prisma.habit.count({ where: { userId, active: true } }),
+    // Streak counter
+    prisma.user.findUnique({ where: { id: userId }, select: { currentStreak: true } }),
   ]);
 
   const baselineAvg = (metric: string): number | null => {
@@ -135,6 +146,9 @@ export async function buildHeadlineContext(userId: string): Promise<HeadlineCont
         valueText,
       };
     }),
+    yesterdayHabitDone: yesterdayDoneAll,
+    yesterdayHabitTotal: activeHabitsCount,
+    streakDays: userRow?.currentStreak ?? 0,
   };
 }
 
@@ -200,47 +214,70 @@ async function generateHeadlineText(ctx: HeadlineContext): Promise<string> {
   if (ctx.sleepHoursLastNight !== null) {
     const h = Math.floor(ctx.sleepHoursLastNight);
     const m = Math.round((ctx.sleepHoursLastNight - h) * 60);
-    const delta = ctx.sleepDeltaPct !== null ? ` (${ctx.sleepDeltaPct >= 0 ? "+" : ""}${ctx.sleepDeltaPct}% vs 30d avg)` : "";
-    lines.push(`Last night sleep: ${h}h ${m}m${delta}`);
+    const delta = ctx.sleepDeltaPct !== null ? ` (${ctx.sleepDeltaPct >= 0 ? "+" : ""}${ctx.sleepDeltaPct}% vs 30-day average)` : "";
+    lines.push(`Sleep last night: ${h}h ${m}m${delta}`);
+  } else {
+    lines.push(`Sleep last night: not connected`);
   }
   if (ctx.hrvMs !== null) {
-    const delta = ctx.hrvDeltaPct !== null ? ` (${ctx.hrvDeltaPct >= 0 ? "+" : ""}${ctx.hrvDeltaPct}% vs baseline)` : "";
-    lines.push(`HRV: ${Math.round(ctx.hrvMs)} ms${delta}`);
+    const delta = ctx.hrvDeltaPct !== null ? ` (${ctx.hrvDeltaPct >= 0 ? "+" : ""}${ctx.hrvDeltaPct}% from baseline)` : "";
+    lines.push(`HRV today: ${Math.round(ctx.hrvMs)} ms${delta}`);
+  } else {
+    lines.push(`HRV today: not connected`);
   }
   if (ctx.restingHr !== null) {
-    const delta = ctx.restingHrDelta !== null ? ` (${ctx.restingHrDelta >= 0 ? "+" : ""}${ctx.restingHrDelta} bpm vs baseline)` : "";
+    const delta = ctx.restingHrDelta !== null ? ` (${ctx.restingHrDelta >= 0 ? "+" : ""}${ctx.restingHrDelta} from baseline)` : "";
     lines.push(`Resting HR: ${Math.round(ctx.restingHr)} bpm${delta}`);
+  } else {
+    lines.push(`Resting HR: not connected`);
   }
   if (ctx.stepsToday !== null) {
-    lines.push(`Steps so far today: ${Math.round(ctx.stepsToday).toLocaleString()} (it is now ${ctx.localTimeOfDay})`);
+    lines.push(`Steps so far today: ${Math.round(ctx.stepsToday).toLocaleString()} (current local time: ${ctx.localTimeOfDay})`);
+  } else {
+    lines.push(`Steps so far today: not connected`);
   }
   if (ctx.workoutsToday.length > 0) {
     const desc = ctx.workoutsToday.map((w) => w.time ? `${w.name} at ${w.time}` : w.name).join(", ");
     lines.push(`Workouts scheduled today: ${desc}`);
   } else {
-    lines.push(`No workouts scheduled today.`);
+    lines.push(`Workouts scheduled today: none`);
   }
-  if (ctx.primaryGoalTitle) lines.push(`Primary goal: ${ctx.primaryGoalTitle}`);
+  lines.push(`User's primary goal: ${ctx.primaryGoalTitle ?? "none set"}`);
+  lines.push(`Yesterday's habit completion: ${ctx.yesterdayHabitDone}/${ctx.yesterdayHabitTotal}`);
+  lines.push(`Active streak: ${ctx.streakDays} days`);
   if (ctx.yesterdayWearableResults.length > 0) {
-    const pieces = ctx.yesterdayWearableResults.map((r) => `${r.valueText}: ${r.status === "DONE" ? "hit" : "missed"}`);
-    lines.push(`Yesterday: ${pieces.join(", ")}`);
+    const pieces = ctx.yesterdayWearableResults.map((r) => `${r.valueText} ${r.status === "DONE" ? "hit" : "missed"}`);
+    lines.push(`Yesterday's wearable outcomes: ${pieces.join(", ")}`);
   }
 
-  const contextBlock = lines.length > 0 ? lines.map((l) => `- ${l}`).join("\n") : "- (no wearable data yet)";
+  const anyHealthConnected =
+    ctx.sleepHoursLastNight !== null ||
+    ctx.hrvMs !== null ||
+    ctx.restingHr !== null ||
+    ctx.stepsToday !== null;
 
-  const prompt = `You are Vita, writing a single short paragraph (2-3 sentences, ~30-50 words) for this user's dashboard headline. Restrained, observational, no exclamation, no emoji.
+  const contextBlock = lines.map((l) => `- ${l}`).join("\n");
+
+  const prompt = `You are Vita, writing the morning headline for this user's dashboard. 2-3 sentences. ~30-50 words. No emoji. No exclamation. Restrained, observational, specific.
+
+Required: ground the headline in actual data. Reference at least one concrete number from today's signals or yesterday's resolution. If multiple metrics are connected, pick the most notable one (biggest delta, longest streak, the workout that defines the day) — don't try to mention all of them.
 
 Context:
 ${contextBlock}
 
-Tone: like a thoughtful friend who happens to know your numbers. Not a coach barking. Not chipper. Just observant. End with one short clause that suggests how today might go (not commands).
+If sleep, HRV, or resting HR data is missing (the line says "not connected"), write the headline based on what IS available — habit completion, streak, scheduled workout, primary goal. Never apologise for missing data. Never tell the user to connect a wearable.${anyHealthConnected ? "" : "\n\nIMPORTANT: This user has no health data connected at all. Build the headline around their streak, yesterday's habit completion, today's scheduled workout, or their goal. Do NOT mention numbers you do not have."}
+Voice rules:
+- Like a thoughtful friend who knows your numbers
+- Not a coach barking, not chipper. Observational.
+- End with one short clause about how today might feel — never a command
 
-Examples of the right voice:
-- "You slept 7h 12m. HRV is up 9% from your baseline. You're at 6,847 steps and your reformer is at 6pm. This is a good day."
-- "Sleep was light last night, just under 6h. HRV down 8%. I'd take today gently — your reformer is on the calendar but a walk would be just as honest."
-- "You're three days into the streak. Numbers are steady. The hard yoga at noon is the test of the week."
+Examples of correct voice:
+- "You slept 7h 12m. HRV is up 9% from your baseline. The reformer at 6 is the centerpiece — push if you want."
+- "Sleep was light, just under 6h. HRV down 8%. I'd take today gently — your reformer is on, but a walk would be just as honest."
+- "Three days into the streak. The yoga at noon is the test of the week."
+- "You closed every habit yesterday. Today's lighter on purpose."
 
-Output the paragraph only. No preamble.`;
+Output the paragraph only. No preamble, no quotes around it, no lead-in like "Here is".`;
 
   const { text } = await generateText({
     model: anthropic("claude-haiku-4-5-20251001"),
@@ -267,8 +304,26 @@ function fallbackHeadline(ctx: HeadlineContext): string {
     const w = ctx.workoutsToday[0];
     pieces.push(w.time ? `${w.name} is at ${w.time}.` : `${w.name} is on the calendar.`);
   }
+  // No-health fallback: use streak + yesterday's habit completion as the
+  // anchor instead of an apology about wearables.
   if (pieces.length === 0) {
-    return "Your dashboard. Numbers fill in as your wearable syncs.";
+    if (ctx.streakDays >= 3) {
+      pieces.push(`${ctx.streakDays} days into the streak.`);
+    }
+    if (ctx.yesterdayHabitTotal > 0) {
+      const ratio = ctx.yesterdayHabitDone / ctx.yesterdayHabitTotal;
+      if (ratio >= 1) {
+        pieces.push(`You closed every habit yesterday.`);
+      } else if (ctx.yesterdayHabitDone > 0) {
+        pieces.push(`Yesterday: ${ctx.yesterdayHabitDone} of ${ctx.yesterdayHabitTotal} habits done.`);
+      }
+    }
+    if (ctx.workoutsToday.length === 0 && ctx.primaryGoalTitle) {
+      pieces.push(`Today is what you make of it.`);
+    }
+  }
+  if (pieces.length === 0) {
+    return "Today's the day. Open the checklist when you're ready.";
   }
   return pieces.join(" ");
 }

@@ -275,15 +275,8 @@ export function RitualView({
           </div>
         )}
 
-        {/* Talk to Vita — ghosted */}
-        <div className="mt-16 border-t border-border-subtle pt-6">
-          <a
-            href="/chat"
-            className="block w-full text-body-sm text-text-disabled hover:text-text-muted transition-colors py-2"
-          >
-            Talk to Vita...
-          </a>
-        </div>
+        {/* Removed — chat lives on /chat tab. A duplicate input here was
+            half-built and fragmented the action surface. */}
       </div>
     </div>
   );

@@ -65,7 +65,18 @@ export function AppShell({ user, children }: AppShellProps) {
       )}
 
       {/* Top bar */}
-      <header className="relative z-20 flex items-center justify-between px-5 h-12 border-b border-border-subtle bg-bg-base">
+      <header
+        className="relative z-20 flex items-center justify-between px-5 border-b border-border-subtle bg-bg-base"
+        style={{
+          // Push the wordmark below the iOS Dynamic Island / status bar.
+          // safe-area-inset-top is 0 in browsers, ~47–54px in installed PWAs
+          // on iPhone. We add a baseline of 12px so the row never sits flush
+          // against the top.
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          paddingBottom: "12px",
+          minHeight: "calc(env(safe-area-inset-top, 0px) + 48px)",
+        }}
+      >
         <div className="flex items-center gap-3">
           {isChat && (
             <button onClick={() => setSidebarOpen(!sidebarOpen)}

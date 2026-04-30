@@ -6,9 +6,10 @@ import { MeasurementCard } from "@/components/cards/MeasurementCard";
 import { BodyMapCard } from "@/components/cards/BodyMapCard";
 import { FormCheck } from "@/components/vision/FormCheck";
 import { format } from "date-fns";
-import { AvatarPanel } from "./AvatarPanel";
+// import { AvatarPanel } from "./AvatarPanel"; // paused — see AvatarComingSoon
 import type { AvatarDefinition } from "@/lib/avatar/types";
 import { PageHeader } from "@/components/ui/page-header";
+import { AvatarComingSoon } from "@/components/vision/AvatarComingSoon";
 
 interface Measurement {
   id: string;
@@ -62,20 +63,19 @@ interface BodyViewProps {
   measurements: Measurement[];
   photos: Photo[];
   avatarProps: AvatarProps;
+  avatarOnWaitlist: boolean;
 }
 
-export function BodyView({ measurements, photos, avatarProps }: BodyViewProps) {
+export function BodyView({ measurements, photos, avatarProps, avatarOnWaitlist }: BodyViewProps) {
   const [formCheckOpen, setFormCheckOpen] = useState(false);
+  void avatarProps; // paused — see AvatarComingSoon
 
   return (
     <div className="max-w-lg mx-auto px-5 py-10 space-y-10 pb-12">
       <PageHeader eyebrow="Progress" title="Body" rule={true} />
 
-      {/* Vita You — avatar */}
-      <section className="space-y-3">
-        <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">Vita You</p>
-        <AvatarPanel {...avatarProps} />
-      </section>
+      {/* Vita You — placeholder while the rendered avatar is on hold */}
+      <AvatarComingSoon alreadyOnList={avatarOnWaitlist} />
 
       {/* Stats */}
       <section className="space-y-3">

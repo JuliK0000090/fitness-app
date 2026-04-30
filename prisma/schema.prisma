@@ -137,6 +137,7 @@ model User {
   haeWorkouts           HaeWorkout[]
   todayHeadlines        TodayHeadline[]
   androidWaitlist       HealthAndroidWaitlist?
+  avatarWaitlist        AvatarWaitlist?
   glp1Profile           GLP1Profile?
   nutritionLogs         NutritionLog[]
   reactiveAdjustments   ReactiveAdjustmentLog[]
@@ -1178,6 +1179,15 @@ model HaeWorkout {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, startedAt])
+}
+
+// Waitlist row recorded when a user clicks "Notify me when it's ready" on
+// the Body avatar placeholder. Single-row-per-user. We only track the
+// signal — content of the avatar feature ships separately.
+model AvatarWaitlist {
+  userId   String   @id
+  joinedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model HealthAndroidWaitlist {
