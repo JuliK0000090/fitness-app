@@ -1,5 +1,8 @@
 export type HabitCadenceStr = "daily" | "weekly_n" | "specific_days" | "every_other" | "weekdays" | "weekends";
 
+export type HabitTrackingModeStr = "MANUAL" | "WEARABLE_AUTO" | "HYBRID";
+export type MetricComparisonStr = "GTE" | "LTE" | "EQ";
+
 export type PresetHabit = {
   title: string;
   cadence: HabitCadenceStr;
@@ -8,6 +11,13 @@ export type PresetHabit = {
   duration?: number; // minutes
   icon: string; // Lucide icon name
   pointsOnComplete?: number;
+  // Wearable-driven resolution. When set, the end-of-day Inngest job
+  // reads HealthDaily for (userId, today, metric=metricKey) and writes
+  // a HabitCompletion DONE/MISSED based on the comparison vs target.
+  trackingMode?: HabitTrackingModeStr;
+  metricKey?: string;          // HealthDaily.metric ("steps", "sleepHours", "activeMinutes", ...)
+  metricTarget?: number;
+  metricComparison?: MetricComparisonStr;
 };
 
 export type PresetWorkout = {
@@ -35,7 +45,8 @@ export const GOAL_PRESETS: GoalPreset[] = [
     category: "aesthetic",
     matches: ["lean", "toned", "long muscle", "pilates body", "long and lean", "lean and long"],
     defaultHabits: [
-      { title: "10,000 steps", cadence: "daily", icon: "Footprints", pointsOnComplete: 15 },
+      { title: "10,000 steps", cadence: "daily", icon: "Footprints", pointsOnComplete: 15,
+        trackingMode: "WEARABLE_AUTO", metricKey: "steps", metricTarget: 10000, metricComparison: "GTE" },
       { title: "50-min stretching", cadence: "daily", duration: 50, icon: "Activity" },
       { title: "Stomach vacuum — 5 min", cadence: "daily", duration: 5, icon: "Wind" },
       { title: "Vibration plate — 10 min", cadence: "daily", duration: 10, icon: "Zap" },
@@ -56,7 +67,8 @@ export const GOAL_PRESETS: GoalPreset[] = [
     category: "aesthetic",
     matches: ["wedding", "bride", "bridal", "engagement", "big day", "sister's wedding", "feel strong for"],
     defaultHabits: [
-      { title: "10,000 steps", cadence: "daily", icon: "Footprints" },
+      { title: "10,000 steps", cadence: "daily", icon: "Footprints",
+        trackingMode: "WEARABLE_AUTO", metricKey: "steps", metricTarget: 10000, metricComparison: "GTE" },
       { title: "2 L water", cadence: "daily", icon: "Droplets" },
       { title: "No alcohol", cadence: "daily", icon: "X" },
       { title: "Skin care routine", cadence: "daily", duration: 10, icon: "Sparkles" },
@@ -113,7 +125,8 @@ export const GOAL_PRESETS: GoalPreset[] = [
     defaultHabits: [
       { title: "Protein — 1.6 g/kg body weight", cadence: "daily", icon: "Beef", pointsOnComplete: 15 },
       { title: "2.5 L water", cadence: "daily", icon: "Droplets" },
-      { title: "8 h sleep", cadence: "daily", icon: "Moon" },
+      { title: "8 h sleep", cadence: "daily", icon: "Moon",
+        trackingMode: "WEARABLE_AUTO", metricKey: "sleepHours", metricTarget: 8, metricComparison: "GTE" },
     ],
     defaultWorkouts: [
       { workoutTypeName: "Strength Training", timesPerWeek: 4, duration: 60, icon: "Dumbbell" },
@@ -146,7 +159,8 @@ export const GOAL_PRESETS: GoalPreset[] = [
     defaultHabits: [
       { title: "Foam roll — 15 min", cadence: "daily", duration: 15, icon: "Circle" },
       { title: "2.5 L water", cadence: "daily", icon: "Droplets" },
-      { title: "8 h sleep", cadence: "daily", icon: "Moon" },
+      { title: "8 h sleep", cadence: "daily", icon: "Moon",
+        trackingMode: "WEARABLE_AUTO", metricKey: "sleepHours", metricTarget: 8, metricComparison: "GTE" },
     ],
     defaultWorkouts: [
       { workoutTypeName: "Running", timesPerWeek: 4, duration: 45, icon: "Activity" },
@@ -162,8 +176,10 @@ export const GOAL_PRESETS: GoalPreset[] = [
     category: "lifestyle",
     matches: ["healthy", "reset", "feel better", "wellness", "health", "start fresh", "get fit", "lose weight", "lose fat"],
     defaultHabits: [
-      { title: "8,000 steps", cadence: "daily", icon: "Footprints" },
-      { title: "8 h sleep", cadence: "daily", icon: "Moon" },
+      { title: "8,000 steps", cadence: "daily", icon: "Footprints",
+        trackingMode: "WEARABLE_AUTO", metricKey: "steps", metricTarget: 8000, metricComparison: "GTE" },
+      { title: "8 h sleep", cadence: "daily", icon: "Moon",
+        trackingMode: "WEARABLE_AUTO", metricKey: "sleepHours", metricTarget: 8, metricComparison: "GTE" },
       { title: "2 L water", cadence: "daily", icon: "Droplets" },
       { title: "No late-night snacking", cadence: "daily", icon: "X" },
     ],
@@ -182,7 +198,8 @@ export const GOAL_PRESETS: GoalPreset[] = [
     matches: ["glute", "booty", "curves", "curvy", "hip", "peach", "butt"],
     defaultHabits: [
       { title: "Glute activation — 10 min", cadence: "daily", duration: 10, icon: "Zap" },
-      { title: "10,000 steps", cadence: "daily", icon: "Footprints" },
+      { title: "10,000 steps", cadence: "daily", icon: "Footprints",
+        trackingMode: "WEARABLE_AUTO", metricKey: "steps", metricTarget: 10000, metricComparison: "GTE" },
       { title: "Protein target — 120 g", cadence: "daily", icon: "Beef" },
       { title: "2 L water", cadence: "daily", icon: "Droplets" },
     ],

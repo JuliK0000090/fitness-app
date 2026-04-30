@@ -142,6 +142,10 @@ export function vitaTools(userId: string) {
           duration: z.number().optional(),
           icon: z.string().optional(),
           pointsOnComplete: z.number().optional(),
+          trackingMode: z.enum(["MANUAL", "WEARABLE_AUTO", "HYBRID"]).optional(),
+          metricKey: z.string().optional(),
+          metricTarget: z.number().optional(),
+          metricComparison: z.enum(["GTE", "LTE", "EQ"]).optional(),
         })),
         workouts: z.array(z.object({
           workoutTypeName: z.string(),
@@ -169,9 +173,13 @@ export function vitaTools(userId: string) {
           },
         });
 
-        // Create habits
-        const createdHabits = await Promise.all(habits.map((h) =>
-          prisma.habit.create({
+        // Create habits. If the caller didn't pass trackingMode but the
+        // title obviously denotes a wearable metric (e.g. "10,000 steps",
+        // "8 h sleep"), infer the wearable fields from the title so the
+        // habit auto-resolves. Caller-supplied values always win.
+        const createdHabits = await Promise.all(habits.map((h) => {
+          const wearable = wearableHabitFields(h) ?? inferWearableFromTitle(h.title);
+          return prisma.habit.create({
             data: {
               userId,
               goalId: goal.id,
@@ -184,9 +192,10 @@ export function vitaTools(userId: string) {
               icon: h.icon ?? null,
               pointsOnComplete: h.pointsOnComplete ?? 10,
               active: true,
+              ...(wearable ?? {}),
             },
-          })
-        ));
+          });
+        }));
 
         // Create weekly targets and schedule 4 weeks of workouts
         const scheduledWorkouts: { date: string; name: string }[] = [];
@@ -304,7 +313,7 @@ export function vitaTools(userId: string) {
     // ── Habit tools ────────────────────────────────────────────────────────────
 
     add_habit: makeTool({
-      description: "Add a new standalone habit. If the user says they ALREADY did this today, set markDoneToday: true to log it immediately in one step.",
+      description: "Add a new standalone habit. If the user says they ALREADY did this today, set markDoneToday: true to log it immediately in one step. For habits backed by a wearable metric (steps, sleep hours, active minutes, resting heart rate) set trackingMode='WEARABLE_AUTO' plus metricKey/metricTarget/metricComparison so it auto-resolves at end of day instead of needing a manual tap.",
       parameters: z.object({
         title: z.string(),
         cadence: z.string().default("daily"),
@@ -314,8 +323,17 @@ export function vitaTools(userId: string) {
         goalId: z.string().optional(),
         pointsOnComplete: z.number().optional(),
         markDoneToday: z.boolean().optional().describe("Set true if the user said they already did this habit today"),
+        trackingMode: z.enum(["MANUAL", "WEARABLE_AUTO", "HYBRID"]).optional()
+          .describe("MANUAL = user taps. WEARABLE_AUTO = resolves from HealthDaily at end of day. HYBRID = user can tap, also auto-resolves if not tapped."),
+        metricKey: z.string().optional()
+          .describe("HealthDaily metric name. Use 'steps', 'sleepHours', 'activeMinutes', 'restingHr', or 'hrvMs'. Required when trackingMode != MANUAL."),
+        metricTarget: z.number().optional()
+          .describe("Numeric target. e.g. 10000 for steps, 8 for sleep hours, 30 for active minutes."),
+        metricComparison: z.enum(["GTE", "LTE", "EQ"]).optional()
+          .describe("GTE for closing-the-gap goals (steps, active minutes, sleep hours, HRV). LTE for keep-it-low (resting HR). EQ rare."),
       }),
       execute: async (input) => {
+        const wearable = wearableHabitFields(input);
         const habit = await prisma.habit.create({
           data: {
             userId,
@@ -329,6 +347,7 @@ export function vitaTools(userId: string) {
             goalId: input.goalId ?? null,
             pointsOnComplete: input.pointsOnComplete ?? 10,
             active: true,
+            ...wearable,
           },
         });
 
@@ -1392,6 +1411,87 @@ export function vitaTools(userId: string) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+type WearableInput = {
+  trackingMode?: "MANUAL" | "WEARABLE_AUTO" | "HYBRID";
+  metricKey?: string;
+  metricTarget?: number;
+  metricComparison?: "GTE" | "LTE" | "EQ";
+};
+
+type WearableData = {
+  trackingMode: "MANUAL" | "WEARABLE_AUTO" | "HYBRID";
+  metricKey: string | null;
+  metricTarget: number | null;
+  metricComparison: "GTE" | "LTE" | "EQ" | null;
+};
+
+/**
+ * Pass-through wearable fields with consistency check. If trackingMode is
+ * non-MANUAL we require the metric trio to be present; otherwise we drop
+ * the trio so we don't store half-configured habits that look auto-tracked
+ * but can't actually resolve.
+ */
+function wearableHabitFields(input: WearableInput): WearableData | null {
+  if (!input.trackingMode || input.trackingMode === "MANUAL") {
+    if (!input.metricKey && input.metricTarget == null && !input.metricComparison) {
+      return null;
+    }
+    return {
+      trackingMode: "MANUAL",
+      metricKey: null, metricTarget: null, metricComparison: null,
+    };
+  }
+  if (!input.metricKey || input.metricTarget == null || !input.metricComparison) {
+    return null;
+  }
+  return {
+    trackingMode: input.trackingMode,
+    metricKey: input.metricKey,
+    metricTarget: input.metricTarget,
+    metricComparison: input.metricComparison,
+  };
+}
+
+/**
+ * Title-driven wearable inference for the goal-decomposition path: when a
+ * caller hasn't specified trackingMode we look at the title and infer it.
+ * Catches the common cases ("10,000 steps", "8 h sleep", "30 active minutes").
+ */
+function inferWearableFromTitle(title: string | null | undefined): WearableData | null {
+  if (!title) return null;
+  const t = title.toLowerCase();
+
+  // Steps: "10,000 steps", "10k steps", "8000 steps", "ten thousand steps"
+  const stepsMatch = t.match(/([\d,]+)\s*k?\s*steps/);
+  if (stepsMatch) {
+    let n = parseInt(stepsMatch[1].replace(/,/g, ""), 10);
+    if (/k\s*steps/.test(t) && n < 100) n *= 1000; // "10k steps"
+    if (Number.isFinite(n) && n > 0) {
+      return { trackingMode: "WEARABLE_AUTO", metricKey: "steps", metricTarget: n, metricComparison: "GTE" };
+    }
+  }
+
+  // Sleep: "8 h sleep", "8 hours sleep", "8h sleep"
+  const sleepMatch = t.match(/(\d+(?:\.\d+)?)\s*h(?:ours?)?\s*sleep/);
+  if (sleepMatch) {
+    const n = parseFloat(sleepMatch[1]);
+    if (Number.isFinite(n) && n > 0) {
+      return { trackingMode: "WEARABLE_AUTO", metricKey: "sleepHours", metricTarget: n, metricComparison: "GTE" };
+    }
+  }
+
+  // Active minutes: "30 active minutes", "30 minutes active"
+  const activeMatch = t.match(/(\d+)\s*(?:active\s*minutes?|minutes?\s*active)/);
+  if (activeMatch) {
+    const n = parseInt(activeMatch[1], 10);
+    if (Number.isFinite(n) && n > 0) {
+      return { trackingMode: "WEARABLE_AUTO", metricKey: "activeMinutes", metricTarget: n, metricComparison: "GTE" };
+    }
+  }
+
+  return null;
+}
 
 function cadenceStrToEnum(cadence: string) {
   const map: Record<string, "DAILY" | "WEEKLY_N" | "SPECIFIC_DAYS" | "EVERY_OTHER" | "WEEKDAYS" | "WEEKENDS"> = {

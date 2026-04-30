@@ -50,6 +50,18 @@ enum CompletionSource {
   ROLLOVER_MISS
 }
 
+enum HabitTrackingMode {
+  MANUAL          // user taps to complete
+  WEARABLE_AUTO   // resolves from HealthDaily at end of day
+  HYBRID          // user can tap, but also auto-resolves if not tapped
+}
+
+enum MetricComparison {
+  GTE   // value >= target (steps, active minutes)
+  LTE   // value <= target (resting HR, sleep latency)
+  EQ    // exact match (rare)
+}
+
 // ─── Auth & Accounts ─────────────────────────────────────────────────────────
 
 model User {
@@ -341,12 +353,24 @@ model Habit {
   pausedAt         DateTime?
   createdAt        DateTime     @default(now())
 
+  // Wearable-driven resolution (Track WD).
+  // When trackingMode != MANUAL, the end-of-day Inngest job reads the
+  // HealthDaily row matching (userId, today, metric=metricKey) and writes
+  // a HabitCompletion DONE/MISSED based on (value, metricComparison, metricTarget).
+  // metricKey is the HealthDaily.metric string ("steps", "sleepHours",
+  // "activeMinutes", "restingHr", "hrvMs", ...), NOT a column name.
+  trackingMode     HabitTrackingMode @default(MANUAL)
+  metricKey        String?
+  metricTarget     Float?
+  metricComparison MetricComparison?
+
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   goal        Goal?             @relation(fields: [goalId], references: [id], onDelete: SetNull)
   completions HabitCompletion[]
   checklistItems ChecklistItem[]
 
   @@index([userId, active])
+  @@index([userId, trackingMode, active])
 }
 
 model HabitCompletion {
