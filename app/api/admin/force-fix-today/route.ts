@@ -41,6 +41,8 @@ export async function GET() {
 
   // 1. Re-roll today's HaeDaily/HealthDaily so the steps fix takes effect.
   let stepsAfter: number | null = null;
+  let rerollDone = false;
+  let rerollError: string | null = null;
   try {
     await rollupDailyForDate(me.id, todayStr);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,32 +51,43 @@ export async function GET() {
       select: { steps: true },
     });
     stepsAfter = haeDaily?.steps ?? null;
+    rerollDone = true;
   } catch (e) {
-    console.error("[force-fix-today] reroll failed:", e instanceof Error ? e.message : e);
+    rerollError = e instanceof Error ? e.message : String(e);
+    console.error("[force-fix-today] reroll failed:", rerollError);
   }
 
   // 2. Run the habit rollover for yesterday → MISSED rows for any habit
-  //    that didn't get a completion. Also stamps lastRolloverDate so the
-  //    integrity check goes green.
+  //    that didn't get a completion. Stamp lastRolloverDate ONLY after
+  //    markMissedHabits succeeds, so the integrity check doesn't go
+  //    green when the underlying rows weren't actually written.
   let missedCount = 0;
+  let rolloverDone = false;
+  let rolloverError: string | null = null;
   try {
     missedCount = await markMissedHabits(me.id, yesterday);
     await prisma.user.update({
       where: { id: me.id },
       data: { lastRolloverDate: new Date(todayStr + "T00:00:00.000Z") },
     });
+    rolloverDone = true;
   } catch (e) {
-    console.error("[force-fix-today] rollover failed:", e instanceof Error ? e.message : e);
+    rolloverError = e instanceof Error ? e.message : String(e);
+    console.error("[force-fix-today] rollover failed:", rolloverError);
   }
 
   return NextResponse.json({
     user: me.email,
     timezone: tz,
     today: todayStr,
-    rerollDone: true,
+    rerollDone,
+    rerollError,
     stepsAfterReroll: stepsAfter,
-    rolloverDone: true,
+    rolloverDone,
+    rolloverError,
     yesterdayMissedRowsCreated: missedCount,
-    next: "Open /api/dev/integrity-check to verify allGood:true",
+    next: rerollDone && rolloverDone
+      ? "Open /api/dev/integrity-check to verify allGood:true"
+      : "One step failed — check the error fields above before re-running.",
   });
 }

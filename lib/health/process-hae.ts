@@ -137,7 +137,6 @@ export async function rollupDailyForDate(userId: string, localDateStr: string): 
     }),
   ]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const byType = new Map<string, Partial<Record<SourcePriority, number[]>>>();
   for (const m of metrics) {
     if (!byType.has(m.metricType)) byType.set(m.metricType, {});
