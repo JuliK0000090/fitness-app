@@ -367,6 +367,7 @@ export default async function TodayPage() {
         plannerReplan={replanForView}
         plannerConstraintsToday={constraintsToday}
         partnerNote={partnerNote}
+        signalsData={signalsData}
       />
     );
   }

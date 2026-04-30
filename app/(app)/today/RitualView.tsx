@@ -5,6 +5,7 @@ import { CheckCircle2, Circle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { PlannerBanner, ReplanSuggestion, ConstraintHeadsUp } from "@/components/planner/PlannerBanner";
+import { SignalsSection, type SignalsData } from "@/components/dashboard/SignalsSection";
 
 type Habit = {
   id: string;
@@ -43,6 +44,7 @@ type Props = {
   plannerReplan: ReplanSuggestion | null;
   plannerConstraintsToday: ConstraintHeadsUp[];
   partnerNote: { id: string; partnerName: string; message: string; sentAt: string } | null;
+  signalsData: SignalsData | null;
 };
 
 function readinessLine(score: number | null): string {
@@ -72,6 +74,7 @@ export function RitualView({
   plannerReplan,
   plannerConstraintsToday,
   partnerNote,
+  signalsData,
 }: Props) {
   const [, startTransition] = useTransition();
 
@@ -141,6 +144,13 @@ export function RitualView({
 
         {/* Partner encouragement card */}
         {partnerNote && <PartnerNoteCard note={partnerNote} />}
+
+        {/* Wearable signals */}
+        {signalsData && (
+          <div className="mt-10">
+            <SignalsSection data={signalsData} />
+          </div>
+        )}
 
         {/* Rest day — full empty state */}
         {isRestDay && (
