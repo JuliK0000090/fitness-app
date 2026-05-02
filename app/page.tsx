@@ -48,9 +48,9 @@ export default async function HomePage() {
           A private trainer who remembers you.
         </h1>
         <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[480px]">
-          Vita is the AI fitness coach for women with sophisticated body and
-          lifestyle goals. She remembers what you tell her, adjusts when life
-          changes, and quietly anticipates what you need.
+          Vita is your AI personal trainer for fitness, lifestyle, and longevity
+          goals. Personalized plans built from your own data — adjusting when
+          life changes and quietly anticipating what you need.
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-4">
           <Link
@@ -153,8 +153,8 @@ export default async function HomePage() {
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <footer className="px-6 max-w-3xl mx-auto py-10 border-t border-border-subtle">
         <div className="flex items-center gap-6 text-caption text-text-muted">
-          <Link href="/privacy" className="hover:text-text-secondary transition-colors">Privacy</Link>
-          <Link href="/terms" className="hover:text-text-secondary transition-colors">Terms</Link>
+          <Link href="/legal/privacy" className="hover:text-text-secondary transition-colors">Privacy</Link>
+          <Link href="/legal/terms" className="hover:text-text-secondary transition-colors">Terms</Link>
           <Link href="mailto:juliana.kolarski@gmail.com" className="hover:text-text-secondary transition-colors">Contact</Link>
         </div>
       </footer>

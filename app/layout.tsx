@@ -22,7 +22,11 @@ const SHARE_TITLE = "Vita — A private trainer who remembers you";
 const SHARE_DESCRIPTION =
   "Vita is your AI personal trainer for fitness, lifestyle, and longevity goals — with personalized plans built from your own data to help you reach them with precision.";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://fitness-app-production-2ef2.up.railway.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: SHARE_TITLE,
   description: SHARE_DESCRIPTION,
   manifest: "/manifest.json",
