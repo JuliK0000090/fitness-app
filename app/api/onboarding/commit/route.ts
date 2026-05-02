@@ -53,10 +53,23 @@ function cadenceToType(c: "DAILY" | "WEEKLY_N"): "DAILY" | "WEEKLY_N" {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireSession();
-  const userId = session.userId;
-  const body = Body.parse(await req.json());
+  let userId: string;
+  try {
+    const session = await requireSession();
+    userId = session.userId;
+  } catch {
+    return NextResponse.json({ error: "Please sign in again" }, { status: 401 });
+  }
 
+  let body: z.infer<typeof Body>;
+  try {
+    body = Body.parse(await req.json());
+  } catch (e) {
+    console.error("[onboarding/commit] invalid payload:", e);
+    return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
+  }
+
+  try {
   const goalId = await prisma.$transaction(async (tx) => {
     // 1. User updates
     await tx.user.update({
@@ -101,15 +114,16 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. WorkoutTypes + WeeklyTargets
+    // Both `name` and `slug` are unique on WorkoutType; a name-keyed upsert
+    // throws P2002 if a row with the same derived slug already exists under a
+    // different name. Resolve by either unique key first, only create when neither hits.
     for (const w of body.draft.workouts) {
-      const wt = await tx.workoutType.upsert({
-        where: { name: w.workoutType },
-        create: {
-          name: w.workoutType,
-          slug: w.workoutType.toLowerCase().replace(/\s+/g, "_"),
-          defaultDuration: 45,
-        },
-        update: {},
+      const slug = w.workoutType.trim().toLowerCase().replace(/\s+/g, "_");
+      const existing = await tx.workoutType.findFirst({
+        where: { OR: [{ name: w.workoutType }, { slug }] },
+      });
+      const wt = existing ?? await tx.workoutType.create({
+        data: { name: w.workoutType, slug, defaultDuration: 45 },
       });
       await tx.weeklyTarget.create({
         data: {
@@ -138,4 +152,8 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ goalId, ok: true });
+  } catch (e) {
+    console.error("[onboarding/commit] failed:", e);
+    return NextResponse.json({ error: "Could not save your plan. Please try again." }, { status: 500 });
+  }
 }
