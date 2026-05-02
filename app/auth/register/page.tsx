@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { GuestButton } from "@/components/auth/GuestButton";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -92,15 +91,6 @@ export default function RegisterPage() {
           Sign in
         </Link>
       </p>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border-subtle" /></div>
-        <div className="relative flex justify-center">
-          <span className="bg-bg-surface px-3 text-caption text-text-disabled">or</span>
-        </div>
-      </div>
-
-      <GuestButton />
     </div>
   );
 }
