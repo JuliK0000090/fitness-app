@@ -18,9 +18,13 @@ const geist = Geist({
   display: "swap",
 });
 
+const SHARE_TITLE = "Vita — A private trainer who remembers you";
+const SHARE_DESCRIPTION =
+  "Vita is your AI personal trainer for fitness, lifestyle, and longevity goals — with personalized plans built from your own data to help you reach them with precision.";
+
 export const metadata: Metadata = {
-  title: "Vita — A private trainer who remembers you",
-  description: "Vita is the AI fitness coach for women with sophisticated body and lifestyle goals.",
+  title: SHARE_TITLE,
+  description: SHARE_DESCRIPTION,
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Vita" },
   icons: {
@@ -29,6 +33,19 @@ export const metadata: Metadata = {
       { url: "/icons/icon-512.svg", sizes: "512x512", type: "image/svg+xml" },
     ],
     apple: [{ url: "/icons/icon-192.svg", sizes: "192x192", type: "image/svg+xml" }],
+  },
+  openGraph: {
+    title: SHARE_TITLE,
+    description: SHARE_DESCRIPTION,
+    siteName: "Vita",
+    type: "website",
+    images: [{ url: "/icons/icon-512.svg", width: 512, height: 512, alt: "Vita" }],
+  },
+  twitter: {
+    card: "summary",
+    title: SHARE_TITLE,
+    description: SHARE_DESCRIPTION,
+    images: ["/icons/icon-512.svg"],
   },
 };
 
