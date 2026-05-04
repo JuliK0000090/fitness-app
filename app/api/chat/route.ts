@@ -9,6 +9,7 @@ import { buildMemoryContext, extractAndSaveMemories } from "@/lib/memory";
 import { classifyMessage } from "@/lib/safety";
 import { rateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
+import { userTodayStr } from "@/lib/time/today";
 
 function buildGlp1Context(profile: {
   medication: string | null;
@@ -130,10 +131,21 @@ export async function POST(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = await (prisma.user.findUniqueOrThrow as any)({
     where: { id: userId },
-    select: { name: true, customInstructions: true, customResponseStyle: true, heightCm: true, activityLevel: true, goalWeightKg: true, onGlp1: true },
-  }) as { name: string | null; customInstructions: string | null; customResponseStyle: string | null; heightCm: number | null; activityLevel: string | null; goalWeightKg: number | null; onGlp1: boolean };
+    select: { name: true, customInstructions: true, customResponseStyle: true, heightCm: true, activityLevel: true, goalWeightKg: true, onGlp1: true, timezone: true },
+  }) as { name: string | null; customInstructions: string | null; customResponseStyle: string | null; heightCm: number | null; activityLevel: string | null; goalWeightKg: number | null; onGlp1: boolean; timezone: string };
 
-  const [latestWeight, activeGoals, activeHabits, glp1Profile, activeUserFacts] = await Promise.all([
+  const userTimezone = user.timezone || "America/Toronto";
+
+  // Anchor: today in the USER's local timezone. Used everywhere "today / yesterday /
+  // tomorrow / this week" is computed for the agent. Server UTC is never the source
+  // of truth for user-facing dates.
+  const todayLocalStr = userTodayStr(userTimezone);
+  const todayDateUTC = new Date(todayLocalStr + "T00:00:00.000Z");
+  const yesterdayUTC = new Date(todayDateUTC); yesterdayUTC.setUTCDate(yesterdayUTC.getUTCDate() - 1);
+  const tomorrowUTC = new Date(todayDateUTC); tomorrowUTC.setUTCDate(tomorrowUTC.getUTCDate() + 1);
+  const sevenDaysOutUTC = new Date(todayDateUTC); sevenDaysOutUTC.setUTCDate(sevenDaysOutUTC.getUTCDate() + 7);
+
+  const [latestWeight, activeGoals, activeHabits, glp1Profile, activeUserFacts, scheduledWorkoutsThisWeek, habitCompletionsToday] = await Promise.all([
     prisma.measurement.findFirst({ where: { userId, kind: "weight" }, orderBy: { capturedAt: "desc" } }),
     prisma.goal.findMany({
       where: { userId, status: { in: ["active", "paused"] } },
@@ -158,6 +170,22 @@ export async function POST(req: NextRequest) {
       orderBy: { lastConfirmedAt: "desc" },
       take: 20,
     }).catch(() => []),
+    prisma.scheduledWorkout.findMany({
+      where: {
+        userId,
+        scheduledDate: { gte: yesterdayUTC, lte: sevenDaysOutUTC },
+      },
+      orderBy: [{ scheduledDate: "asc" }, { scheduledTime: "asc" }],
+      select: {
+        id: true, scheduledDate: true, scheduledTime: true, duration: true,
+        status: true, workoutTypeName: true,
+        workoutType: { select: { name: true } },
+      },
+    }).catch(() => []),
+    prisma.habitCompletion.findMany({
+      where: { userId, date: todayDateUTC },
+      select: { habitId: true, status: true },
+    }).catch(() => []),
   ]);
 
   // Build goal context lines — injected into every Vita response
@@ -181,18 +209,64 @@ export async function POST(req: NextRequest) {
     habitLines.length > 0 ? `\nActive habits:\n${habitLines.map((l) => `  - ${l}`).join("\n")}` : null,
   ].filter(Boolean).join("\n");
 
-  // Fetch recent health signals for context
-  const todayStr = new Date().toISOString().split("T")[0];
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split("T")[0];
+  // Build authoritative date + calendar snapshot. The agent must resolve every
+  // "today / yesterday / tomorrow / this week / Wednesday" against THIS, not
+  // against its training-data prior.
+  const dayLabel = (d: Date) =>
+    d.toLocaleDateString("en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
+    });
+  const ymd = (d: Date) => d.toISOString().split("T")[0];
 
+  const dateAnchorLines: string[] = [
+    `Today: ${dayLabel(todayDateUTC)} (${todayLocalStr}) — user's timezone: ${userTimezone}.`,
+    `Yesterday: ${dayLabel(yesterdayUTC)} (${ymd(yesterdayUTC)}).`,
+    `Tomorrow: ${dayLabel(tomorrowUTC)} (${ymd(tomorrowUTC)}).`,
+  ];
+
+  const calendarLines: string[] = [];
+  if (scheduledWorkoutsThisWeek.length === 0) {
+    calendarLines.push("(no workouts scheduled in the yesterday → +7 days window)");
+  } else {
+    for (const sw of scheduledWorkoutsThisWeek) {
+      const date = ymd(sw.scheduledDate);
+      let when: string;
+      if (date === ymd(yesterdayUTC)) when = "YESTERDAY";
+      else if (date === todayLocalStr) when = "TODAY";
+      else if (date === ymd(tomorrowUTC)) when = "TOMORROW";
+      else when = sw.scheduledDate.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }).toUpperCase();
+      const time = sw.scheduledTime ?? "—";
+      const name = sw.workoutTypeName ?? sw.workoutType?.name ?? "Workout";
+      calendarLines.push(`  [id:${sw.id}] ${date} ${when} ${time} · ${name} · ${sw.duration}min · status: ${sw.status}`);
+    }
+  }
+
+  const completedHabitIds = new Set(
+    habitCompletionsToday.filter((c) => c.status === "DONE").map((c) => c.habitId)
+  );
+  const todaysHabitsLines = activeHabits.map((h) => {
+    const status = completedHabitIds.has(h.id) ? "DONE today" : "OPEN today";
+    return `  [id:${h.id}] ${h.title ?? "Habit"} — ${status}`;
+  });
+
+  const calendarContext = [
+    "DATE ANCHOR (authoritative — never override from training data):",
+    ...dateAnchorLines.map((l) => `  ${l}`),
+    "",
+    "WORKOUTS ON THE CALENDAR (yesterday → +7 days, ALL statuses shown):",
+    ...calendarLines,
+    "",
+    "TODAY'S HABIT STATUS:",
+    ...(todaysHabitsLines.length ? todaysHabitsLines : ["  (no active habits)"]),
+  ].join("\n");
+
+  // Fetch recent health signals for context (yesterday + today in user's tz)
   let healthRows: { metric: string; value: number; unit: string; source: string; trust: number }[] = [];
   try {
     healthRows = await prisma.healthDaily.findMany({
       where: {
         userId,
-        date: { gte: new Date(yesterdayStr) },
+        date: { gte: yesterdayUTC },
         metric: { in: ["steps", "sleepHours", "hrvMs", "restingHr", "readinessScore", "activeMinutes"] },
       },
     });
@@ -259,6 +333,7 @@ export async function POST(req: NextRequest) {
     glp1Context: glp1Ctx,
     userFactsContext: userFactsCtx,
     partnerName,
+    calendarContext,
   });
   if (lastMessage?.role === "user") {
     try {
@@ -347,6 +422,37 @@ export async function POST(req: NextRequest) {
 
   const sanitized = sanitizeMessages(body.messages as AnyMessage[]);
 
+  // Buffer streamed text and tool-call summaries so we can persist SOMETHING
+  // even if the client navigates away mid-stream (onFinish either fires with
+  // empty text or doesn't fire at all). Without this the assistant's reply
+  // vanishes from the conversation on reload — the original "messages
+  // disappeared" bug.
+  let textBuffer = "";
+  const toolCallSummaries: string[] = [];
+  let assistantSaved = false;
+
+  async function persistAssistantOnce(opts: { interrupted?: boolean } = {}) {
+    if (assistantSaved) return;
+    assistantSaved = true;
+    const fallbackBody = textBuffer
+      || (toolCallSummaries.length > 0 ? `(actions: ${toolCallSummaries.join(", ")})` : "");
+    if (!fallbackBody) return;
+    const content = opts.interrupted
+      ? `${fallbackBody}\n\n[Reply was interrupted before it finished. Send any message to continue.]`
+      : fallbackBody;
+    try {
+      await prisma.message.create({
+        data: {
+          conversationId: body.conversationId,
+          role: "assistant",
+          content,
+        },
+      });
+    } catch (e) {
+      console.error("[chat] persist assistant message error:", e);
+    }
+  }
+
   try {
     const result = streamText({
       model: anthropic("claude-sonnet-4-6"),
@@ -356,20 +462,37 @@ export async function POST(req: NextRequest) {
       tools: vitaTools(userId),
       maxSteps: 10,
       experimental_continueSteps: true,
-      onError: ({ error }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onChunk: ({ chunk }: { chunk: any }) => {
+        if (chunk?.type === "text-delta" && typeof chunk.textDelta === "string") {
+          textBuffer += chunk.textDelta;
+        } else if (chunk?.type === "tool-call" && typeof chunk.toolName === "string") {
+          toolCallSummaries.push(chunk.toolName);
+        }
+      },
+      onError: async ({ error }) => {
         console.error("[chat] stream error:", error);
+        await persistAssistantOnce({ interrupted: true });
       },
       onFinish: async ({ text }) => {
         try {
-          if (text) {
+          // Prefer the final `text` from the SDK; fall back to the buffer if it's
+          // missing (happens when the only output was tool calls, no narration).
+          const finalText = text || textBuffer;
+          if (finalText || toolCallSummaries.length > 0) {
+            const content = finalText
+              || `(actions: ${toolCallSummaries.join(", ")})`;
+            assistantSaved = true;
             await prisma.message.create({
               data: {
                 conversationId: body.conversationId,
                 role: "assistant",
-                content: text,
+                content,
               },
             });
-            extractAndSaveMemories(userId, lastUserContent, text).catch(() => {});
+            if (finalText) {
+              extractAndSaveMemories(userId, lastUserContent, finalText).catch(() => {});
+            }
           }
           await prisma.conversation.update({
             where: { id: body.conversationId },
@@ -380,6 +503,14 @@ export async function POST(req: NextRequest) {
         }
       },
     });
+
+    // Keep the server consuming the stream even if the client disconnects,
+    // so onFinish (and our persistence) reliably fires on navigation/refresh.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof (result as any).consumeStream === "function") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (result as any).consumeStream().catch(() => {});
+    }
 
     return result.toDataStreamResponse({
       getErrorMessage: (error) => {
