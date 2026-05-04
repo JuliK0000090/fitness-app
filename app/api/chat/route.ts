@@ -422,36 +422,10 @@ export async function POST(req: NextRequest) {
 
   const sanitized = sanitizeMessages(body.messages as AnyMessage[]);
 
-  // Buffer streamed text and tool-call summaries so we can persist SOMETHING
-  // even if the client navigates away mid-stream (onFinish either fires with
-  // empty text or doesn't fire at all). Without this the assistant's reply
-  // vanishes from the conversation on reload — the original "messages
-  // disappeared" bug.
-  let textBuffer = "";
+  // Buffer tool-call names so a tool-only response (no narration) still has
+  // SOMETHING persisted — otherwise the assistant message would silently
+  // vanish on reload.
   const toolCallSummaries: string[] = [];
-  let assistantSaved = false;
-
-  async function persistAssistantOnce(opts: { interrupted?: boolean } = {}) {
-    if (assistantSaved) return;
-    assistantSaved = true;
-    const fallbackBody = textBuffer
-      || (toolCallSummaries.length > 0 ? `(actions: ${toolCallSummaries.join(", ")})` : "");
-    if (!fallbackBody) return;
-    const content = opts.interrupted
-      ? `${fallbackBody}\n\n[Reply was interrupted before it finished. Send any message to continue.]`
-      : fallbackBody;
-    try {
-      await prisma.message.create({
-        data: {
-          conversationId: body.conversationId,
-          role: "assistant",
-          content,
-        },
-      });
-    } catch (e) {
-      console.error("[chat] persist assistant message error:", e);
-    }
-  }
 
   try {
     const result = streamText({
@@ -464,53 +438,59 @@ export async function POST(req: NextRequest) {
       experimental_continueSteps: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onChunk: ({ chunk }: { chunk: any }) => {
-        if (chunk?.type === "text-delta" && typeof chunk.textDelta === "string") {
-          textBuffer += chunk.textDelta;
-        } else if (chunk?.type === "tool-call" && typeof chunk.toolName === "string") {
+        if (chunk?.type === "tool-call" && typeof chunk.toolName === "string") {
           toolCallSummaries.push(chunk.toolName);
         }
       },
-      onError: async ({ error }) => {
+      onError: ({ error }) => {
         console.error("[chat] stream error:", error);
-        await persistAssistantOnce({ interrupted: true });
       },
-      onFinish: async ({ text }) => {
+    });
+
+    // Keep the server consuming the stream even if the client disconnects,
+    // so the persistence below reliably runs on navigation/refresh.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof (result as any).consumeStream === "function") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (result as any).consumeStream().catch(() => {});
+    }
+
+    // Persist the assistant message AFTER the entire multi-step generation
+    // completes. `result.text` resolves to the full final text once every
+    // step has finished — this is the only signal that's reliable across
+    // multi-step tool loops with experimental_continueSteps. We don't await
+    // it here because we want to return the streaming response to the client
+    // immediately; the .then() runs in the background after consumeStream().
+    result.text
+      .then(async (fullText) => {
+        const content =
+          fullText
+          || (toolCallSummaries.length > 0
+                ? `(actions: ${toolCallSummaries.join(", ")})`
+                : "");
+        if (!content) return;
         try {
-          // Prefer the final `text` from the SDK; fall back to the buffer if it's
-          // missing (happens when the only output was tool calls, no narration).
-          const finalText = text || textBuffer;
-          if (finalText || toolCallSummaries.length > 0) {
-            const content = finalText
-              || `(actions: ${toolCallSummaries.join(", ")})`;
-            assistantSaved = true;
-            await prisma.message.create({
-              data: {
-                conversationId: body.conversationId,
-                role: "assistant",
-                content,
-              },
-            });
-            if (finalText) {
-              extractAndSaveMemories(userId, lastUserContent, finalText).catch(() => {});
-            }
+          await prisma.message.create({
+            data: {
+              conversationId: body.conversationId,
+              role: "assistant",
+              content,
+            },
+          });
+          if (fullText) {
+            extractAndSaveMemories(userId, lastUserContent, fullText).catch(() => {});
           }
           await prisma.conversation.update({
             where: { id: body.conversationId },
             data: { updatedAt: new Date() },
           });
         } catch (e) {
-          console.error("[chat] onFinish error:", e);
+          console.error("[chat] persist assistant error:", e);
         }
-      },
-    });
-
-    // Keep the server consuming the stream even if the client disconnects,
-    // so onFinish (and our persistence) reliably fires on navigation/refresh.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof (result as any).consumeStream === "function") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (result as any).consumeStream().catch(() => {});
-    }
+      })
+      .catch((e) => {
+        console.error("[chat] result.text rejected:", e);
+      });
 
     return result.toDataStreamResponse({
       getErrorMessage: (error) => {
