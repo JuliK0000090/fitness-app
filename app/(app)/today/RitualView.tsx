@@ -14,6 +14,7 @@ type Habit = {
   duration: number | null;
   pointsOnComplete: number;
   done: boolean;
+  wearableMet?: boolean;
 };
 
 type Workout = {
@@ -205,16 +206,19 @@ export function RitualView({
             {optimisticHabits.map((habit) => (
               <button
                 key={habit.id}
-                onClick={() => handleToggle(habit.id, habit.done)}
+                onClick={() => habit.wearableMet ? null : handleToggle(habit.id, habit.done)}
+                disabled={habit.wearableMet}
+                title={habit.wearableMet ? "Auto-completed from your wearable" : undefined}
                 className={cn(
                   "w-full flex items-center gap-4 px-4 py-3.5 rounded border text-left transition-all",
                   habit.done
                     ? "border-champagne/30 bg-champagne/5 text-text-muted"
-                    : "border-border-subtle bg-bg-surface text-text-primary hover:border-border-default"
+                    : "border-border-subtle bg-bg-surface text-text-primary hover:border-border-default",
+                  habit.wearableMet && "cursor-default"
                 )}
               >
                 {habit.done
-                  ? <CheckCircle2 size={16} strokeWidth={1.5} className="text-champagne shrink-0" />
+                  ? <CheckCircle2 size={16} strokeWidth={1.5} className={cn("shrink-0", habit.wearableMet ? "text-sage" : "text-champagne")} />
                   : <Circle size={16} strokeWidth={1.5} className="text-text-disabled shrink-0" />
                 }
                 <span className={cn("text-body-sm flex-1", habit.done && "line-through")}>

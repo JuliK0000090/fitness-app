@@ -207,13 +207,21 @@ export default async function TodayPage() {
     const metricKey = h.metricKey;
     const metricTarget = h.metricTarget;
     const wearableValue = metricKey ? (todayMetricMap[metricKey] ?? null) : null;
+    const isWearable = trackingMode === "WEARABLE_AUTO" || trackingMode === "HYBRID";
+    const wearableMet =
+      isWearable &&
+      wearableValue !== null &&
+      metricTarget !== null &&
+      wearableValue >= metricTarget;
+    const manuallyDone = completedIds.has(h.id);
     return {
       id: h.id,
       title: h.title,
       icon: h.icon ?? "CheckCircle",
       duration: h.duration,
       pointsOnComplete: h.pointsOnComplete,
-      done: completedIds.has(h.id),
+      done: manuallyDone || wearableMet,
+      wearableMet,
       trackingMode,
       metricKey,
       metricTarget,
