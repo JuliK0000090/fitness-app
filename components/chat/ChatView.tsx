@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, DragEvent } from "react";
 import { useChat, Message } from "ai/react";
 import { Send, Square, RotateCcw, ThumbsUp, ThumbsDown, Copy, Check, Paperclip, Mic, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -73,19 +73,17 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
     onError: (err: Error) => toast.error(err.message || "Something went wrong"),
   });
 
-  // Auto-resume: if the ONLY unanswered message is a single user message at the end,
-  // trigger a completion. Skip if there are consecutive user messages (failed retries)
-  // — those will be merged server-side but the user should just re-send.
-  useEffect(() => {
-    const msgs = initialMessages;
-    const last = msgs[msgs.length - 1];
-    const secondLast = msgs[msgs.length - 2];
-    // Only auto-resume when exactly one unanswered user message (not a pile of failed retries)
-    if (last?.role === "user" && secondLast?.role !== "user") {
-      reload();
-    }
+  // Detect a stranded user message (no assistant reply) at open time. We do
+  // NOT auto-`reload()` — that would silently re-run any tool calls and
+  // double-mutate the user's calendar/habits/etc. Instead we surface an
+  // inline retry affordance so the user explicitly opts in.
+  const unansweredAtOpen = useMemo(() => {
+    const last = initialMessages[initialMessages.length - 1];
+    return last?.role === "user";
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const [retryDismissed, setRetryDismissed] = useState(false);
+  const showResumeRetry = unansweredAtOpen && !retryDismissed && messages.length === initialMessages.length;
 
   // Auto-send prefill message when the conversation is empty (e.g. from goal cards).
   // prefillSentRef guards against React StrictMode double-firing the effect.
@@ -543,6 +541,20 @@ export function ChatView({ conversationId, initialMessages, prefillMessage }: Ch
             )}
           </div>
         ))}
+
+        {showResumeRetry && !isLoading && (
+          <div className="text-center">
+            <p className="text-xs text-text-muted mb-2">No reply was saved for the last message.</p>
+            <div className="flex items-center justify-center gap-3">
+              <button onClick={() => { setRetryDismissed(true); reload(); }} className="text-xs text-primary underline flex items-center gap-1">
+                <RotateCcw size={10} /> Resend
+              </button>
+              <button onClick={() => setRetryDismissed(true)} className="text-xs text-text-disabled underline">
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {isLoading && (
           <div className="flex gap-2 items-center">
