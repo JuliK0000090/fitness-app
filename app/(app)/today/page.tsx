@@ -7,6 +7,9 @@ import { constraintAppliesToDate } from "@/lib/coach/constraints";
 import { getOrGenerateTodayHeadline } from "@/lib/dashboard/headline";
 import type { SignalsData } from "@/components/dashboard/SignalsSection";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function computeLevel(totalXp: number) {
   const level = Math.max(1, Math.floor(Math.sqrt(totalXp / 50)));
   const currentFloor = 50 * level * (level + 1);

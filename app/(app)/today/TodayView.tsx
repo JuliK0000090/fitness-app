@@ -163,12 +163,21 @@ export function TodayView({
 
   function toggleHabit(habit: Habit) {
     startTransition(async () => {
-      updateOptimisticHabits({ id: habit.id, done: !habit.done });
-      if (habit.done) {
-        await uncompleteHabit(habit.id);
-      } else {
-        await completeHabit(habit.id);
-        toast.success(`Habit logged`);
+      const wasDone = habit.done;
+      updateOptimisticHabits({ id: habit.id, done: !wasDone });
+      try {
+        const res = wasDone
+          ? await uncompleteHabit(habit.id)
+          : await completeHabit(habit.id);
+        if (res && (res as { ok?: boolean }).ok === false) {
+          updateOptimisticHabits({ id: habit.id, done: wasDone });
+          toast.error("Couldn't save — try again");
+          return;
+        }
+        if (!wasDone) toast.success("Habit logged");
+      } catch (e) {
+        updateOptimisticHabits({ id: habit.id, done: wasDone });
+        toast.error(e instanceof Error ? e.message : "Couldn't save — try again");
       }
     });
   }
