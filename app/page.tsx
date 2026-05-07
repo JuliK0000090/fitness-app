@@ -10,186 +10,189 @@ export default async function HomePage() {
     <div className="min-h-screen bg-bg-base text-text-primary">
       {/* ── Top nav ─────────────────────────────────────────────────── */}
       <nav
-        className="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto"
+        className="flex items-center justify-between px-6 py-5 max-w-3xl mx-auto"
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 20px)" }}
       >
-        <span className="font-serif text-body-lg tracking-[0.22em] uppercase font-light">
-          Vita
+        <span className="font-serif text-body-lg tracking-[0.18em] lowercase font-light">
+          vita
         </span>
-        <div className="flex items-center gap-6">
-          <Link
-            href="/auth/login"
-            className="text-caption tracking-widest uppercase text-text-muted hover:text-text-primary transition-colors"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/auth/register"
-            className="text-caption tracking-widest uppercase px-4 py-2 rounded border border-border-default text-text-secondary hover:border-champagne hover:text-text-primary transition-colors"
-          >
-            Get started
-          </Link>
-        </div>
+        <Link
+          href="/auth/login"
+          className="text-caption tracking-widest lowercase text-text-muted hover:text-text-primary transition-colors"
+        >
+          sign in
+        </Link>
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────── */}
-      <section className="px-6 max-w-3xl mx-auto pt-20 pb-24 md:pt-32 md:pb-32">
-        <p className="text-label tracking-widest uppercase text-champagne font-sans font-medium">
-          A new kind of trainer
-        </p>
-        <h1 className="mt-6 font-serif text-display-2xl font-light leading-[1.02] tracking-tight">
-          Your body is already&nbsp;talking.
-          <span className="block text-text-secondary">Vita is the one that listens.</span>
+      <section className="px-6 max-w-3xl mx-auto pt-20 pb-24 md:pt-28 md:pb-28">
+        <h1 className="font-serif text-display-2xl font-light leading-[1.02] lowercase">
+          i&rsquo;m vita.
         </h1>
-        <p className="mt-8 text-body-lg text-text-secondary leading-relaxed max-w-[520px]">
-          Sleep, recovery, strain, weight, body fat, heart rate, steps — every
-          sensor on your wrist, your finger, and your scale broadcasts a
-          signal. Vita is the private intelligence that turns that signal into
-          tomorrow&rsquo;s plan.
+        <p className="mt-8 font-serif text-display-sm font-light text-text-secondary leading-snug max-w-[620px] lowercase">
+          i remember what you did, how it felt, and what worked. the next session
+          learns from the last one.
         </p>
-        <div className="mt-10 flex flex-wrap items-center gap-4">
-          <Link
-            href="/auth/register"
-            className="px-6 py-3 rounded bg-champagne text-champagne-fg text-body font-medium hover:bg-champagne-soft transition-colors"
-          >
-            Start free
-          </Link>
-          <Link
-            href="#how"
-            className="px-6 py-3 rounded border border-border-default text-text-secondary text-body hover:border-champagne hover:text-text-primary transition-colors"
-          >
-            See how she thinks
-          </Link>
+        <div className="mt-10">
+          <PrimaryCTA />
         </div>
       </section>
 
-      <hr className="max-w-3xl mx-auto border-0 h-px bg-border-subtle" />
-
-      {/* ── Connect ─────────────────────────────────────────────────── */}
-      <section className="px-6 max-w-3xl mx-auto py-20 md:py-28">
-        <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">
-          Connect once
-        </p>
-        <h2 className="mt-4 font-serif text-display-md font-light leading-tight">
-          Every device you already&nbsp;own.
+      {/* ── Section 1 — what this is ─────────────────────────────────── */}
+      <section className="px-6 max-w-3xl mx-auto py-16 md:py-20">
+        <h2 className="font-serif text-display-md font-light leading-tight lowercase">
+          a coach that remembers.
         </h2>
-        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[560px]">
-          One tap to authorize. Vita pulls the last ninety days and keeps
-          syncing in the background. No CSV exports. No manual entry. No
-          screenshots of last night&rsquo;s sleep score.
+        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[600px] lowercase">
+          most apps log a workout and forget it. i don&rsquo;t. every set, every
+          rep, every time you wrote &ldquo;felt heavy&rdquo; — i hold onto that.
+          then i use it.
         </p>
+        <p className="mt-4 text-body-lg text-text-secondary leading-relaxed max-w-[600px] lowercase">
+          when you open me tomorrow, i already know what tuesday looked like.
+        </p>
+      </section>
 
-        <ul className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-3 text-body text-text-secondary">
-          <Provider name="Apple Health" />
-          <Provider name="Oura" />
-          <Provider name="Whoop" />
-          <Provider name="Garmin" />
-          <Provider name="Fitbit" />
-          <Provider name="Withings" />
-          <Provider name="Polar" />
-          <Provider name="Samsung Health" />
-          <Provider name="Google Fit" />
-          <Provider name="Strava" />
-          <Provider name="Smart scales" />
-          <Provider name="More on the way" muted />
+      {/* ── Section 2 — three primitives ─────────────────────────────── */}
+      <section className="px-6 max-w-3xl mx-auto py-16 md:py-20">
+        <div className="grid gap-12 md:grid-cols-3">
+          <Primitive
+            label="memory."
+            body="i keep your record. every session, every note, every PR."
+          />
+          <Primitive
+            label="plan."
+            body="i adapt the next workout to the last one. you don't write the program. neither does a stranger."
+          />
+          <Primitive
+            label="trust."
+            body="i don't sell your data. i don't shame your streak. i don't put words in your mouth."
+          />
+        </div>
+      </section>
+
+      {/* ── Section 3 — who this is for ──────────────────────────────── */}
+      <section className="px-6 max-w-3xl mx-auto py-16 md:py-20">
+        <h2 className="font-serif text-display-md font-light leading-tight lowercase">
+          built for sarah, 34.
+        </h2>
+        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[600px] lowercase">
+          she trains three to five times a week. she&rsquo;s got a notebook full
+          of PRs and a phone full of half-used apps. she reads stacy sims. she
+          doesn&rsquo;t want a leaderboard, a community, or another pep talk.
+        </p>
+        <p className="mt-4 text-body-lg text-text-secondary leading-relaxed max-w-[600px] lowercase">
+          she wants a record that gets smarter the longer she uses it.
+        </p>
+        <p className="mt-4 text-body-lg text-text-primary leading-relaxed max-w-[600px] lowercase">
+          if that&rsquo;s you, i&rsquo;ll meet you there.
+        </p>
+      </section>
+
+      {/* ── Section 4 — what i don't do ──────────────────────────────── */}
+      <section className="px-6 max-w-3xl mx-auto py-16 md:py-20">
+        <h2 className="font-serif text-display-md font-light leading-tight lowercase">
+          what i don&rsquo;t do.
+        </h2>
+        <ul className="mt-8 space-y-3 text-body-lg text-text-secondary leading-relaxed max-w-[600px] lowercase">
+          <li>i won&rsquo;t analyze your body in photos.</li>
+          <li>i won&rsquo;t give you a streak to feel guilty about.</li>
+          <li>i won&rsquo;t put words in your mouth.</li>
+          <li>i won&rsquo;t sell your data.</li>
+          <li>i won&rsquo;t pretend i&rsquo;m a doctor.</li>
         </ul>
+        <p className="mt-8 text-body-lg text-text-primary leading-relaxed max-w-[600px] lowercase">
+          i&rsquo;ll keep your record, plan your next session, and stay quiet when
+          you need quiet.
+        </p>
       </section>
 
-      <hr className="max-w-3xl mx-auto border-0 h-px bg-border-subtle" />
-
-      {/* ── How she thinks ──────────────────────────────────────────── */}
-      <section id="how" className="px-6 max-w-3xl mx-auto py-20 md:py-28">
-        <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">
-          How she thinks
-        </p>
-        <h2 className="mt-4 font-serif text-display-md font-light leading-tight">
-          Signals in. A better tomorrow&nbsp;out.
+      {/* ── Section 5 — the lineage ──────────────────────────────────── */}
+      <section className="px-6 max-w-3xl mx-auto py-16 md:py-20">
+        <h2 className="font-serif text-display-md font-light leading-tight lowercase">
+          trained on the women who got there first.
         </h2>
-        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[560px]">
-          Most apps draw you a chart and walk away. Vita reads the chart,
-          remembers what worked last cycle, and rewrites tomorrow before you
-          ask.
+        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[600px] lowercase">
+          stacy sims on physiology. mary claire haver on perimenopause. sara
+          gottfried on hormones. rhonda patrick on the science underneath all
+          of it.
         </p>
-        <div className="mt-12 grid gap-10 md:grid-cols-3">
-          <Reading
-            metric="Sleep down 12%"
-            response="Heavy lift moved to Thursday. Today becomes mobility and a walk."
-          />
-          <Reading
-            metric="HRV trending up"
-            response="She adds the harder progression. You feel why before she explains it."
-          />
-          <Reading
-            metric="Scale up, body fat down"
-            response="She tells you it&rsquo;s muscle and water — and holds the line on the goal."
-          />
+        <p className="mt-4 text-body-lg text-text-primary leading-relaxed max-w-[600px] lowercase">
+          i don&rsquo;t invent. i remember, i plan, i cite.
+        </p>
+      </section>
+
+      {/* ── Section 6 — from juliana ─────────────────────────────────── */}
+      <section className="px-6 max-w-3xl mx-auto py-16 md:py-20">
+        <p className="text-label tracking-widest lowercase text-text-disabled font-sans font-medium">
+          from juliana
+        </p>
+        <div className="mt-6 font-serif italic text-body-lg text-text-secondary leading-relaxed max-w-[620px] space-y-4 lowercase">
+          <p>i&rsquo;m juliana. 30s, toronto.</p>
+          <p>
+            i trained alone for years with a notebook. every fitness app i tried
+            treated me like a man with longer hair. so i built the one i wanted.
+          </p>
+          <p>
+            vita is the coach i wish i&rsquo;d had at 24. it remembers what you
+            did. it plans the next one. it doesn&rsquo;t shame you when life
+            gets in the way.
+          </p>
+          <p>
+            if you&rsquo;ve ever closed an app because it spoke to you like a
+            stranger — try this one.
+          </p>
+          <p className="not-italic">— juliana</p>
         </div>
       </section>
 
-      <hr className="max-w-3xl mx-auto border-0 h-px bg-border-subtle" />
-
-      {/* ── Outcome ─────────────────────────────────────────────────── */}
+      {/* ── Section 7 — the close ────────────────────────────────────── */}
       <section className="px-6 max-w-3xl mx-auto py-20 md:py-28">
-        <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">
-          Outcomes, not inputs
-        </p>
-        <h2 className="mt-4 font-serif text-display-md font-light leading-tight">
-          The plan moves around your&nbsp;life.
-          <span className="block text-text-secondary">The goal doesn&rsquo;t.</span>
+        <h2 className="font-serif text-display-md font-light leading-tight lowercase">
+          start with one session.
         </h2>
-        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[560px]">
-          Bad sleep, travel, a flu, a treatment week — Vita rewrites the week,
-          never the destination. You see a trajectory, not a streak. A waist
-          measurement on a date you can name. A back squat on a date you can
-          name. The number that matters, when it matters.
+        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[600px] lowercase">
+          log it. tell me how it felt. i&rsquo;ll take it from there.
         </p>
-        <div className="mt-12">
-          <Link
-            href="/auth/register"
-            className="inline-block px-6 py-3 rounded bg-champagne text-champagne-fg text-body font-medium hover:bg-champagne-soft transition-colors"
-          >
-            Start free
-          </Link>
-          <p className="mt-4 text-caption tracking-widest uppercase text-text-disabled">
-            Private by default · Your data stays yours
-          </p>
+        <div className="mt-10">
+          <PrimaryCTA />
         </div>
       </section>
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
-      <footer className="px-6 max-w-3xl mx-auto py-10 border-t border-border-subtle">
-        <div className="flex items-center gap-6 text-caption text-text-muted">
-          <Link href="/legal/privacy" className="hover:text-text-secondary transition-colors">Privacy</Link>
-          <Link href="/legal/terms" className="hover:text-text-secondary transition-colors">Terms</Link>
-          <Link href="mailto:juliana.kolarski@gmail.com" className="hover:text-text-secondary transition-colors">Contact</Link>
+      <footer className="px-6 max-w-3xl mx-auto pt-12 pb-10 border-t border-border-subtle">
+        <p className="font-serif italic text-body text-text-muted lowercase">
+          made in toronto. quiet by design. — vita
+        </p>
+        <div className="mt-6 flex items-center gap-6 text-caption text-text-disabled lowercase">
+          <Link href="/legal/privacy" className="hover:text-text-secondary transition-colors">privacy</Link>
+          <Link href="/legal/terms" className="hover:text-text-secondary transition-colors">terms</Link>
+          <Link href="mailto:juliana.kolarski@gmail.com" className="hover:text-text-secondary transition-colors">contact</Link>
         </div>
       </footer>
     </div>
   );
 }
 
-function Provider({ name, muted = false }: { name: string; muted?: boolean }) {
+function PrimaryCTA() {
   return (
-    <li
-      className={
-        muted
-          ? "font-serif text-body font-light text-text-disabled italic"
-          : "font-serif text-body font-light text-text-primary"
-      }
+    <Link
+      href="/auth/register"
+      className="inline-flex items-center gap-2 px-6 py-3 rounded bg-champagne text-champagne-fg text-body font-medium hover:bg-champagne-soft transition-colors lowercase"
     >
-      {name}
-    </li>
+      start — about 60 seconds
+    </Link>
   );
 }
 
-function Reading({ metric, response }: { metric: string; response: string }) {
+function Primitive({ label, body }: { label: string; body: string }) {
   return (
     <div className="space-y-3">
-      <p className="text-caption tracking-widest uppercase text-champagne font-sans font-medium">
-        {metric}
+      <p className="font-serif text-display-sm font-light text-text-primary leading-tight lowercase">
+        {label}
       </p>
-      <p className="font-serif text-heading-md font-light text-text-primary leading-snug">
-        {response}
+      <p className="text-body text-text-secondary leading-relaxed lowercase">
+        {body}
       </p>
     </div>
   );
