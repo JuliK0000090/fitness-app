@@ -6,7 +6,7 @@ One page. Drop into the repo root or `/brand`. Every other doc references this.
 
 ## what vita is
 
-A coach that remembers. Built for women 25–45 who train, track, and want their work to compound.
+A coach that remembers. Built for women who train, track, and want their work to compound.
 
 Not a tracker. Not a community. Not a plan generator. A memory — yours, with a coach attached.
 
@@ -18,7 +18,7 @@ Not a tracker. Not a community. Not a plan generator. A memory — yours, with a
 
 ## who it's for
 
-Sarah, 34. Trains 3–5 times a week. Has a notebook full of PRs and a phone full of half-used apps. Reads Stacy Sims. Doesn't want streaks, badges, or another pep talk. Wants a record that gets smarter the longer she uses it.
+Sarah, CEO. Trains 3–5 times a week. Has a notebook full of PRs and a phone full of half-used apps. Reads Stacy Sims. Doesn't want streaks, badges, or another pep talk. Wants a record that gets smarter the longer she uses it.
 
 ## intellectual lineage
 
@@ -105,7 +105,7 @@ Before any copy ships, run it through this:
 - Zero banned words?
 - Outcome stated, not input?
 - Could this appear on a 2019 SaaS landing page? If yes, rewrite.
-- Would Sarah, 34, send this to a friend? If no, soften or cut.
+- Would Sarah send this to a friend? If no, soften or cut.
 
 ## where this lives
 

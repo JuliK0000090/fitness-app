@@ -74,7 +74,7 @@ export default async function HomePage() {
       {/* ── Section 3 — who this is for ──────────────────────────────── */}
       <section className="px-6 max-w-3xl mx-auto py-16 md:py-20">
         <h2 className="font-serif text-display-md font-light leading-tight lowercase">
-          built for sarah, 34.
+          built for sarah, ceo.
         </h2>
         <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[600px] lowercase">
           she trains three to five times a week. she&rsquo;s got a notebook full
@@ -113,7 +113,7 @@ export default async function HomePage() {
           trained on the women who got there first.
         </h2>
         <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[600px] lowercase">
-          stacy sims on physiology. mary claire haver on perimenopause. sara
+          stacy sims on physiology. mary claire haver on metabolism. sara
           gottfried on hormones. rhonda patrick on the science underneath all
           of it.
         </p>
@@ -128,13 +128,13 @@ export default async function HomePage() {
           from juliana
         </p>
         <div className="mt-6 font-serif italic text-body-lg text-text-secondary leading-relaxed max-w-[620px] space-y-4 lowercase">
-          <p>i&rsquo;m juliana. 30s, toronto.</p>
+          <p>i&rsquo;m juliana. toronto.</p>
           <p>
             i trained alone for years with a notebook. every fitness app i tried
             treated me like a man with longer hair. so i built the one i wanted.
           </p>
           <p>
-            vita is the coach i wish i&rsquo;d had at 24. it remembers what you
+            vita is the coach i wish i&rsquo;d had. it remembers what you
             did. it plans the next one. it doesn&rsquo;t shame you when life
             gets in the way.
           </p>

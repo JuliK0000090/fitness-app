@@ -48,8 +48,8 @@ cohort-based; only meaningful from week 5 onward.
 
 ### Primary — Sarah
 
-Drawn from the fourteen interviews (see [brand/VITA-BRAND.md](brand/VITA-BRAND.md)). Lawyer
-in Toronto, 34, engaged. Reformer Pilates three times a week. Apple
+Drawn from the fourteen interviews (see [brand/VITA-BRAND.md](brand/VITA-BRAND.md)). CEO
+in Toronto, engaged. Reformer Pilates three times a week. Apple
 Watch + Oura. ~$970/month on classes, supplements, treatments. Trained
 alone with a notebook for nine years. She doesn't want motivation. She
 wants someone to read the chart.

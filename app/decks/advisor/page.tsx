@@ -41,15 +41,14 @@ export default async function AdvisorDeckPage() {
             Why I built this
           </p>
           <h1 className="font-serif text-display-md font-light leading-tight">
-            I&apos;m Juliana. 30s, Toronto. I trained alone for years with a notebook and a quiet feeling that nothing I downloaded actually understood me.
+            I&apos;m Juliana. Toronto. I trained alone for years with a notebook and a quiet feeling that nothing I downloaded actually understood me.
           </h1>
           <div className="space-y-5 text-body-lg text-text-secondary leading-relaxed">
             <p>
               I&apos;m the user. Lean and strong, hot pilates three times a
-              week, hot yoga on Sundays, walking everywhere, perimenopause
-              starting to whisper. Wedding prep on the calendar, two
-              treatments a year that change everything for a fortnight,
-              and a body I want to know rather than punish.
+              week, hot yoga on Sundays, walking everywhere. Wedding prep on
+              the calendar, two treatments a year that change everything for
+              a fortnight, and a body I want to know rather than punish.
             </p>
             <p>
               Every fitness app I tried treated me like a man with longer
@@ -165,9 +164,8 @@ export default async function AdvisorDeckPage() {
             <p>
               Vita is built on that premise. The product is shipping. The
               voice is in place. What it&apos;s missing is your eye on the
-              clinical edges: the cycle-aware programming, the
-              perimenopause framing, the line between observation and
-              advice. I&apos;d like to ask whether you&apos;d be willing
+              clinical edges: the cycle-aware programming, the line between
+              observation and advice. I&apos;d like to ask whether you&apos;d be willing
               to read the next twelve weeks of work in progress and tell
               me what I&apos;m getting wrong.
             </p>

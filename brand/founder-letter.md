@@ -6,13 +6,13 @@ Set in serif. No photo above. No call-to-action below. Sign-off: `— juliana`.
 
 ---
 
-i'm juliana. 30s, toronto.
+i'm juliana. toronto.
 
-i trained alone for years with a notebook. one of those small black ones, dog-eared, with PRs in the margin and the dates of every period i ever tracked. every fitness app i tried treated me like a man with longer hair — same templates, same volume, same advice that didn't account for the fact that my body changes every twenty-eight days, and again at thirty-five, and again at forty-five.
+i trained alone for years with a notebook. one of those small black ones, dog-eared, with PRs in the margin and the dates of every period i ever tracked. every fitness app i tried treated me like a man with longer hair — same templates, same volume, same advice that didn't account for the fact that my body changes every twenty-eight days, and again, and again.
 
 so i built the one i wanted.
 
-vita is the coach i wish i'd had at twenty-four. it remembers what you did. it plans the next session based on the last one. it doesn't put you on a leaderboard, sell your data, or shame you when you miss a week. it cites stacy sims, mary claire haver, sara gottfried, rhonda patrick — the women who did this work first.
+vita is the coach i wish i'd had. it remembers what you did. it plans the next session based on the last one. it doesn't put you on a leaderboard, sell your data, or shame you when you miss a week. it cites stacy sims, mary claire haver, sara gottfried, rhonda patrick — the women who did this work first.
 
 it's not a community. it's not a tracker. it's a record that compounds.
 
@@ -34,5 +34,5 @@ If a shorter version is needed (Twitter bio, podcast intro, deck cover), use one
 **25 words**
 > i built vita because every fitness app i tried treated me like a man with longer hair. it remembers. it plans. it stays quiet. — juliana
 
-**10 words**
-> the coach i wish i'd had at twenty-four. — juliana
+**8 words**
+> the coach i wish i'd had. — juliana

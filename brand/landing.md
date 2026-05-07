@@ -46,7 +46,7 @@ Three blocks. Equal weight. No icons unless they're hand-drawn or typographic.
 
 ## section 3 — who this is for
 
-> built for sarah, 34.
+> built for sarah, ceo.
 >
 > she trains three to five times a week. she's got a notebook full of PRs and a phone full of half-used apps. she reads stacy sims. she doesn't want a leaderboard, a community, or another pep talk.
 >
@@ -74,7 +74,7 @@ This section earns more trust than any feature list. Lift directly from COUNCIL_
 
 > trained on the women who got there first.
 >
-> stacy sims on physiology. mary claire haver on perimenopause. sara gottfried on hormones. rhonda patrick on the science underneath all of it.
+> stacy sims on physiology. mary claire haver on metabolism. sara gottfried on hormones. rhonda patrick on the science underneath all of it.
 >
 > i don't invent. i remember, i plan, i cite.
 
@@ -84,11 +84,11 @@ This section earns more trust than any feature list. Lift directly from COUNCIL_
 
 Set in serif italic. Smaller than the rest. One photo if any — hands on a notebook, not a face.
 
-> i'm juliana. 30s, toronto.
+> i'm juliana. toronto.
 >
 > i trained alone for years with a notebook. every fitness app i tried treated me like a man with longer hair. so i built the one i wanted.
 >
-> vita is the coach i wish i'd had at 24. it remembers what you did. it plans the next one. it doesn't shame you when life gets in the way.
+> vita is the coach i wish i'd had. it remembers what you did. it plans the next one. it doesn't shame you when life gets in the way.
 >
 > if you've ever closed an app because it spoke to you like a stranger — try this one.
 >

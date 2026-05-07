@@ -40,7 +40,7 @@ export default async function InvestorDeckPage() {
             Problem
           </p>
           <p className="font-serif text-display-sm font-light leading-snug text-text-primary">
-            Women aged 25–45 with sophisticated body and lifestyle goals
+            Women with sophisticated body and lifestyle goals
             spend hundreds of dollars a month on wearables, classes,
             supplements, and cosmetic treatments — and use software
             built by men, for men, that has no memory, no plan, and no
@@ -118,11 +118,11 @@ export default async function InvestorDeckPage() {
             Customer
           </p>
           <h2 className="font-serif text-display-md font-light leading-tight">
-            Sarah, 34.
+            Sarah, CEO.
           </h2>
           <div className="space-y-5 text-body-lg text-text-secondary leading-relaxed">
             <p>
-              Lawyer in Toronto. Engaged. Reformer Pilates three times a
+              Toronto. Engaged. Reformer Pilates three times a
               week, hot yoga on Sundays, walks 12,000 steps a day on
               purpose. Apple Watch on the left wrist, Oura ring on the
               right. Spends roughly $480/month on classes, $90/month on
@@ -132,9 +132,9 @@ export default async function InvestorDeckPage() {
             </p>
             <p>
               She wants to be lean and strong for her wedding in eight
-              months. She wants her perimenopause symptoms understood
-              before they arrive. She wants a coach who knows that the
-              week of the treatment is not the week to push.
+              months. She wants the way her body changes understood, not
+              templated over. She wants a coach who knows that the week of
+              the treatment is not the week to push.
             </p>
             <p>
               She has been training herself with a notebook for nine years.
@@ -166,7 +166,7 @@ export default async function InvestorDeckPage() {
             <MarketRow
               tag="SAM"
               num="$4.2B"
-              body="English-speaking women 25–45 with disposable income and an existing wearable. Sources: Statista, Rock Health 2025."
+              body="English-speaking women with disposable income and an existing wearable. Sources: Statista, Rock Health 2025."
             />
             <MarketRow
               tag="SOM"

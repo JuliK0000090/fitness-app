@@ -145,7 +145,6 @@ interpretation in plain English for women" angle.
 
 - "what is HRV"
 - "how to train during luteal phase"
-- "perimenopause and strength training"
 - "muscle protection on GLP-1"
 - "training around bad sleep"
 - "Oura readiness score explained"
@@ -166,7 +165,6 @@ here is harder but more valuable.
 - "personalized workout plan app"
 - "workout app that adapts to sleep"
 - "menstrual cycle workout app"
-- "perimenopause fitness app"
 - "wedding workout plan app"
 
 ### Tier 3 — Comparison (low volume, highest intent)
@@ -210,7 +208,7 @@ sites — competition for the brand term is real).
 | **Future / Caliber** | App Store ASO, podcast features, "best 1-on-1 trainer apps" | Light SEO content footprint. | Vita can compete on "AI vs human trainer" content as the bridge. |
 
 **The biggest open lane:** wearable interpretation in plain language,
-written for women 25–45. Whoop owns it for male athletes. Nobody owns
+written for women. Whoop owns it for male athletes. Nobody owns
 it for Sarah.
 
 **The second open lane:** cycle-aware training. Hers and Maven touch
@@ -279,10 +277,9 @@ your week around the luteal phase" content at scale. Vita can.
       - "How I read your sleep score" (plain-language Oura/Whoop deconstruction)
       - "When to push and when to back off — for women"
       - "What your wearable can't tell you (and why I ask anyway)"
-- [ ] **13. Five pillar pieces** on the cycle-aware-training lane,
+- [ ] **13. Four pillar pieces** on the cycle-aware-training lane,
       one per week:
       - "Training around the luteal phase"
-      - "Strength training in perimenopause"
       - "How I plan a wedding-prep block"
       - "Postpartum: what month one to month six actually looks like"
       - "Travel weeks, treatment weeks, sick weeks — how the plan moves"
