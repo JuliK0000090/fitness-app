@@ -2,16 +2,6 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
 
-/**
- * Public landing page for unauthenticated visitors. Single screen on
- * desktop, light scroll on mobile. Pure typography on the existing
- * design tokens — no images.
- *
- * The four sections (hero, founder note, how-it-works, pricing) use
- * the same restrained voice as the app: short sentences, observational,
- * no exclamation, no emoji. Sections separated by champagne rules
- * rather than page breaks so the eye flows.
- */
 export default async function HomePage() {
   const session = await getSession();
   if (session) redirect("/today");
@@ -43,110 +33,126 @@ export default async function HomePage() {
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────── */}
-      <section className="px-6 max-w-3xl mx-auto pt-16 pb-20 md:pt-24 md:pb-28">
-        <h1 className="font-serif text-display-2xl font-light leading-tight">
-          A private trainer who remembers you.
+      <section className="px-6 max-w-3xl mx-auto pt-20 pb-24 md:pt-32 md:pb-32">
+        <p className="text-label tracking-widest uppercase text-champagne font-sans font-medium">
+          A new kind of trainer
+        </p>
+        <h1 className="mt-6 font-serif text-display-2xl font-light leading-[1.02] tracking-tight">
+          Your body is already&nbsp;talking.
+          <span className="block text-text-secondary">Vita is the one that listens.</span>
         </h1>
-        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[480px]">
-          Vita is your AI personal trainer for fitness, lifestyle, and longevity
-          goals. Personalized plans built from your own data — adjusting when
-          life changes and quietly anticipating what you need.
+        <p className="mt-8 text-body-lg text-text-secondary leading-relaxed max-w-[520px]">
+          Sleep, recovery, strain, weight, body fat, heart rate, steps — every
+          sensor on your wrist, your finger, and your scale broadcasts a
+          signal. Vita is the private intelligence that turns that signal into
+          tomorrow&rsquo;s plan.
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-4">
           <Link
             href="/auth/register"
             className="px-6 py-3 rounded bg-champagne text-champagne-fg text-body font-medium hover:bg-champagne-soft transition-colors"
           >
-            Start your trial
+            Start free
           </Link>
           <Link
-            href="#how-it-works"
+            href="#how"
             className="px-6 py-3 rounded border border-border-default text-text-secondary text-body hover:border-champagne hover:text-text-primary transition-colors"
           >
-            How it works
+            See how she thinks
           </Link>
         </div>
       </section>
 
       <hr className="max-w-3xl mx-auto border-0 h-px bg-border-subtle" />
 
-      {/* ── Founder note ────────────────────────────────────────────── */}
+      {/* ── Connect ─────────────────────────────────────────────────── */}
       <section className="px-6 max-w-3xl mx-auto py-20 md:py-28">
         <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">
-          From the founder
+          Connect once
         </p>
-        <blockquote className="mt-6 font-serif text-display-md font-light leading-snug">
-          &ldquo;I built Vita because nothing in the App Store understood the
-          way I actually train.&rdquo;
-        </blockquote>
-        {/*
-          TODO: INSERT FOUNDER NOTE — Juliana to fill in. ~100 words on:
-            - The journey (training history, what she tried)
-            - The gap she saw (what existing apps got wrong for her)
-            - What she's building (Vita's promise: memory, restraint,
-              wearable trust, voice)
-          Voice: first-person, restrained, no marketing puff. Sign with
-          "— Juliana, Toronto" at the end.
-        */}
-        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[600px]">
-          [Founder note coming. A short piece on the journey from training
-          alone with a notebook to building Vita — what changed when I
-          stopped logging numbers and started talking to a coach who
-          remembered me.]
+        <h2 className="mt-4 font-serif text-display-md font-light leading-tight">
+          Every device you already&nbsp;own.
+        </h2>
+        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[560px]">
+          One tap to authorize. Vita pulls the last ninety days and keeps
+          syncing in the background. No CSV exports. No manual entry. No
+          screenshots of last night&rsquo;s sleep score.
         </p>
-        <p className="mt-6 text-caption text-text-muted">
-          Juliana, founder · Toronto
-        </p>
+
+        <ul className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-3 text-body text-text-secondary">
+          <Provider name="Apple Health" />
+          <Provider name="Oura" />
+          <Provider name="Whoop" />
+          <Provider name="Garmin" />
+          <Provider name="Fitbit" />
+          <Provider name="Withings" />
+          <Provider name="Polar" />
+          <Provider name="Samsung Health" />
+          <Provider name="Google Fit" />
+          <Provider name="Strava" />
+          <Provider name="Smart scales" />
+          <Provider name="More on the way" muted />
+        </ul>
       </section>
 
       <hr className="max-w-3xl mx-auto border-0 h-px bg-border-subtle" />
 
-      {/* ── How it works ────────────────────────────────────────────── */}
-      <section id="how-it-works" className="px-6 max-w-3xl mx-auto py-20 md:py-28">
+      {/* ── How she thinks ──────────────────────────────────────────── */}
+      <section id="how" className="px-6 max-w-3xl mx-auto py-20 md:py-28">
         <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">
-          How it works
+          How she thinks
         </p>
-        <h2 className="mt-4 font-serif text-display-md font-light">Three steps.</h2>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
-          <Step
-            num="01"
-            title="Tell Vita what you want."
-            body="One sentence. Voice or text. She parses your goal and asks two questions to make it concrete."
+        <h2 className="mt-4 font-serif text-display-md font-light leading-tight">
+          Signals in. A better tomorrow&nbsp;out.
+        </h2>
+        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[560px]">
+          Most apps draw you a chart and walk away. Vita reads the chart,
+          remembers what worked last cycle, and rewrites tomorrow before you
+          ask.
+        </p>
+        <div className="mt-12 grid gap-10 md:grid-cols-3">
+          <Reading
+            metric="Sleep down 12%"
+            response="Heavy lift moved to Thursday. Today becomes mobility and a walk."
           />
-          <Step
-            num="02"
-            title="She builds your week."
-            body="Workouts, habits, goal trajectory. All on a calendar that respects how you actually live."
+          <Reading
+            metric="HRV trending up"
+            response="She adds the harder progression. You feel why before she explains it."
           />
-          <Step
-            num="03"
-            title="She adjusts when things change."
-            body="Bad sleep, travel, treatments — automatic. The plan moves around the constraint, not over it."
+          <Reading
+            metric="Scale up, body fat down"
+            response="She tells you it&rsquo;s muscle and water — and holds the line on the goal."
           />
         </div>
       </section>
 
       <hr className="max-w-3xl mx-auto border-0 h-px bg-border-subtle" />
 
-      {/* ── Pricing ─────────────────────────────────────────────────── */}
+      {/* ── Outcome ─────────────────────────────────────────────────── */}
       <section className="px-6 max-w-3xl mx-auto py-20 md:py-28">
         <p className="text-label tracking-widest uppercase text-text-disabled font-sans font-medium">
-          Pricing
+          Outcomes, not inputs
         </p>
-        <h2 className="mt-4 font-serif text-display-md font-light">
-          One plan. $14.99/month or $119/year.
+        <h2 className="mt-4 font-serif text-display-md font-light leading-tight">
+          The plan moves around your&nbsp;life.
+          <span className="block text-text-secondary">The goal doesn&rsquo;t.</span>
         </h2>
-        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[520px]">
-          No free tier yet. Cancel anytime. Privacy-first — your data is
-          yours.
+        <p className="mt-6 text-body-lg text-text-secondary leading-relaxed max-w-[560px]">
+          Bad sleep, travel, a flu, a treatment week — Vita rewrites the week,
+          never the destination. You see a trajectory, not a streak. A waist
+          measurement on a date you can name. A back squat on a date you can
+          name. The number that matters, when it matters.
         </p>
-        <div className="mt-10">
+        <div className="mt-12">
           <Link
             href="/auth/register"
             className="inline-block px-6 py-3 rounded bg-champagne text-champagne-fg text-body font-medium hover:bg-champagne-soft transition-colors"
           >
-            Start your trial
+            Start free
           </Link>
+          <p className="mt-4 text-caption tracking-widest uppercase text-text-disabled">
+            Private by default · Your data stays yours
+          </p>
         </div>
       </section>
 
@@ -162,16 +168,29 @@ export default async function HomePage() {
   );
 }
 
-function Step({ num, title, body }: { num: string; title: string; body: string }) {
+function Provider({ name, muted = false }: { name: string; muted?: boolean }) {
   return (
-    <div className="space-y-2">
+    <li
+      className={
+        muted
+          ? "font-serif text-body font-light text-text-disabled italic"
+          : "font-serif text-body font-light text-text-primary"
+      }
+    >
+      {name}
+    </li>
+  );
+}
+
+function Reading({ metric, response }: { metric: string; response: string }) {
+  return (
+    <div className="space-y-3">
       <p className="text-caption tracking-widest uppercase text-champagne font-sans font-medium">
-        {num}
+        {metric}
       </p>
       <p className="font-serif text-heading-md font-light text-text-primary leading-snug">
-        {title}
+        {response}
       </p>
-      <p className="text-body text-text-secondary leading-relaxed">{body}</p>
     </div>
   );
 }
